@@ -1,60 +1,60 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>Estimate Generator MVP</title>
-  <style>
-    body { font-family: Arial; margin: 40px; }
-    label { display:block; margin-top:10px; }
-    input, button { padding:8px; width:250px; }
-    #grandTotal { font-weight:bold; color:green; }
-  </style>
+  <meta charset="UTF-8">
+  <title>Estimate Generator</title>
 </head>
 <body>
   <h2>Estimate Form</h2>
+  <form id="estimateForm">
+    <label>Yojna: <input type="text" name="yojna"></label><br>
+    <label>Kam: <input type="text" name="kam"></label><br>
+    <label>Manjur Rakam: <input type="number" name="manjur"></label><br>
+    <label>AAE: <input type="text" name="aae"></label><br>
+    <label>SS: <input type="text" name="ss"></label><br>
+    <label>Sr No: <input type="text" name="srno"></label><br>
+    <label>Length: <input type="text" name="length" id="length"></label><br>
+    <label>Width: <input type="text" name="width" id="width"></label><br>
+    <label>Depth: <input type="text" name="depth" id="depth"></label><br>
+    <label>Total: <input type="text" name="total" id="total"></label><br>
+    <button type="submit">Generate Estimate</button>
+  </form>
 
-  <label>Yojna nu nam:</label>
-  <input type="text" id="yojna">
-
-  <label>Kam nu nam:</label>
-  <input type="text" id="kam">
-
-  <label>Manjur thayel rakam:</label>
-  <input type="number" id="manjur">
-
-  <label>Name of AAE:</label>
-  <input type="text" id="aae">
-
-  <label>Details of SS:</label>
-  <input type="text" id="ss">
-
-  <label>Sr No:</label>
-  <input type="text" id="srno">
-
-  <label>Length (m):</label>
-  <input type="number" id="length" oninput="calcTotal()">
-
-  <label>Width (m):</label>
-  <input type="number" id="width" oninput="calcTotal()">
-
-  <label>Depth (m):</label>
-  <input type="number" id="depth" oninput="calcTotal()">
-
-  <p>Live Grand Total: <span id="grandTotal">0</span> m³</p>
-
-  <button onclick="generateEstimate()">Generate Estimate</button>
+  <div id="result"></div>
 
   <script>
-    function calcTotal() {
-      let l = parseFloat(document.getElementById('length').value) || 0;
-      let w = parseFloat(document.getElementById('width').value) || 0;
-      let d = parseFloat(document.getElementById('depth').value) || 0;
-      let total = l * w * d;
-      document.getElementById('grandTotal').innerText = total.toFixed(2);
-    }
+    const backendURL = "https://estimate-mvp.onrender.com"; // 🔗 Render backend URL
 
-    function generateEstimate() {
-      alert("✅ Estimate data captured! Next step: send to backend for Excel/PDF generation.");
-    }
+    // Auto-calc when Manjur Rakam change
+    document.querySelector("input[name='manjur']").addEventListener("change", async function() {
+      const manjur = this.value;
+      const response = await fetch(`${backendURL}/auto-calc`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ manjur })
+      });
+      const result = await response.json();
+      document.getElementById("length").value = result.length;
+      document.getElementById("width").value = result.width;
+      document.getElementById("depth").value = result.depth;
+    });
+
+    // Generate Estimate
+    document.getElementById("estimateForm").addEventListener("submit", async function(e) {
+      e.preventDefault();
+      const formData = new FormData(this);
+      const data = Object.fromEntries(formData.entries());
+
+      const response = await fetch(`${backendURL}/generate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data)
+      });
+
+      const result = await response.json();
+      document.getElementById("result").innerHTML =
+        `Estimate ready: <a href="${backendURL}${result.url}" download>Download File</a>`;
+    });
   </script>
 </body>
 </html>
