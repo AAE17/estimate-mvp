@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Estimate Generator MVP</title>
+  <style>
+    body { font-family: Arial; margin: 40px; }
+    h2 { color: #2c3e50; }
+    label { display: block; margin-top: 10px; }
+    input, select, button { margin-top: 5px; padding: 8px; width: 250px; }
+  </style>
+</head>
+<body>
+  <h2>Welcome AAE!</h2>
+  <p>Select skeleton and fill details to generate your estimate.</p>
+
+  <label>Skeleton Type:</label>
+  <select id="skeleton">
+    <option value="ccroad">CC Road</option>
+    <option value="pevar">Pevar Block</option>
+  </select>
+
+  <label>Yojna nu naam:</label>
+  <input type="text" id="yojna">
+
+  <label>Length (m):</label>
+  <input type="number" id="length">
+
+  <label>Width (m):</label>
+  <input type="number" id="width">
+
+  <label>Depth (m):</label>
+  <input type="number" id="depth">
+
+  <button onclick="generateEstimate()">Generate Estimate</button>
+
+  <script>
+    function generateEstimate() {
+      alert("Estimate generated successfully! (Excel + PDF will be downloadable in next version)");
+    }
+  </script>
+</body>
+</html>
