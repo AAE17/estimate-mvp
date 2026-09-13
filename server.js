@@ -1,3 +1,11 @@
+const express = require('express');
+const cors = require('cors');
+const bodyParser = require('body-parser');
+const ExcelJS = require('exceljs');
+
+const app = express(); // 👈 app initialization first
+app.use(cors());
+app.use(bodyParser.json());
 const cors = require('cors');
 app.use(cors());
 const express = require('express');
