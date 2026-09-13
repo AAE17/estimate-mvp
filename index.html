@@ -4,38 +4,56 @@
   <title>Estimate Generator MVP</title>
   <style>
     body { font-family: Arial; margin: 40px; }
-    h2 { color: #2c3e50; }
-    label { display: block; margin-top: 10px; }
-    input, select, button { margin-top: 5px; padding: 8px; width: 250px; }
+    label { display:block; margin-top:10px; }
+    input, button { padding:8px; width:250px; }
+    #grandTotal { font-weight:bold; color:green; }
   </style>
 </head>
 <body>
-  <h2>Welcome AAE!</h2>
-  <p>Select skeleton and fill details to generate your estimate.</p>
+  <h2>Estimate Form</h2>
 
-  <label>Skeleton Type:</label>
-  <select id="skeleton">
-    <option value="ccroad">CC Road</option>
-    <option value="pevar">Pevar Block</option>
-  </select>
-
-  <label>Yojna nu naam:</label>
+  <label>Yojna nu nam:</label>
   <input type="text" id="yojna">
 
+  <label>Kam nu nam:</label>
+  <input type="text" id="kam">
+
+  <label>Manjur thayel rakam:</label>
+  <input type="number" id="manjur">
+
+  <label>Name of AAE:</label>
+  <input type="text" id="aae">
+
+  <label>Details of SS:</label>
+  <input type="text" id="ss">
+
+  <label>Sr No:</label>
+  <input type="text" id="srno">
+
   <label>Length (m):</label>
-  <input type="number" id="length">
+  <input type="number" id="length" oninput="calcTotal()">
 
   <label>Width (m):</label>
-  <input type="number" id="width">
+  <input type="number" id="width" oninput="calcTotal()">
 
   <label>Depth (m):</label>
-  <input type="number" id="depth">
+  <input type="number" id="depth" oninput="calcTotal()">
+
+  <p>Live Grand Total: <span id="grandTotal">0</span> m³</p>
 
   <button onclick="generateEstimate()">Generate Estimate</button>
 
   <script>
+    function calcTotal() {
+      let l = parseFloat(document.getElementById('length').value) || 0;
+      let w = parseFloat(document.getElementById('width').value) || 0;
+      let d = parseFloat(document.getElementById('depth').value) || 0;
+      let total = l * w * d;
+      document.getElementById('grandTotal').innerText = total.toFixed(2);
+    }
+
     function generateEstimate() {
-      alert("Estimate generated successfully! (Excel + PDF will be downloadable in next version)");
+      alert("✅ Estimate data captured! Next step: send to backend for Excel/PDF generation.");
     }
   </script>
 </body>
