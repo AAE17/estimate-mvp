@@ -424,9 +424,10 @@ app.post("/api/estimate/paver", async (req, res) => {
     const W = Number(d.width_m);
     const area = L * W;
     const boxQty = area * Number(d.box_thick_m);
-    const murQty = area * Number(d.mur_thick_m);
+    const murQty = area * 0.1;
     const vata = 2 * L + 2 * W;
     const trunc2 = (x) => Math.trunc(x * 100) / 100;
+    const brass = area * 10.7584 / 100;
     const f4 = trunc2(156.56 * boxQty);
     const f6 = trunc2(210.42 * murQty);
     const f12 = trunc2(740.51 * area);
@@ -436,10 +437,6 @@ app.post("/api/estimate/paver", async (req, res) => {
     const f22 = f4 + f6 + f12 + f14 + f18 + f20;
     const f23 = f22 * 0.18;
     const f24 = f22 + f23;
-    const lead1 = Number(d.lead_sevaliya_to_taluka_km);
-    const lead2 = Number(d.lead_taluka_to_site_km);
-    const leadTot = lead1 + lead2;
-    const leadSay = Math.trunc(leadTot);
 
     setVal(meas, "C3", L);
     setVal(meas, "C4", W);
@@ -449,7 +446,6 @@ app.post("/api/estimate/paver", async (req, res) => {
     setVal(meas, "G6", area);
     setVal(meas, "K6", boxQty);
     setVal(meas, "K7", boxQty);
-    setVal(meas, "I10", Number(d.mur_thick_m));
     setVal(meas, "G10", area);
     setVal(meas, "K10", murQty);
     setVal(meas, "K11", murQty);
@@ -459,6 +455,9 @@ app.post("/api/estimate/paver", async (req, res) => {
     setVal(meas, "K16", trunc2(L * W));
     setVal(meas, "K19", area);
     setVal(meas, "K20", area);
+    setVal(meas, "M20", area * 10.7584);
+    setVal(meas, "N20", brass);
+    setVal(meas, "E20", brass);
     setVal(meas, "E22", L);
     setVal(meas, "E23", W);
     setVal(meas, "K22", trunc2(2 * L));
@@ -466,15 +465,9 @@ app.post("/api/estimate/paver", async (req, res) => {
     setVal(meas, "K24", vata);
     setVal(meas, "K30", boxQty);
 
-    setVal(lead, "D5", lead1);
-    setVal(lead, "D6", lead2);
-    setVal(lead, "D11", 5);
     setVal(lead, "B1", d.work_name);
     setVal(lead, "C5", d.taluka);
     setVal(lead, "A6", d.taluka);
-    setVal(lead, "D7", leadTot);
-    setVal(lead, "D8", leadSay);
-    setVal(lead, "C19", leadSay);
     setVal(lead, "G54", d.taluka);
 
     const abs = wb.getWorksheet("Abstract");
