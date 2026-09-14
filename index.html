@@ -74,18 +74,28 @@
     <section id="s-form" class="card hidden">
       <h2>CC Road — ફોર્મ</h2>
       <div class="grid">
+        <div class="field full"><label>જિલ્લા પંચાયત</label>
+          <select id="jilla"><option value="">— જિલ્લો પસંદ કરો —</option></select>
+        </div>
+        <div class="field"><label>તાલુકો</label>
+          <select id="taluka" disabled><option value="">— પહેલા જિલ્લો —</option></select>
+        </div>
+        <div class="field"><label>મોજે (ગામ)</label>
+          <select id="village" disabled><option value="">— પહેલા તાલુકો —</option></select>
+        </div>
+        <div class="field full hidden" id="villageOtherWrap">
+          <label>ગામનું નામ લખો (યાદીમાં ન હોય તો)</label>
+          <input id="village_other" placeholder="ગામનું નામ">
+        </div>
         <div class="field"><label>R & B Division</label><input id="division" value="NADIAD"></div>
-        <div class="field"><label>જિલ્લા પંચાયત</label><input id="jilla" value="KHEDA"></div>
         <div class="field"><label>Sub-div એડ્રેસ</label><input id="subdiv_address" value="DAKOR"></div>
         <div class="field"><label>Nani Sinchai એડ્રેસ</label><input id="nani_address" value="DAKOR"></div>
-        <div class="field"><label>તાલુકો</label><input id="taluka" value="Thasra"></div>
-        <div class="field"><label>મોજે (ગામ)</label><input id="village" value="ગોળજ"></div>
         <div class="field full"><label>Fund Head</label><input id="fund_head" value="ધારા ફંડ વર્ષ ૨૦૨૫-૨૬."></div>
-        <div class="field full"><label>કામનું નામ</label><input id="work_name" value="ગોળજ ગામે ઉનાળીયા ચેરમેનના ઘર થી ખૂટતા સી.સી. રસ્તાનું કામ ."></div>
+        <div class="field full"><label>કામનું નામ</label><input id="work_name" value=""></div>
         <div class="field"><label>Amounting to Rs.</label><input id="amounting" type="number" value="100000"></div>
         <div class="field"><label>Prepared by</label><input id="prepared_by" value="MR.V.A.THAKOR. A.A.E."></div>
         <div class="field"><label>Sr No</label><input id="sr_no" value="6"></div>
-        <div class="field full"><label>SS વિગત</label><input id="ss_details" value="જઅમ/ધા.ફં/પ્રા.મં/૬(૧)/૨૫-૨૬/વશી/૨૧૭-૧૯/૨૫. તા. ૧૭/૦૭/૨૦૨૫."></div>
+        <div class="field full"><label>SS વિગત</label><input id="ss_details" value=""></div>
         <div class="field"><label>લંબાઈ (m)</label><input id="length_m" type="number" step="0.01" value="40"></div>
         <div class="field"><label>પહોળાઈ (m)</label><input id="width_m" type="number" step="0.01" value="3"></div>
         <div class="field"><label>Box જાડાઈ (m)</label><input id="box_thick_m" type="number" step="0.01" value="0.3"></div>
@@ -119,12 +129,75 @@
 
 <script>
   const API = "";
+  let GJ = {};
+
+  function fillSelect(sel, items, placeholder, extraLast) {
+    sel.innerHTML = "";
+    const p = document.createElement("option");
+    p.value = "";
+    p.textContent = placeholder;
+    sel.appendChild(p);
+    items.forEach((name) => {
+      const o = document.createElement("option");
+      o.value = name;
+      o.textContent = name;
+      sel.appendChild(o);
+    });
+    if (extraLast) {
+      const o = document.createElement("option");
+      o.value = extraLast.value;
+      o.textContent = extraLast.label;
+      sel.appendChild(o);
+    }
+  }
+
+  function onJilla() {
+    const d = val("jilla");
+    const tal = document.getElementById("taluka");
+    const vil = document.getElementById("village");
+    document.getElementById("villageOtherWrap").classList.add("hidden");
+    if (!d || !GJ[d]) {
+      tal.disabled = true;
+      vil.disabled = true;
+      fillSelect(tal, [], "— પહેલા જિલ્લો —");
+      fillSelect(vil, [], "— પહેલા તાલુકો —");
+      return;
+    }
+    tal.disabled = false;
+    fillSelect(tal, Object.keys(GJ[d]), "— તાલુકો પસંદ કરો —");
+    vil.disabled = true;
+    fillSelect(vil, [], "— પહેલા તાલુકો —");
+  }
+
+  function onTaluka() {
+    const d = val("jilla");
+    const t = val("taluka");
+    const vil = document.getElementById("village");
+    document.getElementById("villageOtherWrap").classList.add("hidden");
+    if (!d || !t || !GJ[d] || !GJ[d][t]) {
+      vil.disabled = true;
+      fillSelect(vil, [], "— પહેલા તાલુકો —");
+      return;
+    }
+    vil.disabled = false;
+    fillSelect(vil, GJ[d][t], "— ગામ પસંદ કરો —", { value: "__other__", label: "અન્ય — નામ લખો" });
+  }
+
+  function onVillage() {
+    const other = val("village") === "__other__";
+    document.getElementById("villageOtherWrap").classList.toggle("hidden", !other);
+  }
+
+  function villageName() {
+    if (val("village") === "__other__") return val("village_other").trim();
+    return val("village");
+  }
 
   function show(id) {
     ["s-hi","s-type","s-form"].forEach(s => document.getElementById(s).classList.toggle("hidden", s !== id));
   }
   function goTypes() {
-    fetch(API + "/api/log", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({kind:"open_generate", user:"Ashok Suthar"}) });
+    fetch(API + "/api/log", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({kind:"open_generate"}) });
     show("s-type");
   }
   function goForm() {
@@ -151,19 +224,15 @@
     const murQty = metalTot * (num("murrum_pct") / 100);
     const ccQty = area * num("cc_thick_m");
     const leadSay = Math.trunc(num("lead_sevaliya_to_taluka_km") + num("lead_taluka_to_site_km"));
-    const rem = Math.max(leadSay - 5, 0);
-    const metalRate = 417.53 + 81.8 + rem * 5.95;
-    const murRate = 90 + 81.8;
+    const remaining = Math.max(leadSay - 5, 0);
+    const metalRate = 417.53 + 81.8 + remaining * 5.95;
     const f4 = boxQty * trunc2(156.56 * 1.01);
     const f6 = metalTot * trunc2(metalRate * 1.01);
-    const f8 = murQty * trunc2(murRate * 1.01);
+    const f8 = murQty * trunc2((90 + 81.8) * 1.01);
     const f10 = metalTot * trunc2(247.28 * 1.01);
     const f12 = murQty * trunc2(146.01 * 1.01);
-    const f14 = 0;
     const f16 = ccQty * trunc2(4866.35 * 1.01);
-    const f18 = 2656;
-    const f20 = 1 * trunc2(303.11 * 1.01);
-    const f22 = f4 + f6 + f8 + f10 + f12 + f14 + f16 + f18 + f20;
+    const f22 = f4 + f6 + f8 + f10 + f12 + f16 + 2656 + trunc2(303.11 * 1.01);
     const f24 = f22 + f22 * 0.18;
     document.getElementById("liveF24").textContent = inr(f24);
     document.getElementById("liveSay").textContent = "Amounting (Say Rs): " + inr(num("amounting"));
@@ -173,15 +242,18 @@
   document.addEventListener("input", function (e) {
     if (e.target && e.target.closest && e.target.closest("#s-form")) liveF24();
   });
-  document.addEventListener("DOMContentLoaded", liveF24);
 
   async function submitForm() {
     const btn = document.getElementById("goBtn");
     const msg = document.getElementById("msg");
+    if (!val("jilla") || !val("taluka") || !villageName()) {
+      msg.textContent = "જિલ્લો, તાલુકો અને ગામ પસંદ કરો.";
+      return;
+    }
     btn.disabled = true;
     msg.textContent = "બની રહ્યું છે…";
     const body = {
-      user_name: "Ashok Suthar",
+      user_name: "Section Officer",
       division: val("division"),
       jilla: val("jilla"),
       subdiv_address: val("subdiv_address"),
@@ -193,7 +265,7 @@
       prepared_by: val("prepared_by"),
       sr_no: val("sr_no"),
       ss_details: val("ss_details"),
-      village: val("village"),
+      village: villageName(),
       length_m: num("length_m"),
       width_m: num("width_m"),
       box_thick_m: num("box_thick_m"),
@@ -221,7 +293,18 @@
     btn.disabled = false;
   }
 
-  fetch(API + "/api/log", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({kind:"page_open", user:"Ashok Suthar"}) });
+  fetch("gj-geo.json")
+    .then((r) => r.json())
+    .then((data) => {
+      GJ = data;
+      fillSelect(document.getElementById("jilla"), Object.keys(GJ), "— જિલ્લો પસંદ કરો —");
+    })
+    .catch(function () {});
+
+  document.getElementById("jilla").addEventListener("change", onJilla);
+  document.getElementById("taluka").addEventListener("change", onTaluka);
+  document.getElementById("village").addEventListener("change", onVillage);
+  fetch(API + "/api/log", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({kind:"page_open"}) });
 </script>
 </body>
 </html>
