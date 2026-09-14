@@ -78,6 +78,14 @@ function applyOnePage(wb) {
     ws.pageSetup.horizontalCentered = true;
     ws.pageSetup.horizontalDpi = 300;
     ws.pageSetup.verticalDpi = 300;
+    ws.pageSetup.margins = {
+      left: 0.5,
+      right: 0.5,
+      top: 0.5,
+      bottom: 0.5,
+      header: 0.25,
+      footer: 0.25,
+    };
     ws.pageSetup.printArea = area;
 
     for (let c = lastC + 1; c <= 80; c++) ws.getColumn(c).hidden = true;
@@ -120,6 +128,10 @@ async function patchFitXml(xlsxPath) {
         .replace(/\s+paperSize="[^"]*"/g, "");
       return `<pageSetup${a} paperSize="9" fitToWidth="1" fitToHeight="1" horizontalDpi="300" verticalDpi="300"/>`;
     });
+    xml = xml.replace(/<pageMargins[^/]*\/>/, '<pageMargins left="0.5" right="0.5" top="0.5" bottom="0.5" header="0.25" footer="0.25"/>');
+    if (!/<pageMargins /.test(xml)) {
+      xml = xml.replace(/<pageSetup /, '<pageMargins left="0.5" right="0.5" top="0.5" bottom="0.5" header="0.25" footer="0.25"/><pageSetup ');
+    }
     zip.file(name, xml);
   }
   const out = await zip.generateAsync({ type: "nodebuffer", compression: "DEFLATE" });
@@ -165,6 +177,33 @@ function convertWithSoffice(xlsxPath) {
       }
     );
   });
+}
+
+async function addPdfMargins(pdfPath) {
+  let PDFLib;
+  try {
+    PDFLib = require("pdf-lib");
+  } catch (_e) {
+    return;
+  }
+  const { PDFDocument } = PDFLib;
+  const src = await PDFDocument.load(fs.readFileSync(pdfPath));
+  const out = await PDFDocument.create();
+  const margin = 36;
+  const srcPages = src.getPages();
+  for (let i = 0; i < srcPages.length; i++) {
+    const sp = srcPages[i];
+    const { width, height } = sp.getSize();
+    const [emb] = await out.embedPages([sp]);
+    const page = out.addPage([width, height]);
+    page.drawPage(emb, {
+      x: margin,
+      y: margin,
+      width: width - margin * 2,
+      height: height - margin * 2,
+    });
+  }
+  fs.writeFileSync(pdfPath, await out.save());
 }
 
 function sheetsToPdf(wb, pdfPath) {
@@ -321,6 +360,7 @@ app.post("/api/estimate/cc", async (req, res) => {
         if (produced !== pdfFull && fs.existsSync(produced)) fs.copyFileSync(produced, pdfFull);
         if (!fs.existsSync(pdfFull) && fs.existsSync(produced)) fs.copyFileSync(produced, pdfFull);
         if (!fs.existsSync(pdfFull)) throw new Error("pdf missing");
+        await addPdfMargins(pdfFull);
         pdfUrl = `/api/download/${pdfName}`;
       } catch (e1) {
         pdfError =
