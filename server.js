@@ -45,29 +45,38 @@ function cellText(cell) {
   return String(v);
 }
 
-function applyFit(ws) {
-  let maxR = 1;
-  let maxC = 1;
-  ws.eachRow({ includeEmpty: false }, (row, r) => {
-    if (r > maxR) maxR = r;
-    row.eachCell({ includeEmpty: false }, (_c, c) => {
-      if (c > maxC) maxC = c;
+function applyPrint(wb) {
+  const spec = {
+    "FACE SHEET": { area: "A1:I40", scale: 95 },
+    Abstract: { area: "A1:F36", scale: 75 },
+    Measurement: { area: "A1:L29", scale: 94 },
+    RA: { area: "A1:I39", scale: 90 },
+    Lead: { area: "A1:H42", scale: 100 },
+    Schedule: { area: "A1:I30", scale: 100 },
+  };
+  Object.keys(spec).forEach((name) => {
+    const ws = wb.getWorksheet(name);
+    if (!ws) return;
+    const s = spec[name];
+    ws.pageSetup = Object.assign({}, ws.pageSetup, {
+      paperSize: 9,
+      orientation: "portrait",
+      fitToPage: false,
+      scale: s.scale,
+      blackAndWhite: false,
+      horizontalDpi: 300,
+      verticalDpi: 300,
+      margins: {
+        left: 0.4,
+        right: 0.4,
+        top: 0.5,
+        bottom: 0.4,
+        header: 0.3,
+        footer: 0.3,
+      },
     });
+    ws.pageSetup.printArea = s.area;
   });
-  const lastCol = ws.getColumn(maxC).letter;
-  ws.pageSetup = Object.assign({}, ws.pageSetup, {
-    paperSize: 9,
-    orientation: maxC > 10 ? "landscape" : "portrait",
-    fitToPage: true,
-    fitToWidth: 1,
-    fitToHeight: 1,
-    horizontalCentered: true,
-    verticalCentered: false,
-    margins: { left: 0.35, right: 0.35, top: 0.4, bottom: 0.4, header: 0.15, footer: 0.15 },
-  });
-  try {
-    ws.pageSetup.printArea = `A1:${lastCol}${maxR}`;
-  } catch (_e) {}
 }
 
 function sofficeBin() {
@@ -231,7 +240,7 @@ app.post("/api/estimate/cc", async (req, res) => {
     if (ra) ra.getCell("D38").value = { formula: faceH39, result: taluka };
     if (sch) sch.getCell("C18").value = { formula: faceH39, result: taluka };
 
-    wb.worksheets.forEach(applyFit);
+    applyPrint(wb);
     if (wb.calcProperties) wb.calcProperties.fullCalcOnLoad = true;
 
     const safe = String(d.village || "gam").replace(/[^a-zA-Z0-9._-]+/g, "_");
