@@ -55,16 +55,16 @@
 
     <section id="s-hi" class="card">
       <h2>નમસ્તે, Section Officer</h2>
-      <p class="muted">Taluka Panchayat Estimate MVP. હાલમાં ફક્ત <b>CC Road</b> ચાલુ છે.</p>
+      <p class="muted">Taluka Panchayat Estimate MVP. <b>CC Road</b> અને <b>Paver Block</b> ચાલુ છે.</p>
       <button class="btn btn-g" onclick="goTypes()">Estimate Generate</button>
     </section>
 
     <section id="s-type" class="card hidden">
       <h2>એસ્ટિમેટ પ્રકાર</h2>
-      <p class="muted">CC પસંદ કરો. બાકી ટૂંક સમયમાં.</p>
+      <p class="muted">CC અથવા Paver પસંદ કરો.</p>
       <div class="choice">
-        <button onclick="goForm()">CC Road</button>
-        <button onclick="soon('Paver Block')">Paver Block</button>
+        <button onclick="goForm('cc')">CC Road</button>
+        <button onclick="goForm('paver')">Paver Block</button>
         <button onclick="soon('Gutter line')">Gutter line</button>
         <button onclick="soon('Pipe Line')">Pipe Line</button>
       </div>
@@ -72,7 +72,7 @@
     </section>
 
     <section id="s-form" class="card hidden">
-      <h2>CC Road — ફોર્મ</h2>
+      <h2 id="formTitle">CC Road — ફોર્મ</h2>
       <div class="grid">
         <div class="field full"><label>જિલ્લા પંચાયત</label>
           <select id="jilla"><option value="">— જિલ્લો પસંદ કરો —</option></select>
@@ -87,7 +87,7 @@
           <label>ગામનું નામ લખો (યાદીમાં ન હોય તો)</label>
           <input id="village_other" placeholder="ગામનું નામ">
         </div>
-        <div class="field"><label>R & B Division</label><input id="division" value="NADIAD"></div>
+        <div class="field cc-only"><label>R & B Division</label><input id="division" value="NADIAD"></div>
         <div class="field"><label>Sub-div એડ્રેસ</label><input id="subdiv_address" value="DAKOR"></div>
         <div class="field"><label>Nani Sinchai એડ્રેસ</label><input id="nani_address" value="DAKOR"></div>
         <div class="field full"><label>Fund Head</label><input id="fund_head" value="ધારા ફંડ વર્ષ ૨૦૨૫-૨૬."></div>
@@ -99,10 +99,11 @@
         <div class="field"><label>લંબાઈ (m)</label><input id="length_m" type="number" step="0.01" value="40"></div>
         <div class="field"><label>પહોળાઈ (m)</label><input id="width_m" type="number" step="0.01" value="3"></div>
         <div class="field"><label>Box જાડાઈ (m)</label><input id="box_thick_m" type="number" step="0.01" value="0.3"></div>
-        <div class="field"><label>BT જાડાઈ (m)</label><input id="bt_thick_m" type="number" step="0.01" value="0.12"></div>
-        <div class="field"><label>Voids (0.15 = 15%)</label><input id="voids" type="number" step="0.01" value="0.15"></div>
-        <div class="field"><label>મુરમ %</label><input id="murrum_pct" type="number" step="0.01" value="25"></div>
-        <div class="field"><label>CC જાડાઈ (m)</label><input id="cc_thick_m" type="number" step="0.01" value="0.1"></div>
+        <div class="field cc-only"><label>BT જાડાઈ (m)</label><input id="bt_thick_m" type="number" step="0.01" value="0.12"></div>
+        <div class="field cc-only"><label>Voids (0.15 = 15%)</label><input id="voids" type="number" step="0.01" value="0.15"></div>
+        <div class="field cc-only"><label>મુરમ %</label><input id="murrum_pct" type="number" step="0.01" value="25"></div>
+        <div class="field cc-only"><label>CC જાડાઈ (m)</label><input id="cc_thick_m" type="number" step="0.01" value="0.1"></div>
+        <div class="field paver-only hidden"><label>મુરમ જાડાઈ (m)</label><input id="mur_thick_m" type="number" step="0.01" value="0.1"></div>
         <div class="field"><label>Sevaliya → તાલુકો km</label><input id="lead_sevaliya_to_taluka_km" type="number" step="0.1" value="15"></div>
         <div class="field"><label>તાલુકો → સાઇટ km</label><input id="lead_taluka_to_site_km" type="number" step="0.1" value="15"></div>
       </div>
@@ -132,6 +133,7 @@
 <script>
   const API = "";
   let GJ = {};
+  let currentType = "cc";
 
   function fillSelect(sel, items, placeholder, extraLast) {
     sel.innerHTML = "";
@@ -202,8 +204,27 @@
     fetch(API + "/api/log", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({kind:"open_generate"}) });
     show("s-type");
   }
-  function goForm() {
-    fetch(API + "/api/log", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({kind:"select_cc"}) });
+  function goForm(type) {
+    currentType = type === "paver" ? "paver" : "cc";
+    fetch(API + "/api/log", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({kind:"select_" + currentType}) });
+    document.getElementById("formTitle").textContent = currentType === "paver" ? "Paver Block — ફોર્મ" : "CC Road — ફોર્મ";
+    document.querySelectorAll(".cc-only").forEach((el) => el.classList.toggle("hidden", currentType !== "cc"));
+    document.querySelectorAll(".paver-only").forEach((el) => el.classList.toggle("hidden", currentType !== "paver"));
+    if (currentType === "paver") {
+      document.getElementById("fund_head").value = "૧૫ % વિવેકાધીન વર્ષ ૨૦૨૬-૨૭.";
+      document.getElementById("box_thick_m").value = "0.2";
+      document.getElementById("length_m").value = "10";
+      document.getElementById("width_m").value = "10.5";
+      document.getElementById("sr_no").value = "18";
+      document.getElementById("prepared_by").value = "Shree V.A.Thakor. A.A.E.";
+    } else {
+      document.getElementById("fund_head").value = "ધારા ફંડ વર્ષ ૨૦૨૫-૨૬.";
+      document.getElementById("box_thick_m").value = "0.3";
+      document.getElementById("length_m").value = "40";
+      document.getElementById("width_m").value = "3";
+      document.getElementById("sr_no").value = "6";
+      document.getElementById("prepared_by").value = "MR.V.A.THAKOR. A.A.E.";
+    }
     show("s-form");
     liveF24();
   }
@@ -220,22 +241,31 @@
   function liveF24() {
     const L = num("length_m"), W = num("width_m");
     const area = L * W;
-    const boxQty = area * num("box_thick_m");
-    const metal = area * num("bt_thick_m");
-    const metalTot = metal + metal * num("voids");
-    const murQty = metalTot * (num("murrum_pct") / 100);
-    const ccQty = area * num("cc_thick_m");
-    const leadSay = Math.trunc(num("lead_sevaliya_to_taluka_km") + num("lead_taluka_to_site_km"));
-    const remaining = Math.max(leadSay - 5, 0);
-    const metalRate = 417.53 + 81.8 + remaining * 5.95;
-    const f4 = boxQty * trunc2(156.56 * 1.01);
-    const f6 = metalTot * trunc2(metalRate * 1.01);
-    const f8 = murQty * trunc2((90 + 81.8) * 1.01);
-    const f10 = metalTot * trunc2(247.28 * 1.01);
-    const f12 = murQty * trunc2(146.01 * 1.01);
-    const f16 = ccQty * trunc2(4866.35 * 1.01);
-    const f22 = f4 + f6 + f8 + f10 + f12 + f16 + 2656 + trunc2(303.11 * 1.01);
-    const f24 = f22 + f22 * 0.18;
+    let f24 = 0;
+    if (currentType === "paver") {
+      const boxQty = area * num("box_thick_m");
+      const murQty = area * num("mur_thick_m");
+      const vata = 2 * L + 2 * W;
+      const f22 = boxQty * 156.56 + murQty * 210.42 + area * 740.51 + vata * 23.68 + 608 + 306.14;
+      f24 = f22 + f22 * 0.18;
+    } else {
+      const boxQty = area * num("box_thick_m");
+      const metal = area * num("bt_thick_m");
+      const metalTot = metal + metal * num("voids");
+      const murQty = metalTot * (num("murrum_pct") / 100);
+      const ccQty = area * num("cc_thick_m");
+      const leadSay = Math.trunc(num("lead_sevaliya_to_taluka_km") + num("lead_taluka_to_site_km"));
+      const remaining = Math.max(leadSay - 5, 0);
+      const metalRate = 417.53 + 81.8 + remaining * 5.95;
+      const f4 = boxQty * trunc2(156.56 * 1.01);
+      const f6 = metalTot * trunc2(metalRate * 1.01);
+      const f8 = murQty * trunc2((90 + 81.8) * 1.01);
+      const f10 = metalTot * trunc2(247.28 * 1.01);
+      const f12 = murQty * trunc2(146.01 * 1.01);
+      const f16 = ccQty * trunc2(4866.35 * 1.01);
+      const f22 = f4 + f6 + f8 + f10 + f12 + f16 + 2656 + trunc2(303.11 * 1.01);
+      f24 = f22 + f22 * 0.18;
+    }
     document.getElementById("liveF24").textContent = inr(f24);
     document.getElementById("liveSay").textContent = "Amounting (Say Rs): " + inr(num("amounting"));
     return f24;
@@ -275,11 +305,13 @@
       voids: num("voids"),
       murrum_pct: num("murrum_pct"),
       cc_thick_m: num("cc_thick_m"),
+      mur_thick_m: num("mur_thick_m"),
       lead_sevaliya_to_taluka_km: num("lead_sevaliya_to_taluka_km"),
       lead_taluka_to_site_km: num("lead_taluka_to_site_km")
     };
+    const url = currentType === "paver" ? "/api/estimate/paver" : "/api/estimate/cc";
     try {
-      const res = await fetch(API + "/api/estimate/cc", {
+      const res = await fetch(API + url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body)
