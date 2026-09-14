@@ -90,15 +90,27 @@ app.post("/api/estimate/cc", async (req, res) => {
     setVal(lead, "D11", 5);
 
     const abs = wb.getWorksheet("Abstract");
+    const ra = wb.getWorksheet("RA");
+    const sch = wb.getWorksheet("Schedule");
     const taluka = d.taluka || "";
+    const faceH39 = "'FACE SHEET'!H39";
+
     if (face) {
       face.getCell("H39").value = { formula: "H19", result: taluka };
     }
     if (abs) {
-      abs.getCell("A32").value = { formula: "'FACE SHEET'!H39", result: taluka };
+      abs.getCell("A32").value = { formula: faceH39, result: taluka };
     }
     if (lead) {
-      lead.getCell("B38").value = { formula: "'FACE SHEET'!H39", result: taluka };
+      lead.getCell("C5").value = { formula: faceH39, result: taluka };
+      lead.getCell("A6").value = { formula: "C5", result: taluka };
+      lead.getCell("B38").value = { formula: faceH39, result: taluka };
+    }
+    if (ra) {
+      ra.getCell("D38").value = { formula: faceH39, result: taluka };
+    }
+    if (sch) {
+      sch.getCell("C18").value = { formula: faceH39, result: taluka };
     }
 
     if (wb.calcProperties) {
