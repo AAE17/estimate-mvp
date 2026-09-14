@@ -113,7 +113,9 @@
       </div>
       <div class="actions">
         <button class="btn btn-w" onclick="show('s-type')">પાછા</button>
-        <button class="btn btn-s" id="goBtn" onclick="submitForm()">Excel + PDF ડાઉનલોડ</button>
+        <button class="btn btn-g dl" onclick="submitForm('xlsx')">Excel</button>
+        <button class="btn btn-s dl" onclick="submitForm('pdf')">PDF</button>
+        <button class="btn btn-w dl" onclick="submitForm('both')" style="border-color:var(--g);color:var(--g)">Excel + PDF</button>
       </div>
       <p class="muted" id="msg"></p>
     </section>
@@ -243,16 +245,16 @@
     if (e.target && e.target.closest && e.target.closest("#s-form")) liveF24();
   });
 
-  async function submitForm() {
-    const btn = document.getElementById("goBtn");
+  async function submitForm(kind) {
     const msg = document.getElementById("msg");
     if (!val("jilla") || !val("taluka") || !villageName()) {
       msg.textContent = "જિલ્લો, તાલુકો અને ગામ પસંદ કરો.";
       return;
     }
-    btn.disabled = true;
-    msg.textContent = "બની રહ્યું છે…";
+    document.querySelectorAll(".dl").forEach((b) => { b.disabled = true; });
+    msg.textContent = kind === "pdf" ? "PDF બની રહ્યું છે…" : "બની રહ્યું છે…";
     const body = {
+      output: kind || "xlsx",
       user_name: "Section Officer",
       division: val("division"),
       jilla: val("jilla"),
@@ -285,12 +287,16 @@
       const data = await res.json();
       if (!data.ok) throw new Error(data.error || "fail");
       if (data.xlsx) window.open(API + data.xlsx, "_blank");
-      if (data.pdf) setTimeout(() => window.open(API + data.pdf, "_blank"), 400);
-      msg.textContent = data.pdf ? "Excel અને PDF ડાઉનલોડ થયા." : "Excel થયું. PDF: " + (data.pdf_error || "નથી");
+      if (data.pdf) setTimeout(() => window.open(API + data.pdf, "_blank"), 500);
+      msg.textContent = data.pdf && data.xlsx
+        ? "Excel અને PDF ડાઉનલોડ."
+        : data.pdf
+          ? "PDF ડાઉનલોડ."
+          : "Excel ડાઉનલોડ." + (data.pdf_error ? " PDF: " + data.pdf_error : "");
     } catch (e) {
       msg.textContent = "ભૂલ: " + e.message;
     }
-    btn.disabled = false;
+    document.querySelectorAll(".dl").forEach((b) => { b.disabled = false; });
   }
 
   fetch("gj-geo.json")
