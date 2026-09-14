@@ -60,11 +60,19 @@ const PRINT_AREA = {
   Schedule: "A1:I30",
 };
 
-function applyOnePage(wb) {
-  Object.keys(PRINT_AREA).forEach((name) => {
+const PRINT_AREA_PAVER = {
+  Estimate: "A1:I40",
+  Abstract: "A1:G29",
+  Measurement: "A1:L33",
+  Lead: "A1:I54",
+};
+
+function applyOnePage(wb, areas) {
+  const spec = areas || PRINT_AREA;
+  Object.keys(spec).forEach((name) => {
     const ws = wb.getWorksheet(name);
     if (!ws) return;
-    const area = PRINT_AREA[name];
+    const area = spec[name];
     const m = area.match(/^([A-Z]+)(\d+):([A-Z]+)(\d+)$/);
     if (!m) return;
     const lastC = colLetterToNum(m[3]);
@@ -268,6 +276,47 @@ function sheetsToPdf(wb, pdfPath) {
   });
 }
 
+async function writeAndRespond(req, res, wb, d, prefix, areas, kind) {
+  if (wb.calcProperties) wb.calcProperties.fullCalcOnLoad = true;
+  applyOnePage(wb, areas);
+  const output = d.output || "xlsx";
+  const safe = String(d.village || "gam").replace(/[^a-zA-Z0-9._-]+/g, "_");
+  const stamp = Date.now();
+  const xlsxName = `${prefix}_${safe}_${stamp}.xlsx`;
+  const pdfName = `${prefix}_${safe}_${stamp}.pdf`;
+  const xlsxFull = path.join(OUT_DIR, xlsxName);
+  const pdfFull = path.join(OUT_DIR, pdfName);
+  await wb.xlsx.writeFile(xlsxFull);
+  await patchFitXml(xlsxFull);
+
+  let pdfUrl = null;
+  let pdfError = null;
+  if (output === "pdf" || output === "both") {
+    try {
+      await convertWithSoffice(xlsxFull);
+      const produced = xlsxFull.replace(/\.xlsx$/i, ".pdf");
+      if (produced !== pdfFull && fs.existsSync(produced)) fs.copyFileSync(produced, pdfFull);
+      if (!fs.existsSync(pdfFull) && fs.existsSync(produced)) fs.copyFileSync(produced, pdfFull);
+      if (!fs.existsSync(pdfFull)) throw new Error("pdf missing");
+      await addPdfMargins(pdfFull);
+      pdfUrl = `/api/download/${pdfName}`;
+    } catch (e1) {
+      pdfError =
+        "PDF LibreOffice vagar nathi. Render Settings ma Runtime = Docker karo (Dockerfile repo ma che).";
+      logEvent("pdf_fail", { error: String(e1.message || e1), kind }, req);
+    }
+  }
+
+  logEvent(kind, { village: d.village, output, xlsx: xlsxName, pdf: pdfUrl }, req);
+  const wantXlsx = output === "xlsx" || output === "both";
+  res.json({
+    ok: true,
+    xlsx: wantXlsx ? `/api/download/${xlsxName}` : null,
+    pdf: pdfUrl,
+    pdf_error: pdfError,
+  });
+}
+
 app.get("/api/health", (_req, res) => {
   res.json({ ok: true, service: "parastate-mvp" });
 });
@@ -290,7 +339,6 @@ app.get("/api/logs", (_req, res) => {
 app.post("/api/estimate/cc", async (req, res) => {
   try {
     const d = req.body || {};
-    const output = d.output || "xlsx";
     const wb = new ExcelJS.Workbook();
     await wb.xlsx.readFile(path.join(__dirname, "skeleton-cc.xlsx"));
 
@@ -338,48 +386,49 @@ app.post("/api/estimate/cc", async (req, res) => {
     if (ra) ra.getCell("D38").value = taluka;
     if (sch) sch.getCell("C18").value = taluka;
 
-    if (wb.calcProperties) wb.calcProperties.fullCalcOnLoad = true;
-
-    applyOnePage(wb);
-
-    const safe = String(d.village || "gam").replace(/[^a-zA-Z0-9._-]+/g, "_");
-    const stamp = Date.now();
-    const xlsxName = `CC_${safe}_${stamp}.xlsx`;
-    const pdfName = `CC_${safe}_${stamp}.pdf`;
-    const xlsxFull = path.join(OUT_DIR, xlsxName);
-    const pdfFull = path.join(OUT_DIR, pdfName);
-    await wb.xlsx.writeFile(xlsxFull);
-    await patchFitXml(xlsxFull);
-
-    let pdfUrl = null;
-    let pdfError = null;
-    if (output === "pdf" || output === "both") {
-      try {
-        await convertWithSoffice(xlsxFull);
-        const produced = xlsxFull.replace(/\.xlsx$/i, ".pdf");
-        if (produced !== pdfFull && fs.existsSync(produced)) fs.copyFileSync(produced, pdfFull);
-        if (!fs.existsSync(pdfFull) && fs.existsSync(produced)) fs.copyFileSync(produced, pdfFull);
-        if (!fs.existsSync(pdfFull)) throw new Error("pdf missing");
-        await addPdfMargins(pdfFull);
-        pdfUrl = `/api/download/${pdfName}`;
-      } catch (e1) {
-        pdfError =
-          "PDF LibreOffice vagar nathi. Render Settings ma Runtime = Docker karo (Dockerfile repo ma che).";
-        logEvent("pdf_fail", { error: String(e1.message || e1) }, req);
-      }
-    }
-
-    logEvent("estimate_cc", { village: d.village, output, xlsx: xlsxName, pdf: pdfUrl }, req);
-
-    const wantXlsx = output === "xlsx" || output === "both";
-    res.json({
-      ok: true,
-      xlsx: wantXlsx ? `/api/download/${xlsxName}` : null,
-      pdf: pdfUrl,
-      pdf_error: pdfError,
-    });
+    await writeAndRespond(req, res, wb, d, "CC", PRINT_AREA, "estimate_cc");
   } catch (err) {
     logEvent("estimate_cc_error", { error: String(err) }, req);
+    res.status(500).json({ ok: false, error: String(err.message || err) });
+  }
+});
+
+app.post("/api/estimate/paver", async (req, res) => {
+  try {
+    const d = req.body || {};
+    const wb = new ExcelJS.Workbook();
+    await wb.xlsx.readFile(path.join(__dirname, "skeleton-paver.xlsx"));
+
+    const face = wb.getWorksheet("Estimate");
+    const meas = wb.getWorksheet("Measurement");
+    const lead = wb.getWorksheet("Lead");
+    if (!face || !meas || !lead) {
+      throw new Error("skeleton-paver.xlsx sheets missing");
+    }
+
+    setVal(face, "F2", d.jilla);
+    setVal(face, "F4", d.subdiv_address);
+    setVal(face, "I4", d.nani_address);
+    setVal(face, "F5", d.taluka);
+    setVal(face, "D8", d.fund_head);
+    setVal(face, "C20", d.work_name);
+    setVal(face, "G21", Number(d.amounting || 0));
+    setVal(face, "D27", d.prepared_by);
+    setVal(face, "B34", d.sr_no);
+    setVal(face, "C34", d.ss_details);
+
+    setVal(meas, "C3", Number(d.length_m));
+    setVal(meas, "C4", Number(d.width_m));
+    setVal(meas, "I6", Number(d.box_thick_m));
+    setVal(meas, "I10", Number(d.mur_thick_m));
+
+    setVal(lead, "D5", Number(d.lead_sevaliya_to_taluka_km));
+    setVal(lead, "D6", Number(d.lead_taluka_to_site_km));
+    setVal(lead, "D11", 5);
+
+    await writeAndRespond(req, res, wb, d, "PAVER", PRINT_AREA_PAVER, "estimate_paver");
+  } catch (err) {
+    logEvent("estimate_paver_error", { error: String(err) }, req);
     res.status(500).json({ ok: false, error: String(err.message || err) });
   }
 });
