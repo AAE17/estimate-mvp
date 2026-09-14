@@ -414,17 +414,88 @@ app.post("/api/estimate/paver", async (req, res) => {
     setVal(face, "C20", d.work_name);
     setVal(face, "G21", Number(d.amounting || 0));
     setVal(face, "D27", d.prepared_by);
+    setVal(face, "D29", d.prepared_by);
     setVal(face, "B34", d.sr_no);
     setVal(face, "C34", d.ss_details);
+    setVal(face, "H18", d.taluka);
+    setVal(face, "G40", d.taluka);
 
-    setVal(meas, "C3", Number(d.length_m));
-    setVal(meas, "C4", Number(d.width_m));
+    const L = Number(d.length_m);
+    const W = Number(d.width_m);
+    const area = L * W;
+    const boxQty = area * Number(d.box_thick_m);
+    const murQty = area * Number(d.mur_thick_m);
+    const vata = 2 * L + 2 * W;
+    const trunc2 = (x) => Math.trunc(x * 100) / 100;
+    const f4 = trunc2(156.56 * boxQty);
+    const f6 = trunc2(210.42 * murQty);
+    const f12 = trunc2(740.51 * area);
+    const f14 = trunc2(23.68 * vata);
+    const f18 = 608;
+    const f20 = 306.14;
+    const f22 = f4 + f6 + f12 + f14 + f18 + f20;
+    const f23 = f22 * 0.18;
+    const f24 = f22 + f23;
+    const lead1 = Number(d.lead_sevaliya_to_taluka_km);
+    const lead2 = Number(d.lead_taluka_to_site_km);
+    const leadTot = lead1 + lead2;
+    const leadSay = Math.trunc(leadTot);
+
+    setVal(meas, "C3", L);
+    setVal(meas, "C4", W);
+    setVal(meas, "D2", d.work_name);
+    setVal(meas, "I3", area);
     setVal(meas, "I6", Number(d.box_thick_m));
+    setVal(meas, "G6", area);
+    setVal(meas, "K6", boxQty);
+    setVal(meas, "K7", boxQty);
     setVal(meas, "I10", Number(d.mur_thick_m));
+    setVal(meas, "G10", area);
+    setVal(meas, "K10", murQty);
+    setVal(meas, "K11", murQty);
+    setVal(meas, "K13", murQty);
+    setVal(meas, "G16", W);
+    setVal(meas, "E16", L);
+    setVal(meas, "K16", trunc2(L * W));
+    setVal(meas, "K19", area);
+    setVal(meas, "K20", area);
+    setVal(meas, "E22", L);
+    setVal(meas, "E23", W);
+    setVal(meas, "K22", trunc2(2 * L));
+    setVal(meas, "K23", trunc2(2 * W));
+    setVal(meas, "K24", vata);
+    setVal(meas, "K30", boxQty);
 
-    setVal(lead, "D5", Number(d.lead_sevaliya_to_taluka_km));
-    setVal(lead, "D6", Number(d.lead_taluka_to_site_km));
+    setVal(lead, "D5", lead1);
+    setVal(lead, "D6", lead2);
     setVal(lead, "D11", 5);
+    setVal(lead, "B1", d.work_name);
+    setVal(lead, "C5", d.taluka);
+    setVal(lead, "A6", d.taluka);
+    setVal(lead, "D7", leadTot);
+    setVal(lead, "D8", leadSay);
+    setVal(lead, "C19", leadSay);
+    setVal(lead, "G54", d.taluka);
+
+    const abs = wb.getWorksheet("Abstract");
+    if (abs) {
+      setVal(abs, "C2", d.work_name);
+      setVal(abs, "A4", boxQty);
+      setVal(abs, "A6", murQty);
+      setVal(abs, "A12", area);
+      setVal(abs, "A14", vata);
+      setVal(abs, "F4", f4);
+      setVal(abs, "F6", f6);
+      setVal(abs, "F12", f12);
+      setVal(abs, "F14", f14);
+      setVal(abs, "F18", f18);
+      setVal(abs, "F20", f20);
+      setVal(abs, "F22", f22);
+      setVal(abs, "F23", f23);
+      setVal(abs, "F24", f24);
+      setVal(abs, "F25", Number(d.amounting || 0));
+      setVal(abs, "A28", d.taluka);
+    }
 
     await writeAndRespond(req, res, wb, d, "PAVER", PRINT_AREA_PAVER, "estimate_paver");
   } catch (err) {
