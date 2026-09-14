@@ -135,10 +135,18 @@ app.post("/api/estimate/cc", async (req, res) => {
     fres(lead, "D7", "D5+D6", leadKm);
     fres(lead, "D8", "TRUNC(D7,0)", Math.trunc(leadKm));
 
+    const remLead = Math.max(Math.trunc(leadKm) - 5, 0);
+    const metalRate = 417.53 + 81.8 + remLead * 5.95;
+    const schSheet = wb.getWorksheet("Schedule");
+    if (schSheet) {
+      fres(schSheet, "C4", "Lead!D8", Math.trunc(leadKm));
+      schSheet.getCell("F4").value = remLead;
+      fres(schSheet, "H4", "G4*F4", remLead * 5.95);
+      fres(schSheet, "I4", "D4+E4+H4", metalRate);
+    }
+
     const abs = wb.getWorksheet("Abstract");
     if (abs) {
-      const remLead = Math.max(Math.trunc(leadKm) - 5, 0);
-      const metalRate = 417.53 + 81.8 + remLead * 5.95;
       const murRate = 90 + 81.8;
       const cess = (r) => Math.trunc(r * 1.01 * 100) / 100;
       const f4 = boxQty * cess(156.56);
@@ -158,6 +166,8 @@ app.post("/api/estimate/cc", async (req, res) => {
       fres(abs, "A4", "Measurement!K6", boxQty);
       fres(abs, "I4", "Measurement!K6", boxQty);
       fres(abs, "A6", "Measurement!K11", metalTot);
+      fres(abs, "D6", "Schedule!I4", metalRate);
+      fres(abs, "D7", "TRUNC((D6*1.01),2)", Math.trunc(metalRate * 1.01 * 100) / 100);
       fres(abs, "I5", "Measurement!K11", metalTot);
       fres(abs, "A8", "Measurement!K14", murQty);
       fres(abs, "I6", "Measurement!K14", murQty);
