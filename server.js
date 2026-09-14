@@ -251,16 +251,13 @@ app.post("/api/estimate/cc", async (req, res) => {
         if (produced !== pdfFull && fs.existsSync(produced)) {
           fs.copyFileSync(produced, pdfFull);
         }
-        if (fs.existsSync(pdfFull) || fs.existsSync(produced)) {
-          pdfUrl = `/api/download/${path.basename(fs.existsSync(pdfFull) ? pdfFull : produced)}`;
-        }
-      } catch (_e1) {
-        try {
-          await sheetsToPdf(wb, pdfFull);
-          pdfUrl = `/api/download/${pdfName}`;
-        } catch (e2) {
-          pdfError = String(e2.message || e2);
-        }
+        const finalPdf = fs.existsSync(pdfFull) ? pdfFull : produced;
+        if (!fs.existsSync(finalPdf)) throw new Error("pdf missing");
+        pdfUrl = `/api/download/${path.basename(finalPdf)}`;
+      } catch (e1) {
+        pdfError =
+          "PDF LibreOffice vagar nathi. Render Settings ma Runtime = Docker karo (Dockerfile repo ma che).";
+        logEvent("pdf_fail", { error: String(e1.message || e1) }, req);
       }
     }
 
