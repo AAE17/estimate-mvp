@@ -1,73 +1,110 @@
-const express = require('express');
-const cors = require('cors');
-const bodyParser = require('body-parser');
-const ExcelJS = require('exceljs');
-
-const app = express(); // 👈 app initialization first
-app.use(cors());
-app.use(bodyParser.json());
-const cors = require('cors');
-app.use(cors());
-const express = require('express');
-const bodyParser = require('body-parser');
-const ExcelJS = require('exceljs');
+const express = require("express");
+const cors = require("cors");
+const fs = require("fs");
+const path = require("path");
+const ExcelJS = require("exceljs");
 
 const app = express();
-app.use(bodyParser.json());
+app.use(cors());
+app.use(express.json({ limit: "2mb" }));
+app.use(express.static(__dirname));
 
-// Auto-calc route
-app.post('/auto-calc', (req, res) => {
-  const manjur = parseFloat(req.body.manjur);
-  const rate = 500; // Rs per unit area
-  const depth = 0.2; // default depth
+const LOG_FILE = path.join(__dirname, "events.jsonl");
+const OUT_DIR = path.join(__dirname, "output");
+if (!fs.existsSync(OUT_DIR)) fs.mkdirSync(OUT_DIR);
 
-  const area = manjur / rate;
-  const length = Math.sqrt(area).toFixed(2);
-  const width = Math.sqrt(area).toFixed(2);
+function logEvent(kind, payload, req) {
+  const rec = {
+    ts: new Date().toISOString(),
+    kind,
+    ip: req && req.ip,
+    ua: req && req.headers["user-agent"],
+    payload: payload || {},
+  };
+  fs.appendFileSync(LOG_FILE, JSON.stringify(rec) + "\n");
+}
 
-  res.json({ length, width, depth });
+app.get("/api/health", (_req, res) => {
+  res.json({ ok: true, service: "parastate-mvp" });
 });
 
-// Generate Excel route
-app.post('/generate', async (req, res) => {
+app.post("/api/log", (req, res) => {
+  logEvent(req.body && req.body.kind ? req.body.kind : "client", req.body || {}, req);
+  res.json({ ok: true });
+});
+
+app.get("/api/logs", (_req, res) => {
+  if (!fs.existsSync(LOG_FILE)) return res.json({ count: 0, events: [] });
+  const lines = fs.readFileSync(LOG_FILE, "utf8").trim().split("\n").filter(Boolean);
+  const events = lines.slice(-50).map((l) => JSON.parse(l)).reverse();
+  res.json({ count: lines.length, events });
+});
+
+app.post("/api/estimate/cc", async (req, res) => {
   try {
-    const data = req.body;
+    const d = req.body || {};
+    const wb = new ExcelJS.Workbook();
+    await wb.xlsx.readFile(path.join(__dirname, "skeleton-cc.xlsx"));
 
-    const workbook = new ExcelJS.Workbook();
-    await workbook.xlsx.readFile('skeleton.xlsx'); // load skeleton workbook
+    const face = wb.getWorksheet("FACE SHEET");
+    const meas = wb.getWorksheet("Measurement");
+    const lead = wb.getWorksheet("Lead");
+    if (!face || !meas || !lead) {
+      throw new Error("skeleton-cc.xlsx sheets missing");
+    }
 
-    const sheet = workbook.getWorksheet('Abstract');
-    sheet.getCell('B2').value = data.yojna;
-    sheet.getCell('B3').value = data.kam;
-    sheet.getCell('B4').value = data.manjur;
-    sheet.getCell('B5').value = data.aae;
-    sheet.getCell('B6').value = data.ss;
-    sheet.getCell('B7').value = data.srno;
-    sheet.getCell('B8').value = data.length;
-    sheet.getCell('B9').value = data.width;
-    sheet.getCell('B10').value = data.depth;
-    sheet.getCell('B11').value = data.total;
+    face.getCell("F3").value = d.division;
+    face.getCell("G3").value = d.jilla;
+    face.getCell("F5").value = d.subdiv_address;
+    face.getCell("I5").value = d.nani_address;
+    face.getCell("D9").value = d.fund_head;
+    face.getCell("H19").value = d.taluka;
+    face.getCell("C21").value = d.work_name;
+    face.getCell("G22").value = Number(d.amounting || 0);
+    face.getCell("D28").value = d.prepared_by;
+    face.getCell("B34").value = d.sr_no;
+    face.getCell("C34").value = d.ss_details;
+    face.getCell("B35").value = d.village;
+    face.getCell("D35").value = d.taluka;
 
-    const filename = `estimate_${Date.now()}.xlsx`;
-    await workbook.xlsx.writeFile(filename);
+    meas.getCell("C3").value = Number(d.length_m);
+    meas.getCell("C4").value = Number(d.width_m);
+    meas.getCell("I6").value = Number(d.box_thick_m);
+    meas.getCell("I9").value = Number(d.bt_thick_m);
+    meas.getCell("G10").value = Number(d.voids);
+    meas.getCell("I14").value = Number(d.murrum_pct);
+    meas.getCell("I26").value = Number(d.cc_thick_m);
 
-    res.json({ file: filename, url: `/download/${filename}` });
+    lead.getCell("D5").value = Number(d.lead_sevaliya_to_taluka_km);
+    lead.getCell("D6").value = Number(d.lead_taluka_to_site_km);
+    lead.getCell("D11").value = 5;
+
+    const safe = String(d.village || "gam").replace(/[^a-zA-Z0-9._-]+/g, "_");
+    const name = `CC_${safe}_${Date.now()}.xlsx`;
+    const full = path.join(OUT_DIR, name);
+    await wb.xlsx.writeFile(full);
+
+    logEvent("estimate_cc", { user: d.user_name, village: d.village, file: name }, req);
+    res.json({
+      ok: true,
+      xlsx: `/api/download/${name}`,
+      pdf: null,
+      pdf_error: "PDF Render par pachi. Have Excel download thao.",
+    });
   } catch (err) {
-    res.status(500).json({ error: 'Failed to generate estimate' });
+    logEvent("estimate_cc_error", { error: String(err) }, req);
+    res.status(500).json({ ok: false, error: String(err.message || err) });
   }
 });
 
-// Route to serve generated files
-app.get('/download/:filename', (req, res) => {
-  const filename = req.params.filename;
-  res.download(filename);
+app.get("/api/download/:name", (req, res) => {
+  const name = path.basename(req.params.name);
+  const full = path.join(OUT_DIR, name);
+  if (!fs.existsSync(full)) return res.status(404).json({ ok: false });
+  res.download(full, name);
 });
 
-// Start server
-app.listen(process.env.PORT || 3000, () => {
-  console.log("✅ Server running");
-});
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+  console.log("ParaState MVP on " + PORT);
 });
