@@ -90,7 +90,16 @@
         <div class="field cc-only"><label>R & B Division</label><input id="division" value="NADIAD"></div>
         <div class="field"><label>Sub-div એડ્રેસ</label><input id="subdiv_address" value="DAKOR"></div>
         <div class="field"><label>Nani Sinchai એડ્રેસ</label><input id="nani_address" value="DAKOR"></div>
-        <div class="field full"><label>Fund Head</label><input id="fund_head" value="ધારા ફંડ વર્ષ ૨૦૨૫-૨૬."></div>
+        <div class="field"><label>Grant Head</label>
+          <select id="grant_head"><option value="">— પસંદ કરો —</option></select>
+        </div>
+        <div class="field"><label>Year</label>
+          <select id="fy_year"><option value="">— પસંદ કરો —</option></select>
+        </div>
+        <div class="field full hidden" id="grantOtherWrap">
+          <label>અન્ય Grant Head લખો</label>
+          <input id="grant_other" placeholder="Grant Head">
+        </div>
         <div class="field full"><label>કામનું નામ</label><input id="work_name" value=""></div>
         <div class="field"><label>Amounting to Rs.</label><input id="amounting" type="number" value="100000"></div>
         <div class="field"><label>Prepared by</label><input id="prepared_by" value="MR.V.A.THAKOR. A.A.E."></div>
@@ -103,14 +112,14 @@
         <div class="field cc-only"><label>Voids (0.15 = 15%)</label><input id="voids" type="number" step="0.01" value="0.15"></div>
         <div class="field cc-only"><label>મુરમ %</label><input id="murrum_pct" type="number" step="0.01" value="25"></div>
         <div class="field cc-only"><label>CC જાડાઈ (m)</label><input id="cc_thick_m" type="number" step="0.01" value="0.1"></div>
-        <div class="field paver-only hidden"><label>મુરમ જાડાઈ (m)</label><input id="mur_thick_m" type="number" step="0.01" value="0.1"></div>
-        <div class="field"><label>Sevaliya → તાલુકો km</label><input id="lead_sevaliya_to_taluka_km" type="number" step="0.1" value="15"></div>
-        <div class="field"><label>તાલુકો → સાઇટ km</label><input id="lead_taluka_to_site_km" type="number" step="0.1" value="15"></div>
+        <div class="field cc-only"><label>Sevaliya → તાલુકો km</label><input id="lead_sevaliya_to_taluka_km" type="number" step="0.1" value="15"></div>
+        <div class="field cc-only"><label>તાલુકો → સાઇટ km</label><input id="lead_taluka_to_site_km" type="number" step="0.1" value="15"></div>
       </div>
       <div class="live">
         <span>ડેટા પ્રમાણે કુલ રકમ (18% GST સહિત)</span>
         <b id="liveF24">₹ 0.00</b>
         <span id="liveSay">Amounting (Say Rs): ₹ 1,00,000</span>
+        <span id="liveBrass" class="paver-only hidden">Brass: 0.00</span>
       </div>
       <div class="actions">
         <button class="btn btn-w" onclick="show('s-type')">પાછા</button>
@@ -134,6 +143,52 @@
   const API = "";
   let GJ = {};
   let currentType = "cc";
+
+  const GRANTS = [
+    "૧૬ મુ નાણાપંચ ગ્રામ્ય કક્ષા",
+    "૧૬ મુ નાણાપંચ તાલુકા કક્ષા",
+    "૧૬ મુ નાણાપંચ જીલ્લા કક્ષા",
+    "૧૫ % વિવેકાધીન",
+    "૫ % પ્રોત્સાહક",
+    "એ.ટી.વી.ટી. કાર્યવાહક",
+    "એ.ટી.વી.ટી. તાલુકા કક્ષા",
+    "એ.ટી.વી.ટી. પ્રાંત કક્ષા",
+    "ધારા ફંડ",
+    "એમ.પી. ફંડ",
+    "જીલ્લા વહીવટી તંત્ર",
+    "ડી.એમ.એફ.",
+    "રાષ્ટ્રીય તહેવાર",
+    "અન્ય"
+  ];
+
+  function fyYears() {
+    const now = new Date();
+    const start = now.getMonth() >= 3 ? now.getFullYear() : now.getFullYear() - 1;
+    const out = [];
+    for (let i = 0; i < 8; i++) {
+      const a = start - i;
+      out.push(a + "-" + String(a + 1).slice(-2));
+    }
+    return out;
+  }
+
+  function toGuNum(s) {
+    const g = "૦૧૨૩૪૫૬૭૮૯";
+    return String(s).replace(/\d/g, (d) => g[d]);
+  }
+
+  function onGrant() {
+    const other = val("grant_head") === "અન્ય";
+    document.getElementById("grantOtherWrap").classList.toggle("hidden", !other);
+  }
+
+  function fundHead() {
+    let g = val("grant_head");
+    if (g === "અન્ય") g = val("grant_other").trim();
+    const y = val("fy_year");
+    if (!g || !y) return "";
+    return g + " વર્ષ " + toGuNum(y) + ".";
+  }
 
   function fillSelect(sel, items, placeholder, extraLast) {
     sel.innerHTML = "";
@@ -210,15 +265,17 @@
     document.getElementById("formTitle").textContent = currentType === "paver" ? "Paver Block — ફોર્મ" : "CC Road — ફોર્મ";
     document.querySelectorAll(".cc-only").forEach((el) => el.classList.toggle("hidden", currentType !== "cc"));
     document.querySelectorAll(".paver-only").forEach((el) => el.classList.toggle("hidden", currentType !== "paver"));
+    document.getElementById("grant_head").value = "";
+    document.getElementById("fy_year").value = "";
+    document.getElementById("grant_other").value = "";
+    document.getElementById("grantOtherWrap").classList.add("hidden");
     if (currentType === "paver") {
-      document.getElementById("fund_head").value = "૧૫ % વિવેકાધીન વર્ષ ૨૦૨૬-૨૭.";
       document.getElementById("box_thick_m").value = "0.2";
       document.getElementById("length_m").value = "10";
       document.getElementById("width_m").value = "10.5";
       document.getElementById("sr_no").value = "18";
       document.getElementById("prepared_by").value = "Shree V.A.Thakor. A.A.E.";
     } else {
-      document.getElementById("fund_head").value = "ધારા ફંડ વર્ષ ૨૦૨૫-૨૬.";
       document.getElementById("box_thick_m").value = "0.3";
       document.getElementById("length_m").value = "40";
       document.getElementById("width_m").value = "3";
@@ -244,10 +301,12 @@
     let f24 = 0;
     if (currentType === "paver") {
       const boxQty = area * num("box_thick_m");
-      const murQty = area * num("mur_thick_m");
+      const murQty = area * 0.1;
       const vata = 2 * L + 2 * W;
       const f22 = boxQty * 156.56 + murQty * 210.42 + area * 740.51 + vata * 23.68 + 608 + 306.14;
       f24 = f22 + f22 * 0.18;
+      const brass = area * 10.7584 / 100;
+      document.getElementById("liveBrass").textContent = "Brass: " + Number(brass).toLocaleString("en-IN", { maximumFractionDigits: 4, minimumFractionDigits: 2 });
     } else {
       const boxQty = area * num("box_thick_m");
       const metal = area * num("bt_thick_m");
@@ -281,6 +340,10 @@
       msg.textContent = "જિલ્લો, તાલુકો અને ગામ પસંદ કરો.";
       return;
     }
+    if (!fundHead()) {
+      msg.textContent = "Grant Head અને Year પસંદ કરો.";
+      return;
+    }
     document.querySelectorAll(".dl").forEach((b) => { b.disabled = true; });
     msg.textContent = kind === "pdf" ? "PDF બની રહ્યું છે…" : "બની રહ્યું છે…";
     const body = {
@@ -291,7 +354,7 @@
       subdiv_address: val("subdiv_address"),
       nani_address: val("nani_address"),
       taluka: val("taluka"),
-      fund_head: val("fund_head"),
+      fund_head: fundHead(),
       work_name: val("work_name"),
       amounting: num("amounting"),
       prepared_by: val("prepared_by"),
@@ -305,7 +368,6 @@
       voids: num("voids"),
       murrum_pct: num("murrum_pct"),
       cc_thick_m: num("cc_thick_m"),
-      mur_thick_m: num("mur_thick_m"),
       lead_sevaliya_to_taluka_km: num("lead_sevaliya_to_taluka_km"),
       lead_taluka_to_site_km: num("lead_taluka_to_site_km")
     };
@@ -339,6 +401,9 @@
     })
     .catch(function () {});
 
+  fillSelect(document.getElementById("grant_head"), GRANTS, "— Grant Head —");
+  fillSelect(document.getElementById("fy_year"), fyYears(), "— Year —");
+  document.getElementById("grant_head").addEventListener("change", onGrant);
   document.getElementById("jilla").addEventListener("change", onJilla);
   document.getElementById("taluka").addEventListener("change", onTaluka);
   document.getElementById("village").addEventListener("change", onVillage);
