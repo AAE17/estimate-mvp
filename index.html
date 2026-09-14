@@ -29,9 +29,9 @@
     .actions { display:flex; gap:8px; flex-wrap:wrap; margin-top:16px; }
     .choice { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
     .choice button { text-align:left; padding:14px; border-radius:12px; border:2px solid var(--l); background:#fff; cursor:pointer; font:inherit; }
-    .hidden { display:none; }
+    .hidden { display: none !important; }
     .toast {
-      position:fixed; inset:0; background:rgba(20,33,26,.45); display:flex; align-items:center; justify-content:center; padding:16px;
+      position:fixed; inset:0; background:rgba(20,33,26,.45); display:flex; align-items:center; justify-content:center; padding:16px; z-index:50;
     }
     .toast .box { background:#fff; border-radius:12px; padding:18px; max-width:360px; }
     @media (max-width:640px) { .grid,.choice { grid-template-columns:1fr; } }
