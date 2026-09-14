@@ -98,9 +98,9 @@
         <div class="field"><label>તાલુકો → સાઇટ km</label><input id="lead_taluka_to_site_km" type="number" step="0.1" value="15"></div>
       </div>
       <div class="live">
-        <span>Abstract F24 — ડેટા પ્રમાણે કુલ (18% GST સહિત)</span>
+        <span>ડેટા પ્રમાણે કુલ રકમ (18% GST સહિત)</span>
         <b id="liveF24">₹ 0.00</b>
-        <span id="liveSay">Amounting (Say Rs / Face G22): ₹ 1,00,000</span>
+        <span id="liveSay">Amounting (Say Rs): ₹ 1,00,000</span>
       </div>
       <div class="actions">
         <button class="btn btn-w" onclick="show('s-type')">પાછા</button>
@@ -167,7 +167,7 @@
     const f22 = f4 + f6 + f8 + f10 + f12 + f14 + f16 + f18 + f20;
     const f24 = f22 + f22 * 0.18;
     document.getElementById("liveF24").textContent = inr(f24);
-    document.getElementById("liveSay").textContent = "Amounting (Say Rs / Face G22): " + inr(num("amounting"));
+    document.getElementById("liveSay").textContent = "Amounting (Say Rs): " + inr(num("amounting"));
     return f24;
   }
 
