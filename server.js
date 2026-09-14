@@ -45,16 +45,85 @@ function cellText(cell) {
   return String(v);
 }
 
-function applyPrint(wb) {
-  const ra = wb.getWorksheet("RA");
-  if (!ra) return;
-  ra.pageSetup = Object.assign({}, ra.pageSetup, {
-    paperSize: 9,
-    orientation: "portrait",
-    fitToPage: false,
-    scale: 90,
+function colLetterToNum(letter) {
+  let n = 0;
+  for (let i = 0; i < letter.length; i++) n = n * 26 + (letter.charCodeAt(i) - 64);
+  return n;
+}
+
+const PRINT_AREA = {
+  "FACE SHEET": "A1:I40",
+  Abstract: "A1:F36",
+  Measurement: "A1:L29",
+  RA: "A1:I39",
+  Lead: "A1:H42",
+  Schedule: "A1:I30",
+};
+
+function applyOnePage(wb) {
+  Object.keys(PRINT_AREA).forEach((name) => {
+    const ws = wb.getWorksheet(name);
+    if (!ws) return;
+    const area = PRINT_AREA[name];
+    const m = area.match(/^([A-Z]+)(\d+):([A-Z]+)(\d+)$/);
+    if (!m) return;
+    const lastC = colLetterToNum(m[3]);
+    const lastR = Number(m[4]);
+
+    ws.pageSetup.paperSize = 9;
+    ws.pageSetup.orientation = "portrait";
+    ws.pageSetup.fitToPage = true;
+    ws.pageSetup.fitToWidth = 1;
+    ws.pageSetup.fitToHeight = 1;
+    ws.pageSetup.horizontalCentered = true;
+    ws.pageSetup.horizontalDpi = 300;
+    ws.pageSetup.verticalDpi = 300;
+    ws.pageSetup.printArea = area;
+
+    for (let c = lastC + 1; c <= 80; c++) ws.getColumn(c).hidden = true;
+    const rowMax = Math.max(lastR + 50, ws.rowCount || lastR);
+    for (let r = lastR + 1; r <= rowMax; r++) ws.getRow(r).hidden = true;
   });
-  ra.pageSetup.printArea = "A1:I39";
+}
+
+async function patchFitXml(xlsxPath) {
+  let JSZip;
+  try {
+    JSZip = require("jszip");
+  } catch (_e) {
+    return;
+  }
+  const zip = await JSZip.loadAsync(fs.readFileSync(xlsxPath));
+  const files = Object.keys(zip.files).filter(
+    (n) => n.startsWith("xl/worksheets/sheet") && n.endsWith(".xml")
+  );
+  for (const name of files) {
+    let xml = await zip.file(name).async("string");
+    if (!/pageSetUpPr/.test(xml)) {
+      if (/<sheetPr\b[^>]*\/>/.test(xml)) {
+        xml = xml.replace(/<sheetPr\b([^>]*)\/>/, '<sheetPr$1><pageSetUpPr fitToPage="1"/></sheetPr>');
+      } else if (/<sheetPr\b/.test(xml)) {
+        xml = xml.replace(/<sheetPr\b([^>]*)>/, '<sheetPr$1><pageSetUpPr fitToPage="1"/>');
+      } else {
+        xml = xml.replace(/<dimension /, '<sheetPr><pageSetUpPr fitToPage="1"/></sheetPr><dimension ');
+      }
+    } else {
+      xml = xml.replace(/<pageSetUpPr[^/]*\/>/, '<pageSetUpPr fitToPage="1"/>');
+    }
+    xml = xml.replace(/<pageSetup\b([^>]*)\/>/, (_all, attrs) => {
+      let a = String(attrs)
+        .replace(/\s+scale="[^"]*"/g, "")
+        .replace(/\s+horizontalDpi="[^"]*"/g, "")
+        .replace(/\s+verticalDpi="[^"]*"/g, "")
+        .replace(/\s+fitToWidth="[^"]*"/g, "")
+        .replace(/\s+fitToHeight="[^"]*"/g, "")
+        .replace(/\s+paperSize="[^"]*"/g, "");
+      return `<pageSetup${a} paperSize="9" fitToWidth="1" fitToHeight="1" horizontalDpi="300" verticalDpi="300"/>`;
+    });
+    zip.file(name, xml);
+  }
+  const out = await zip.generateAsync({ type: "nodebuffer", compression: "DEFLATE" });
+  fs.writeFileSync(xlsxPath, out);
 }
 
 function sofficeBin() {
@@ -71,12 +140,26 @@ function convertWithSoffice(xlsxPath) {
   return new Promise((resolve, reject) => {
     const dir = path.dirname(xlsxPath);
     const pdfPath = xlsxPath.replace(/\.xlsx$/i, ".pdf");
+    const filter =
+      'pdf:calc_pdf_Export:{"SinglePageSheets":{"type":"boolean","value":"true"}}';
     execFile(
       sofficeBin(),
-      ["--headless", "--norestore", "--nolockcheck", "--convert-to", "pdf", "--outdir", dir, xlsxPath],
-      { timeout: 90000 },
+      ["--headless", "--norestore", "--nolockcheck", "--convert-to", filter, "--outdir", dir, xlsxPath],
+      { timeout: 120000 },
       (err) => {
-        if (err) return reject(err);
+        if (err) {
+          execFile(
+            sofficeBin(),
+            ["--headless", "--norestore", "--nolockcheck", "--convert-to", "pdf", "--outdir", dir, xlsxPath],
+            { timeout: 120000 },
+            (err2) => {
+              if (err2) return reject(err2);
+              if (!fs.existsSync(pdfPath)) return reject(new Error("pdf missing"));
+              resolve(pdfPath);
+            }
+          );
+          return;
+        }
         if (!fs.existsSync(pdfPath)) return reject(new Error("pdf missing"));
         resolve(pdfPath);
       }
@@ -216,8 +299,9 @@ app.post("/api/estimate/cc", async (req, res) => {
     if (ra) ra.getCell("D38").value = taluka;
     if (sch) sch.getCell("C18").value = taluka;
 
-    applyPrint(wb);
     if (wb.calcProperties) wb.calcProperties.fullCalcOnLoad = true;
+
+    applyOnePage(wb);
 
     const safe = String(d.village || "gam").replace(/[^a-zA-Z0-9._-]+/g, "_");
     const stamp = Date.now();
@@ -226,6 +310,7 @@ app.post("/api/estimate/cc", async (req, res) => {
     const xlsxFull = path.join(OUT_DIR, xlsxName);
     const pdfFull = path.join(OUT_DIR, pdfName);
     await wb.xlsx.writeFile(xlsxFull);
+    await patchFitXml(xlsxFull);
 
     let pdfUrl = null;
     let pdfError = null;
@@ -233,12 +318,10 @@ app.post("/api/estimate/cc", async (req, res) => {
       try {
         await convertWithSoffice(xlsxFull);
         const produced = xlsxFull.replace(/\.xlsx$/i, ".pdf");
-        if (produced !== pdfFull && fs.existsSync(produced)) {
-          fs.copyFileSync(produced, pdfFull);
-        }
-        const finalPdf = fs.existsSync(pdfFull) ? pdfFull : produced;
-        if (!fs.existsSync(finalPdf)) throw new Error("pdf missing");
-        pdfUrl = `/api/download/${path.basename(finalPdf)}`;
+        if (produced !== pdfFull && fs.existsSync(produced)) fs.copyFileSync(produced, pdfFull);
+        if (!fs.existsSync(pdfFull) && fs.existsSync(produced)) fs.copyFileSync(produced, pdfFull);
+        if (!fs.existsSync(pdfFull)) throw new Error("pdf missing");
+        pdfUrl = `/api/download/${pdfName}`;
       } catch (e1) {
         pdfError =
           "PDF LibreOffice vagar nathi. Render Settings ma Runtime = Docker karo (Dockerfile repo ma che).";
