@@ -46,37 +46,15 @@ function cellText(cell) {
 }
 
 function applyPrint(wb) {
-  const spec = {
-    "FACE SHEET": { area: "A1:I40", scale: 95 },
-    Abstract: { area: "A1:F36", scale: 75 },
-    Measurement: { area: "A1:L29", scale: 94 },
-    RA: { area: "A1:I39", scale: 90 },
-    Lead: { area: "A1:H42", scale: 100 },
-    Schedule: { area: "A1:I30", scale: 100 },
-  };
-  Object.keys(spec).forEach((name) => {
-    const ws = wb.getWorksheet(name);
-    if (!ws) return;
-    const s = spec[name];
-    ws.pageSetup = Object.assign({}, ws.pageSetup, {
-      paperSize: 9,
-      orientation: "portrait",
-      fitToPage: false,
-      scale: s.scale,
-      blackAndWhite: false,
-      horizontalDpi: 300,
-      verticalDpi: 300,
-      margins: {
-        left: 0.4,
-        right: 0.4,
-        top: 0.5,
-        bottom: 0.4,
-        header: 0.3,
-        footer: 0.3,
-      },
-    });
-    ws.pageSetup.printArea = s.area;
+  const ra = wb.getWorksheet("RA");
+  if (!ra) return;
+  ra.pageSetup = Object.assign({}, ra.pageSetup, {
+    paperSize: 9,
+    orientation: "portrait",
+    fitToPage: false,
+    scale: 90,
   });
+  ra.pageSetup.printArea = "A1:I39";
 }
 
 function sofficeBin() {
@@ -230,15 +208,13 @@ app.post("/api/estimate/cc", async (req, res) => {
     const ra = wb.getWorksheet("RA");
     const sch = wb.getWorksheet("Schedule");
     const taluka = d.taluka || "";
-    const faceH39 = "'FACE SHEET'!H39";
-
-    face.getCell("H39").value = { formula: "H19", result: taluka };
-    if (abs) abs.getCell("A32").value = { formula: faceH39, result: taluka };
-    lead.getCell("C5").value = { formula: faceH39, result: taluka };
-    lead.getCell("A6").value = { formula: "C5", result: taluka };
-    lead.getCell("B38").value = { formula: faceH39, result: taluka };
-    if (ra) ra.getCell("D38").value = { formula: faceH39, result: taluka };
-    if (sch) sch.getCell("C18").value = { formula: faceH39, result: taluka };
+    // Values only — formula objects make Excel Repair and break FACE/Lead page breaks.
+    if (abs) abs.getCell("A32").value = taluka;
+    lead.getCell("C5").value = taluka;
+    lead.getCell("A6").value = taluka;
+    lead.getCell("B38").value = taluka;
+    if (ra) ra.getCell("D38").value = taluka;
+    if (sch) sch.getCell("C18").value = taluka;
 
     applyPrint(wb);
     if (wb.calcProperties) wb.calcProperties.fullCalcOnLoad = true;
