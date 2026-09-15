@@ -550,7 +550,10 @@ app.post("/api/estimate/cc", async (req, res) => {
     setVal(face, "F5", d.subdiv_address);
     setVal(face, "I5", d.nani_address);
     setVal(face, "D9", d.fund_head);
+    setVal(face, "E35", d.fund_head);
+    setVal(face, "F35", d.fund_head);
     setVal(face, "H19", d.taluka);
+    setVal(face, "H40", d.taluka);
     setVal(face, "C21", d.work_name);
     setVal(face, "G22", Number(d.amounting || 0));
     setVal(face, "D28", d.prepared_by);
@@ -574,13 +577,29 @@ app.post("/api/estimate/cc", async (req, res) => {
     const ra = wb.getWorksheet("RA");
     const sch = wb.getWorksheet("Schedule");
     const taluka = d.taluka || "";
-    // Values only — formula objects make Excel Repair and break FACE/Lead page breaks.
-    if (abs) abs.getCell("A32").value = taluka;
+    const work = d.work_name || "";
+    if (abs) {
+      setVal(abs, "B2", work);
+      setVal(abs, "C2", work);
+      abs.getCell("A32").value = taluka;
+    }
+    setVal(meas, "C2", work);
+    setVal(meas, "D2", work);
+    if (ra) {
+      setVal(ra, "B2", work);
+      setVal(ra, "C2", work);
+      ra.getCell("D38").value = taluka;
+    }
+    setVal(lead, "A2", work);
+    setVal(lead, "B2", work);
     lead.getCell("C5").value = taluka;
     lead.getCell("A6").value = taluka;
     lead.getCell("B38").value = taluka;
-    if (ra) ra.getCell("D38").value = taluka;
-    if (sch) sch.getCell("C18").value = taluka;
+    if (sch) {
+      setVal(sch, "B2", work);
+      setVal(sch, "C2", work);
+      sch.getCell("C18").value = taluka;
+    }
 
     await writeAndRespond(req, res, wb, d, "CC", PRINT_AREA, "estimate_cc");
   } catch (err) {
