@@ -406,16 +406,25 @@ app.post("/api/scan", (req, res) => {
       error: err ? String(err.message || err).slice(0, 180) : ""
     });
   }
-  Tesseract.recognize(tmp, "eng", { logger: () => {} })
-    .then(function (out) {
-      finish(null, (out && out.data && out.data.text) || "");
+  function ocrLang(lang) {
+    return Tesseract.recognize(tmp, lang, { logger: function () {} }).then(function (out) {
+      return (out && out.data && out.data.text) || "";
+    });
+  }
+  ocrLang("guj+eng")
+    .then(function (t) {
+      if (String(t).trim().length > 15) return t;
+      return ocrLang("guj");
+    })
+    .then(function (t) {
+      if (String(t).trim().length > 15) return t;
+      return ocrLang("eng");
+    })
+    .then(function (t) {
+      finish(null, t);
     })
     .catch(function (e) {
-      const args1 = [tmp, outBase, "-l", "eng", "--psm", "6"];
-      execFile("tesseract", args1, { timeout: 40000 }, function (err2, _o2, se2) {
-        if (err2 && se2) err2.message = String(se2).slice(0, 180);
-        finish(err2 || e, readOut());
-      });
+      finish(e, "");
     });
 });
 
