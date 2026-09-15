@@ -3,6 +3,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libreoffice-calc \
     fonts-noto-core \
     fontconfig \
+    tesseract-ocr \
+    tesseract-ocr-eng \
+    tesseract-ocr-guj \
     && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY package.json ./
