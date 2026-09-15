@@ -308,7 +308,16 @@ async function writeAndRespond(req, res, wb, d, prefix, areas, kind) {
     }
   }
 
-  logEvent(kind, { village: d.village, output, xlsx: xlsxName, pdf: pdfUrl }, req);
+  logEvent(kind, {
+    village: d.village,
+    taluka: d.taluka,
+    jilla: d.jilla,
+    amounting: Number(d.amounting || 0),
+    work_name: d.work_name || "",
+    output,
+    xlsx: xlsxName,
+    pdf: pdfUrl
+  }, req);
   const wantXlsx = output === "xlsx" || output === "both";
   res.json({
     ok: true,
@@ -520,6 +529,46 @@ app.get("/api/health", (_req, res) => {
 app.post("/api/log", (req, res) => {
   logEvent(req.body && req.body.kind ? req.body.kind : "client", req.body || {}, req);
   res.json({ ok: true });
+});
+
+
+app.get("/api/stats", (_req, res) => {
+  const empty = { total: 0, cc: 0, paver: 0, amount: 0, today: 0, talukas: [], recent: [] };
+  if (!fs.existsSync(LOG_FILE)) return res.json(empty);
+  const lines = fs.readFileSync(LOG_FILE, "utf8").trim().split("\n").filter(Boolean);
+  const today = new Date().toISOString().slice(0, 10);
+  const talMap = {};
+  let total = 0, cc = 0, paver = 0, amount = 0, todayN = 0;
+  const recent = [];
+  for (const line of lines) {
+    let ev;
+    try { ev = JSON.parse(line); } catch (_e) { continue; }
+    if (ev.kind !== "estimate_cc" && ev.kind !== "estimate_paver") continue;
+    const pl = ev.payload || {};
+    total++;
+    if (ev.kind === "estimate_cc") cc++;
+    else paver++;
+    amount += Number(pl.amounting || 0);
+    if (String(ev.ts || "").slice(0, 10) === today) todayN++;
+    const tk = pl.taluka || "—";
+    talMap[tk] = (talMap[tk] || 0) + 1;
+    recent.push({
+      ts: ev.ts,
+      type: ev.kind === "estimate_paver" ? "Paver" : "CC",
+      village: pl.village || "",
+      taluka: tk,
+      amounting: Number(pl.amounting || 0),
+      work_name: pl.work_name || ""
+    });
+  }
+  const talukas = Object.keys(talMap)
+    .map((k) => ({ name: k, n: talMap[k] }))
+    .sort((a, b) => b.n - a.n)
+    .slice(0, 8);
+  res.json({
+    total, cc, paver, amount, today: todayN, talukas,
+    recent: recent.reverse().slice(0, 8)
+  });
 });
 
 app.get("/api/logs", (_req, res) => {
