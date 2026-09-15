@@ -67,7 +67,9 @@
         <button onclick="goForm('paver')">Paver Block</button>
         <button onclick="soon('Gutter line')">Gutter line</button>
         <button onclick="soon('Pipe Line')">Pipe Line</button>
+        <button onclick="startScan()">Scan SS letter</button>
       </div>
+      <input id="ssFile" type="file" accept="image/*" capture="environment" class="hidden" onchange="onSsFile(this)">
       <div class="actions"><button class="btn btn-w" onclick="show('s-hi')">પાછા</button></div>
     </section>
 
@@ -136,6 +138,20 @@
       <b>Under construction</b>
       <p id="popText" class="muted"></p>
       <button class="btn btn-g" onclick="document.getElementById('pop').classList.add('hidden')">OK — CC Road અથવા Paver Block પસંદ કરો</button>
+    </div>
+  </div>
+
+  <div id="scanAsk" class="toast hidden">
+    <div class="box" onclick="event.stopPropagation()">
+      <b>SS માં કયું કામ?</b>
+      <p class="muted">ફોટો આવ્યો. હાલ એપ પૂછે છે — ખોટું હોય તો બીજું પસંદ કરો.</p>
+      <div class="actions" style="flex-direction:column">
+        <button class="btn btn-g" onclick="scanPick('cc')">CC Road</button>
+        <button class="btn btn-g" onclick="scanPick('paver')">Paver Block</button>
+        <button class="btn btn-w" onclick="scanPick('gutter')">Gutter line</button>
+        <button class="btn btn-w" onclick="scanPick('pipe')">Pipe Line</button>
+        <button class="btn btn-w" onclick="document.getElementById('scanAsk').classList.add('hidden')">રદ</button>
+      </div>
     </div>
   </div>
 
@@ -289,6 +305,21 @@
     fetch(API + "/api/log", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({kind:"blocked_type", type:name}) });
     document.getElementById("popText").textContent = "Gutter line અને Pipe Line under construction. Select CC Road or Paver Block.";
     document.getElementById("pop").classList.remove("hidden");
+  }
+  function startScan() {
+    document.getElementById("ssFile").value = "";
+    document.getElementById("ssFile").click();
+  }
+  function onSsFile(inp) {
+    if (!inp.files || !inp.files[0]) return;
+    fetch(API + "/api/log", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({kind:"scan_ss"}) });
+    document.getElementById("scanAsk").classList.remove("hidden");
+  }
+  function scanPick(kind) {
+    document.getElementById("scanAsk").classList.add("hidden");
+    if (kind === "gutter") return soon("Gutter line");
+    if (kind === "pipe") return soon("Pipe Line");
+    goForm(kind);
   }
   function val(id) { return document.getElementById(id).value; }
   function num(id) { return Number(document.getElementById(id).value); }
