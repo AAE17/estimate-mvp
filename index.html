@@ -357,6 +357,11 @@
     data = data || {};
     if (data.work_name) document.getElementById("work_name").value = data.work_name;
     if (data.amounting) document.getElementById("amounting").value = data.amounting;
+    if (data.village) {
+      document.getElementById("village").value = "__other__";
+      document.getElementById("villageOtherWrap").classList.remove("hidden");
+      document.getElementById("village_other").value = data.village;
+    }
     document.getElementById("width_m").value = "3";
     document.getElementById("length_m").value = String(lengthFromAmount(type, Number(data.amounting || 0)));
     liveF24();
