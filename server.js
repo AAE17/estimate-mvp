@@ -321,9 +321,26 @@ function detectTypeFromText(t) {
   const s = String(t || "").toLowerCase();
   if (/gutter|ગટર|ગટ્ટર/.test(s)) return "gutter";
   if (/pipe line|pipeline|પાઇપ|પાઈપ|hume pipe/.test(s)) return "pipe";
-  if (/paver|પેવર|interlock|ઇન્ટરલોક/.test(s)) return "paver";
-  if (/\bcc\b|સીસી|cement concrete|કોંક્રિટ રોડ|cc road/.test(s)) return "cc";
+  if (/paver|પેવર|पेवर|interlock|ઇન્ટરલોક|block/.test(s)) return "paver";
+  if (/\bcc\b|સીસી|સી\.સી|सीसी|cement concrete|કોંક્રિટ|રસ્તા|road/.test(s)) return "cc";
+  if (/બોર|bore|પંપ/.test(s)) return "unknown";
   return "unknown";
+}
+
+function detectWorks(t) {
+  const works = [];
+  String(t || "").split(/\n+/).forEach((line) => {
+    const raw = line.replace(/,/g, " ").replace(/\s+/g, " ").trim();
+    if (raw.length < 8) return;
+    const m = raw.match(/(\d{5,8})\s*$/);
+    if (!m) return;
+    const amt = Number(m[1]);
+    if (amt < 20000 || amt > 20000000) return;
+    const name = raw.replace(m[1], "").replace(/^\d+\s*/, "").trim();
+    if (name.length < 6) return;
+    works.push({ work_name: name, amounting: amt, type: detectTypeFromText(name) });
+  });
+  return works.slice(0, 25);
 }
 
 function detectAmount(t) {
@@ -354,13 +371,15 @@ app.post("/api/scan", (req, res) => {
     const text = String(stdout || "");
     const type = detectTypeFromText(text);
     logEvent("scan_ocr", { type, chars: text.length, err: err ? String(err.message || err) : "" }, req);
+    const works = detectWorks(text);
     res.json({
       ok: true,
-      type,
-      amounting: detectAmount(text),
+      type: works[0] ? works[0].type : type,
+      amounting: works[0] ? works[0].amounting : detectAmount(text),
       year: detectYear(text),
-      work_name: text.split("\n").map((x) => x.trim()).filter((x) => x.length > 12).slice(0, 1)[0] || "",
-      raw: text.slice(0, 1200),
+      work_name: works[0] ? works[0].work_name : "",
+      works: works,
+      raw: text.slice(0, 1500),
       ocr: !err
     });
   });
