@@ -394,10 +394,11 @@ app.post("/api/scan", (req, res) => {
     });
   }
   const args1 = [tmp, outBase, "-l", "eng+guj", "--psm", "4"];
-  execFile("tesseract", args1, { timeout: 40000 }, (err) => {
+  execFile("tesseract", args1, { timeout: 40000 }, (err, _o, se) => {
     const t1 = readOut();
     if (!err && t1.trim()) return finish(null, t1);
-    execFile("tesseract", [tmp, outBase, "-l", "eng", "--psm", "6"], { timeout: 40000 }, (err2) => {
+    execFile("tesseract", [tmp, outBase, "-l", "eng", "--psm", "6"], { timeout: 40000 }, (err2, _o2, se2) => {
+      if (err2 && (se2 || se)) err2.message = String(se2 || se).slice(0, 180);
       finish(err2, readOut());
     });
   });
