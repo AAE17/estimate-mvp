@@ -135,7 +135,7 @@
     <div class="box" onclick="event.stopPropagation()">
       <b>Under construction</b>
       <p id="popText" class="muted"></p>
-      <button class="btn btn-g" onclick="document.getElementById('pop').classList.add('hidden')">OK — CC Road અથવા Paver Block પસંદ કરો.</button>
+      <button class="btn btn-g" onclick="document.getElementById('pop').classList.add('hidden')">OK — CC Road અથવા Paver Block પસંદ કરો</button>
     </div>
   </div>
 
@@ -287,7 +287,7 @@
   }
   function soon(name) {
     fetch(API + "/api/log", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({kind:"blocked_type", type:name}) });
-    document.getElementById("popText").textContent = name + " under construction. Select CC only.";
+    document.getElementById("popText").textContent = "Gutter line અને Pipe Line under construction. Select CC Road or Paver Block.";
     document.getElementById("pop").classList.remove("hidden");
   }
   function val(id) { return document.getElementById(id).value; }
