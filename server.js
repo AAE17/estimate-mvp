@@ -5,6 +5,7 @@ const path = require("path");
 const { execFile } = require("child_process");
 const ExcelJS = require("exceljs");
 const PDFDocument = require("pdfkit");
+const Tesseract = require("tesseract.js");
 
 const app = express();
 app.use(cors());
@@ -393,15 +394,17 @@ app.post("/api/scan", (req, res) => {
       error: err ? String(err.message || err).slice(0, 180) : ""
     });
   }
-  const args1 = [tmp, outBase, "-l", "eng+guj", "--psm", "4"];
-  execFile("tesseract", args1, { timeout: 40000 }, (err, _o, se) => {
-    const t1 = readOut();
-    if (!err && t1.trim()) return finish(null, t1);
-    execFile("tesseract", [tmp, outBase, "-l", "eng", "--psm", "6"], { timeout: 40000 }, (err2, _o2, se2) => {
-      if (err2 && (se2 || se)) err2.message = String(se2 || se).slice(0, 180);
-      finish(err2, readOut());
+  Tesseract.recognize(tmp, "eng", { logger: () => {} })
+    .then(function (out) {
+      finish(null, (out && out.data && out.data.text) || "");
+    })
+    .catch(function (e) {
+      const args1 = [tmp, outBase, "-l", "eng", "--psm", "6"];
+      execFile("tesseract", args1, { timeout: 40000 }, function (err2, _o2, se2) {
+        if (err2 && se2) err2.message = String(se2).slice(0, 180);
+        finish(err2 || e, readOut());
+      });
     });
-  });
 });
 
 app.get("/api/ocr", (_req, res) => {
