@@ -568,7 +568,47 @@ app.post("/api/estimate/cc", async (req, res) => {
     setVal(meas, "G10", Number(d.voids));
     setVal(meas, "I14", Number(d.murrum_pct));
     setVal(meas, "I26", Number(d.cc_thick_m));
+    const L = Number(d.length_m);
+    const W = Number(d.width_m);
+    const boxT = Number(d.box_thick_m);
+    const btT = Number(d.bt_thick_m);
+    const voids = Number(d.voids);
+    const murPct = Number(d.murrum_pct);
+    const ccT = Number(d.cc_thick_m);
+    const area = L * W;
+    const boxQty = area * boxT;
+    const btBase = area * btT;
+    const btQty = btBase * (1 + voids);
+    const murQty = btQty * (murPct / 100);
+    const ccQty = area * ccT;
 
+    setVal(meas, "I3", L);
+    setVal(meas, "J3", W);
+    setVal(meas, "K3", area);
+    setVal(meas, "K4", area);
+    setVal(meas, "G6", area);
+    setVal(meas, "K6", boxQty);
+    setVal(meas, "G9", area);
+    setVal(meas, "K9", btBase);
+    setVal(meas, "K10", btBase * voids);
+    setVal(meas, "K11", btQty);
+    setVal(meas, "G14", btQty);
+    setVal(meas, "K14", murQty);
+    setVal(meas, "K16", btQty);
+    setVal(meas, "K18", murQty);
+    setVal(meas, "K22", area);
+    setVal(meas, "G26", area);
+    setVal(meas, "K26", ccQty);
+
+    if (abs) {
+      setVal(abs, "A4", boxQty);
+      setVal(abs, "A6", btQty);
+      setVal(abs, "A8", murQty);
+      setVal(abs, "A10", btQty);
+      setVal(abs, "A12", murQty);
+      setVal(abs, "A14", 0);
+      setVal(abs, "A16", ccQty);
+    }
     setVal(lead, "D5", Number(d.lead_sevaliya_to_taluka_km));
     setVal(lead, "D6", Number(d.lead_taluka_to_site_km));
     setVal(lead, "D11", 5);
