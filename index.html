@@ -43,6 +43,30 @@
       position:fixed; inset:0; background:rgba(20,33,26,.45); display:flex; align-items:center; justify-content:center; padding:16px; z-index:50;
     }
     .toast .box { background:#fff; border-radius:12px; padding:18px; max-width:360px; }
+
+    #busy {
+      position:fixed; inset:0; z-index:80;
+      background:rgba(20,33,26,.62);
+      display:flex; align-items:center; justify-content:center;
+      padding:18px;
+    }
+    #busy.hidden { display:none !important; }
+    #busy .box {
+      background:#fff; border-radius:16px; padding:26px 22px; text-align:center;
+      max-width:320px; width:100%;
+    }
+    #busy .spin {
+      width:40px; height:40px; margin:0 auto 12px; border-radius:50%;
+      border:4px solid #d7eee4; border-top-color:#1B5D45; animation:spin .8s linear infinite;
+    }
+    @keyframes spin { to { transform:rotate(360deg); } }
+    #busy b { display:block; font-size:20px; margin-bottom:6px; }
+    #lenHint {
+      grid-column:1/-1; font-size:12px; font-weight:700; color:#14532D;
+      background:#eef6f2; border:1px solid #b7d8c8; border-radius:8px;
+      padding:8px 10px; margin:0 0 8px;
+    }
+
     @media (max-width:640px) { .grid,.choice { grid-template-columns:1fr; } }
   </style>
 </head>
@@ -104,6 +128,7 @@
         </div>
         <div class="field full"><label>કામનું નામ</label><input id="work_name" value=""></div>
         <div class="field"><label>Amounting to Rs.</label><input id="amounting" type="number" value="100000"></div>
+        <p id="lenHint" class="hidden">Width 3.00 m · લંબાઈ ઓટો — એડિટ થાય</p>
         <div class="field"><label>Prepared by</label><input id="prepared_by" value="MR.V.A.THAKOR. A.A.E."></div>
         <div class="field"><label>Sr No</label><input id="sr_no" value="6"></div>
         <div class="field full"><label>SS વિગત</label><input id="ss_details" value=""></div>
@@ -133,6 +158,15 @@
       <p class="muted" id="batchBar"></p>
       <div id="batchActions"></div>
     </section>
+  </div>
+
+  
+  <div id="busy" class="hidden" aria-live="assertive">
+    <div class="box">
+      <div class="spin"></div>
+      <b>બની રહ્યું છે…</b>
+      <p class="muted" style="margin:0">Excel / PDF તૈયાર થાય ત્યાં સુધી રાહ જુઓ</p>
+    </div>
   </div>
 
   <input id="ssFileCam" type="file" accept="image/*" capture="environment" style="position:absolute;left:-9999px;width:1px;height:1px;">
@@ -291,18 +325,19 @@
     document.getElementById("grantOtherWrap").classList.add("hidden");
     if (currentType === "paver") {
       document.getElementById("box_thick_m").value = "0.2";
-      document.getElementById("length_m").value = "10";
-      document.getElementById("width_m").value = "10.5";
+      document.getElementById("width_m").value = "3";
+      document.getElementById("length_m").value = String(lengthFromAmount("paver", num("amounting") || 100000));
       document.getElementById("sr_no").value = "18";
       document.getElementById("prepared_by").value = "Shree V.A.Thakor. A.A.E.";
     } else {
       document.getElementById("box_thick_m").value = "0.3";
-      document.getElementById("length_m").value = "40";
       document.getElementById("width_m").value = "3";
+      document.getElementById("length_m").value = String(lengthFromAmount("cc", num("amounting") || 100000));
       document.getElementById("sr_no").value = "6";
       document.getElementById("prepared_by").value = "MR.V.A.THAKOR. A.A.E.";
     }
     show("s-form");
+    onAmount();
     liveF24();
   }
   function soon(name) {
@@ -342,15 +377,36 @@
   }
   function lengthFromAmount(type, amt) {
     if (!amt || amt < 1000) return type === "paver" ? 10 : 40;
-    let lo = 1, hi = 2000, best = 40;
-    for (let i = 0; i < 24; i++) {
+    const W = num("width_m") || 3;
+    let lo = 1, hi = 4000, best = 40;
+    for (let i = 0; i < 28; i++) {
       const mid = (lo + hi) / 2;
-      const v = scanF24(type, mid, 3);
+      const v = scanF24(type, mid, W);
       best = mid;
       if (v < amt) lo = mid;
       else hi = mid;
     }
     return Math.round(best * 100) / 100;
+  }
+  function onAmount() {
+    const amt = num("amounting");
+    const wEl = document.getElementById("width_m");
+    if (!Number(wEl.value)) wEl.value = "3";
+    const L = lengthFromAmount(currentType, amt);
+    document.getElementById("length_m").value = String(L);
+    const hint = document.getElementById("lenHint");
+    if (hint) {
+      hint.classList.remove("hidden");
+      hint.textContent = "Width " + Number(wEl.value).toFixed(2) + " m · લંબાઈ ઓટો " + L.toFixed(2) + " m · એડિટ થાય";
+    }
+    liveF24();
+  }
+  function setBusy(on) {
+    const b = document.getElementById("busy");
+    if (b) b.classList.toggle("hidden", !on);
+    document.querySelectorAll("#s-form input, #s-form select, #s-form textarea, #s-form button").forEach((el) => {
+      el.disabled = !!on;
+    });
   }
   function applyScanToForm(type, data) {
     goForm(type);
@@ -528,7 +584,9 @@
   }
 
   document.addEventListener("input", function (e) {
-    if (e.target && e.target.closest && e.target.closest("#s-form")) liveF24();
+    if (!e.target || !e.target.closest || !e.target.closest("#s-form")) return;
+    if (e.target.id === "amounting") onAmount();
+    else liveF24();
   });
 
   async function submitForm(kind) {
@@ -542,6 +600,7 @@
       return;
     }
     document.querySelectorAll(".dl").forEach((b) => { b.disabled = true; });
+    setBusy(true);
     msg.textContent = kind === "pdf" ? "PDF બની રહ્યું છે…" : "બની રહ્યું છે…";
     const body = {
       output: kind || "xlsx",
@@ -588,6 +647,7 @@
       msg.textContent = "ભૂલ: " + e.message;
     }
     document.querySelectorAll(".dl").forEach((b) => { b.disabled = false; });
+    setBusy(false);
   }
 
   fetch("gj-geo.json")
