@@ -584,8 +584,8 @@ app.post("/api/estimate/cc", async (req, res) => {
     setVal(face, "I5", d.nani_address);
     setVal(face, "D9", d.fund_head);
     setVal(face, "E35", d.fund_head);
-    setVal(face, "F35", d.fund_head);
-    setVal(face, "H39", taluka);
+    setVal(face, "H19", taluka);
+    setVal(face, "H39", "");
     setVal(face, "F40", taluka);
     setVal(face, "C21", work);
     setVal(face, "G22", say);
@@ -612,12 +612,11 @@ app.post("/api/estimate/cc", async (req, res) => {
     setVal(meas, "K11", btQty);
     setVal(meas, "I14", murPct);
     setVal(meas, "K14", murQty);
-    setVal(meas, "A16", btQty);
+    setVal(meas, "K16", btQty);
     setVal(meas, "K22", area);
     setVal(meas, "G26", area);
     setVal(meas, "I26", ccT);
     setVal(meas, "K26", ccQty);
-    meas.getCell("A28").value = { formula: "Abstract!C18" };
 
     if (abs) {
       setVal(abs, "B2", work);
@@ -639,6 +638,11 @@ app.post("/api/estimate/cc", async (req, res) => {
       setVal(abs, "F25", say);
       abs.getCell("A32").value = taluka;
     }
+    if (ra) ra.getCell("D38").value = taluka;
+    if (sch) sch.getCell("C18").value = taluka;
+    lead.getCell("C5").value = taluka;
+    lead.getCell("A6").value = taluka;
+    lead.getCell("B38").value = taluka;
 
     await writeAndRespond(req, res, wb, d, "CC", PRINT_AREA, "estimate_cc");
   } catch (err) {
