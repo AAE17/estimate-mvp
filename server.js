@@ -613,7 +613,6 @@ app.post("/api/estimate/cc", async (req, res) => {
     setVal(meas, "I14", murPct);
     setVal(meas, "K14", murQty);
     setVal(meas, "A16", "Item No. :- 4 Spreading the stone aggregates for soiling and W. B. M. including filling the inter stices forming the surface to required camber and gradient (excluding spreading of blindage) (ii) 40 mm to 63 mm size aggreates (HB)");
-    setVal(meas, "K16", btQty);
     setVal(meas, "K22", area);
     setVal(meas, "G26", area);
     setVal(meas, "I26", ccT);
