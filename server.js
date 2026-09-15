@@ -541,33 +541,13 @@ app.post("/api/estimate/cc", async (req, res) => {
     const face = wb.getWorksheet("FACE SHEET");
     const meas = wb.getWorksheet("Measurement");
     const lead = wb.getWorksheet("Lead");
+    const abs = wb.getWorksheet("Abstract");
+    const ra = wb.getWorksheet("RA");
+    const sch = wb.getWorksheet("Schedule");
     if (!face || !meas || !lead) {
       throw new Error("skeleton-cc.xlsx sheets missing");
     }
 
-    setVal(face, "F3", d.division);
-    setVal(face, "G3", d.jilla);
-    setVal(face, "F5", d.subdiv_address);
-    setVal(face, "I5", d.nani_address);
-    setVal(face, "D9", d.fund_head);
-    setVal(face, "E35", d.fund_head);
-    setVal(face, "F35", d.fund_head);
-    setVal(face, "H19", d.taluka);
-    setVal(face, "H40", d.taluka);
-    setVal(face, "C21", d.work_name);
-    setVal(face, "G22", Number(d.amounting || 0));
-    setVal(face, "D28", d.prepared_by);
-    setVal(face, "B34", d.sr_no);
-    setVal(face, "C34", d.ss_details);
-    setVal(face, "B35", d.village);
-
-    setVal(meas, "C3", Number(d.length_m));
-    setVal(meas, "C4", Number(d.width_m));
-    setVal(meas, "I6", Number(d.box_thick_m));
-    setVal(meas, "I9", Number(d.bt_thick_m));
-    setVal(meas, "G10", Number(d.voids));
-    setVal(meas, "I14", Number(d.murrum_pct));
-    setVal(meas, "I26", Number(d.cc_thick_m));
     const L = Number(d.length_m);
     const W = Number(d.width_m);
     const boxT = Number(d.box_thick_m);
@@ -581,26 +561,64 @@ app.post("/api/estimate/cc", async (req, res) => {
     const btQty = btBase * (1 + voids);
     const murQty = btQty * (murPct / 100);
     const ccQty = area * ccT;
+    const work = d.work_name || "";
+    const taluka = d.taluka || "";
 
+    setVal(face, "F3", d.division);
+    setVal(face, "G3", d.jilla);
+    setVal(face, "F5", d.subdiv_address);
+    setVal(face, "I5", d.nani_address);
+    setVal(face, "D9", d.fund_head);
+    setVal(face, "E35", d.fund_head);
+    setVal(face, "F35", d.fund_head);
+    setVal(face, "H19", taluka);
+    setVal(face, "H40", taluka);
+    setVal(face, "C21", work);
+    setVal(face, "G22", Number(d.amounting || 0));
+    setVal(face, "D28", d.prepared_by);
+    setVal(face, "B34", d.sr_no);
+    setVal(face, "C34", d.ss_details);
+    setVal(face, "B35", d.village);
+
+    setVal(meas, "C3", L);
+    setVal(meas, "C4", W);
+    setVal(meas, "C2", work);
+    setVal(meas, "D2", work);
     setVal(meas, "I3", L);
     setVal(meas, "J3", W);
     setVal(meas, "K3", area);
     setVal(meas, "K4", area);
     setVal(meas, "G6", area);
+    setVal(meas, "I6", boxT);
     setVal(meas, "K6", boxQty);
     setVal(meas, "G9", area);
+    setVal(meas, "I9", btT);
     setVal(meas, "K9", btBase);
+    setVal(meas, "G10", voids);
     setVal(meas, "K10", btBase * voids);
     setVal(meas, "K11", btQty);
     setVal(meas, "G14", btQty);
+    setVal(meas, "I14", murPct);
     setVal(meas, "K14", murQty);
     setVal(meas, "K16", btQty);
     setVal(meas, "K18", murQty);
     setVal(meas, "K22", area);
     setVal(meas, "G26", area);
+    setVal(meas, "I26", ccT);
     setVal(meas, "K26", ccQty);
 
+    setVal(lead, "D5", Number(d.lead_sevaliya_to_taluka_km));
+    setVal(lead, "D6", Number(d.lead_taluka_to_site_km));
+    setVal(lead, "D11", 5);
+    setVal(lead, "A2", work);
+    setVal(lead, "B2", work);
+    lead.getCell("C5").value = taluka;
+    lead.getCell("A6").value = taluka;
+    lead.getCell("B38").value = taluka;
+
     if (abs) {
+      setVal(abs, "B2", work);
+      setVal(abs, "C2", work);
       setVal(abs, "A4", boxQty);
       setVal(abs, "A6", btQty);
       setVal(abs, "A8", murQty);
@@ -608,33 +626,13 @@ app.post("/api/estimate/cc", async (req, res) => {
       setVal(abs, "A12", murQty);
       setVal(abs, "A14", 0);
       setVal(abs, "A16", ccQty);
-    }
-    setVal(lead, "D5", Number(d.lead_sevaliya_to_taluka_km));
-    setVal(lead, "D6", Number(d.lead_taluka_to_site_km));
-    setVal(lead, "D11", 5);
-
-    const abs = wb.getWorksheet("Abstract");
-    const ra = wb.getWorksheet("RA");
-    const sch = wb.getWorksheet("Schedule");
-    const taluka = d.taluka || "";
-    const work = d.work_name || "";
-    if (abs) {
-      setVal(abs, "B2", work);
-      setVal(abs, "C2", work);
       abs.getCell("A32").value = taluka;
     }
-    setVal(meas, "C2", work);
-    setVal(meas, "D2", work);
     if (ra) {
       setVal(ra, "B2", work);
       setVal(ra, "C2", work);
       ra.getCell("D38").value = taluka;
     }
-    setVal(lead, "A2", work);
-    setVal(lead, "B2", work);
-    lead.getCell("C5").value = taluka;
-    lead.getCell("A6").value = taluka;
-    lead.getCell("B38").value = taluka;
     if (sch) {
       setVal(sch, "B2", work);
       setVal(sch, "C2", work);
@@ -647,7 +645,6 @@ app.post("/api/estimate/cc", async (req, res) => {
     res.status(500).json({ ok: false, error: String(err.message || err) });
   }
 });
-
 app.post("/api/estimate/paver", async (req, res) => {
   try {
     const d = req.body || {};
