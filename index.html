@@ -68,6 +68,24 @@
     }
 
     @media (max-width:640px) { .grid,.choice { grid-template-columns:1fr; } }
+    .wrap { padding-bottom: 84px; }
+    .dock {
+      position:fixed; left:0; right:0; bottom:0; z-index:40;
+      display:grid; grid-template-columns:1fr 1fr 1fr 1fr;
+      background:#111; color:#888;
+      border-top:1px solid #2a2a2a;
+      padding:8px 4px calc(8px + env(safe-area-inset-bottom));
+    }
+    .dock button {
+      background:none; border:0; color:#888; font:inherit; font-weight:700;
+      font-size:11px; cursor:pointer; padding:6px 2px;
+    }
+    .dock button i { display:block; font-style:normal; font-size:18px; line-height:1.15; }
+    .dock button.on { color:#8BE04A; }
+    body.form-on .live {
+      position:sticky; bottom:70px; z-index:30;
+      box-shadow:0 8px 24px rgba(0,0,0,.18);
+    }
   </style>
 </head>
 <body>
@@ -158,7 +176,23 @@
       <p class="muted" id="batchBar"></p>
       <div id="batchActions"></div>
     </section>
+
+    <section id="s-an" class="card hidden">
+      <h2>Analytics</h2>
+      <p class="muted">ટૂંક સમયમાં — કેટલા એસ્ટિમેટ, કયું તાલુકું.</p>
+    </section>
+    <section id="s-pr" class="card hidden">
+      <h2>Profile</h2>
+      <p class="muted">ટૂંક સમયમાં — નામ, તાલુકો, તૈયાર કરનાર.</p>
+    </section>
   </div>
+
+  <nav class="dock">
+    <button type="button" id="tab-dash" class="on" onclick="show('s-hi')"><i>⌂</i>Dashboard</button>
+    <button type="button" id="tab-est" onclick="goTypes()"><i>▤</i>Estimate</button>
+    <button type="button" id="tab-an" onclick="show('s-an')"><i>▧</i>Analytics</button>
+    <button type="button" id="tab-pr" onclick="show('s-pr')"><i>●</i>Profile</button>
+  </nav>
 
   
   <div id="busy" class="hidden" aria-live="assertive">
@@ -306,8 +340,22 @@
     return val("village");
   }
 
+  function setTab(which) {
+    ["tab-dash","tab-est","tab-an","tab-pr"].forEach((tid) => {
+      const el = document.getElementById(tid);
+      if (el) el.classList.toggle("on", tid === which);
+    });
+  }
   function show(id) {
-    ["s-hi","s-type","s-form"].forEach(s => document.getElementById(s).classList.toggle("hidden", s !== id));
+    ["s-hi","s-type","s-form","s-an","s-pr"].forEach(s => {
+      const el = document.getElementById(s);
+      if (el) el.classList.toggle("hidden", s !== id);
+    });
+    document.body.classList.toggle("form-on", id === "s-form");
+    if (id === "s-hi") setTab("tab-dash");
+    if (id === "s-type" || id === "s-form") setTab("tab-est");
+    if (id === "s-an") setTab("tab-an");
+    if (id === "s-pr") setTab("tab-pr");
   }
   function goTypes() {
     fetch(API + "/api/log", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({kind:"open_generate"}) });
@@ -360,20 +408,11 @@
       return f22 + f22 * 0.18;
     }
     const boxQty = area * 0.3;
-    const metal = area * 0.12;
-    const metalTot = metal + metal * 0.15;
+    const metalTot = area * 0.12 * 1.15;
     const murQty = metalTot * 0.25;
     const ccQty = area * 0.1;
-    const remaining = 25;
-    const metalRate = 417.53 + 81.8 + remaining * 5.95;
-    const f4 = boxQty * trunc2(156.56 * 1.01);
-    const f6 = metalTot * trunc2(metalRate * 1.01);
-    const f8 = murQty * trunc2((90 + 81.8) * 1.01);
-    const f10 = metalTot * trunc2(247.28 * 1.01);
-    const f12 = murQty * trunc2(146.01 * 1.01);
-    const f16 = ccQty * trunc2(4866.35 * 1.01);
-    const f22 = f4 + f6 + f8 + f10 + f12 + f16 + 2656 + trunc2(303.11 * 1.01);
-    return f22 + f22 * 0.18;
+    const tot = boxQty * 156.56 + metalTot * 677.83 + murQty * 171.8 + metalTot * 247.28 + murQty * 146.01 + ccQty * 4866.35 + 2656 + 306.14;
+    return tot + tot * 0.18;
   }
   function lengthFromAmount(type, amt) {
     if (!amt || amt < 1000) return type === "paver" ? 10 : 40;
@@ -562,21 +601,11 @@
       document.getElementById("liveBrass").textContent = "Brass: " + Number(brass).toLocaleString("en-IN", { maximumFractionDigits: 4, minimumFractionDigits: 2 });
     } else {
       const boxQty = area * num("box_thick_m");
-      const metal = area * num("bt_thick_m");
-      const metalTot = metal + metal * num("voids");
+      const metalTot = area * num("bt_thick_m") * (1 + num("voids"));
       const murQty = metalTot * (num("murrum_pct") / 100);
       const ccQty = area * num("cc_thick_m");
-      const leadSay = Math.trunc(num("lead_sevaliya_to_taluka_km") + num("lead_taluka_to_site_km"));
-      const remaining = Math.max(leadSay - 5, 0);
-      const metalRate = 417.53 + 81.8 + remaining * 5.95;
-      const f4 = boxQty * trunc2(156.56 * 1.01);
-      const f6 = metalTot * trunc2(metalRate * 1.01);
-      const f8 = murQty * trunc2((90 + 81.8) * 1.01);
-      const f10 = metalTot * trunc2(247.28 * 1.01);
-      const f12 = murQty * trunc2(146.01 * 1.01);
-      const f16 = ccQty * trunc2(4866.35 * 1.01);
-      const f22 = f4 + f6 + f8 + f10 + f12 + f16 + 2656 + trunc2(303.11 * 1.01);
-      f24 = f22 + f22 * 0.18;
+      const tot = boxQty * 156.56 + metalTot * 677.83 + murQty * 171.8 + metalTot * 247.28 + murQty * 146.01 + ccQty * 4866.35 + 2656 + 306.14;
+      f24 = tot + tot * 0.18;
     }
     document.getElementById("liveF24").textContent = inr(f24);
     document.getElementById("liveSay").textContent = "Amounting (Say Rs): " + inr(num("amounting"));
