@@ -67,9 +67,8 @@
         <button onclick="goForm('paver')">Paver Block</button>
         <button onclick="soon('Gutter line')">Gutter line</button>
         <button onclick="soon('Pipe Line')">Pipe Line</button>
-        <button onclick="startScan()">Scan SS letter</button>
+        <button type="button" onclick="startScan()">Scan SS letter</button>
       </div>
-      <input id="ssFile" type="file" accept="image/*" capture="environment" class="hidden" onchange="onSsFile(this)">
       <div class="actions"><button class="btn btn-w" onclick="show('s-hi')">પાછા</button></div>
     </section>
 
@@ -132,6 +131,8 @@
       <p class="muted" id="msg"></p>
     </section>
   </div>
+
+  <input id="ssFile" type="file" accept="image/*" style="position:absolute;left:-9999px;width:1px;height:1px;">
 
   <div id="pop" class="toast hidden" onclick="this.classList.add('hidden')">
     <div class="box" onclick="event.stopPropagation()">
@@ -307,19 +308,94 @@
     document.getElementById("pop").classList.remove("hidden");
   }
   function startScan() {
-    document.getElementById("ssFile").value = "";
-    document.getElementById("ssFile").click();
+    var f = document.getElementById("ssFile");
+    f.value = "";
+    f.click();
   }
-  function onSsFile(inp) {
-    if (!inp.files || !inp.files[0]) return;
-    fetch(API + "/api/log", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({kind:"scan_ss"}) });
-    document.getElementById("scanAsk").classList.remove("hidden");
+  function scanF24(type, L, W) {
+    const area = L * W;
+    if (type === "paver") {
+      const boxQty = area * 0.2;
+      const murQty = area * 0.1;
+      const vata = 2 * L + 2 * W;
+      const f22 = boxQty * 156.56 + murQty * 210.42 + area * 740.51 + vata * 23.68 + 608 + 306.14;
+      return f22 + f22 * 0.18;
+    }
+    const boxQty = area * 0.3;
+    const metal = area * 0.12;
+    const metalTot = metal + metal * 0.15;
+    const murQty = metalTot * 0.25;
+    const ccQty = area * 0.1;
+    const remaining = 25;
+    const metalRate = 417.53 + 81.8 + remaining * 5.95;
+    const f4 = boxQty * trunc2(156.56 * 1.01);
+    const f6 = metalTot * trunc2(metalRate * 1.01);
+    const f8 = murQty * trunc2((90 + 81.8) * 1.01);
+    const f10 = metalTot * trunc2(247.28 * 1.01);
+    const f12 = murQty * trunc2(146.01 * 1.01);
+    const f16 = ccQty * trunc2(4866.35 * 1.01);
+    const f22 = f4 + f6 + f8 + f10 + f12 + f16 + 2656 + trunc2(303.11 * 1.01);
+    return f22 + f22 * 0.18;
   }
+  function lengthFromAmount(type, amt) {
+    if (!amt || amt < 1000) return type === "paver" ? 10 : 40;
+    let lo = 1, hi = 2000, best = 40;
+    for (let i = 0; i < 24; i++) {
+      const mid = (lo + hi) / 2;
+      const v = scanF24(type, mid, 3);
+      best = mid;
+      if (v < amt) lo = mid;
+      else hi = mid;
+    }
+    return Math.round(best * 100) / 100;
+  }
+  function applyScanToForm(type, data) {
+    goForm(type);
+    data = data || {};
+    if (data.work_name) document.getElementById("work_name").value = data.work_name;
+    if (data.amounting) document.getElementById("amounting").value = data.amounting;
+    document.getElementById("width_m").value = "3";
+    document.getElementById("length_m").value = String(lengthFromAmount(type, Number(data.amounting || 0)));
+    liveF24();
+  }
+  function onSsFile() {
+    var f = document.getElementById("ssFile");
+    if (!f.files || !f.files[0]) return;
+    var box = document.getElementById("scanAsk");
+    box.classList.remove("hidden");
+    box.querySelector("b").textContent = "SS વાંચી રહ્યા છીએ…";
+    var reader = new FileReader();
+    reader.onload = async function () {
+      var data = { type: "unknown" };
+      try {
+        const res = await fetch(API + "/api/scan", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ image: reader.result })
+        });
+        data = await res.json();
+      } catch (e) {}
+      window._scanData = data;
+      box.querySelector("b").textContent = "SS માં કયું કામ?";
+      if (data.type === "gutter" || data.type === "pipe") {
+        if (confirm((data.type === "gutter" ? "Gutter line" : "Pipe Line") + " lage che. Confirm?")) {
+          box.classList.add("hidden");
+          return soon(data.type === "gutter" ? "Gutter line" : "Pipe Line");
+        }
+      }
+      if (data.type === "cc" || data.type === "paver") {
+        box.classList.add("hidden");
+        return applyScanToForm(data.type, data);
+      }
+    };
+    reader.readAsDataURL(f.files[0]);
+  }
+  document.getElementById("ssFile").addEventListener("change", onSsFile);
   function scanPick(kind) {
     document.getElementById("scanAsk").classList.add("hidden");
     if (kind === "gutter") return soon("Gutter line");
     if (kind === "pipe") return soon("Pipe Line");
-    goForm(kind);
+    applyScanToForm(kind, window._scanData || {});
   }
   function val(id) { return document.getElementById(id).value; }
   function num(id) { return Number(document.getElementById(id).value); }
