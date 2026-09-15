@@ -6,6 +6,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     tesseract-ocr \
     tesseract-ocr-eng \
     tesseract-ocr-guj \
+    libjpeg62-turbo \
+    libpng16-16 \
+    zlib1g \
     && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY package.json ./
