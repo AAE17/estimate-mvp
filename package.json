@@ -11,6 +11,7 @@
     "exceljs": "^4.4.0",
     "express": "^4.21.0",
     "pdf-lib": "^1.17.1",
-    "pdfkit": "^0.15.2"
+    "pdfkit": "^0.15.2",
+    "tesseract.js": "^5.1.1"
   }
 }
