@@ -584,9 +584,7 @@ app.post("/api/estimate/cc", async (req, res) => {
     setVal(face, "I5", d.nani_address);
     setVal(face, "D9", d.fund_head);
     setVal(face, "E35", d.fund_head);
-    setVal(face, "H19", taluka);
-    setVal(face, "H40", taluka);
-    setVal(face, "I40", taluka);
+    setVal(face, "F40", taluka);
     setVal(face, "C21", work);
     setVal(face, "G22", say);
     setVal(face, "D28", d.prepared_by);
@@ -594,7 +592,6 @@ app.post("/api/estimate/cc", async (req, res) => {
     setVal(face, "C34", d.ss_details);
     setVal(face, "B35", d.village);
 
-    setVal(meas, "C2", work);
     setVal(meas, "C3", L);
     setVal(meas, "C4", W);
     setVal(meas, "I3", L);
@@ -611,22 +608,16 @@ app.post("/api/estimate/cc", async (req, res) => {
     setVal(meas, "G10", voids);
     setVal(meas, "K10", btBase * voids);
     setVal(meas, "K11", btQty);
-    setVal(meas, "G14", btQty);
     setVal(meas, "I14", murPct);
     setVal(meas, "K14", murQty);
     setVal(meas, "K16", btQty);
-    setVal(meas, "K18", murQty);
-    setVal(meas, "E22", L);
-    setVal(meas, "G22", area);
     setVal(meas, "K22", area);
-    setVal(meas, "G26", area);
     setVal(meas, "I26", ccT);
     setVal(meas, "K26", ccQty);
 
     setVal(lead, "D5", Number(d.lead_sevaliya_to_taluka_km));
     setVal(lead, "D6", Number(d.lead_taluka_to_site_km));
     setVal(lead, "D11", 5);
-    setVal(lead, "B2", work);
     lead.getCell("C5").value = taluka;
     lead.getCell("A6").value = taluka;
     lead.getCell("B38").value = taluka;
@@ -639,13 +630,11 @@ app.post("/api/estimate/cc", async (req, res) => {
       setVal(abs, "F6", a2);
       setVal(abs, "A8", murQty);
       setVal(abs, "F8", a3);
-      setVal(abs, "A10", btQty);
       setVal(abs, "F10", a4);
       setVal(abs, "A12", murQty);
       setVal(abs, "F12", a5);
       setVal(abs, "A14", 0);
       setVal(abs, "F14", a6r);
-      setVal(abs, "A16", ccQty);
       setVal(abs, "F16", a6c);
       setVal(abs, "F22", tot);
       setVal(abs, "F23", gst);
@@ -654,11 +643,9 @@ app.post("/api/estimate/cc", async (req, res) => {
       abs.getCell("A32").value = taluka;
     }
     if (ra) {
-      setVal(ra, "C2", work);
       ra.getCell("D38").value = taluka;
     }
     if (sch) {
-      setVal(sch, "C2", work);
       sch.getCell("C18").value = taluka;
     }
 
