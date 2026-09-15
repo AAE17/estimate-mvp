@@ -663,6 +663,9 @@ app.post("/api/estimate/cc", async (req, res) => {
     setVal(meas, "K11", btQty);
     setVal(meas, "I14", murPct);
     setVal(meas, "K14", murQty);
+    setVal(meas, "G14", btQty);
+    setVal(meas, "K17", btQty);
+    setVal(meas, "K20", murQty);
     setVal(meas, "A16", "Item No. :- 4 Spreading the stone aggregates for soiling and W. B. M. including filling the inter stices forming the surface to required camber and gradient (excluding spreading of blindage) (ii) 40 mm to 63 mm size aggreates (HB)");
     setVal(meas, "K22", area);
     setVal(meas, "G26", area);
@@ -678,11 +681,13 @@ app.post("/api/estimate/cc", async (req, res) => {
       setVal(abs, "A8", murQty);
       setVal(abs, "F8", a3);
       setVal(abs, "C10", "Item No. :- 4 Spreading the stone aggregates for soiling and W. B. M. including filling the inter stices forming the surface to required camber and gradient (excluding spreading of blindage) (ii) 40 mm to 63 mm size aggreates (HB)");
+      setVal(abs, "A10", btQty);
       setVal(abs, "F10", a4);
       setVal(abs, "A12", murQty);
       setVal(abs, "F12", a5);
       setVal(abs, "A14", 0);
       setVal(abs, "F14", a6r);
+      setVal(abs, "A16", ccQty);
       setVal(abs, "F16", a6c);
       setVal(abs, "F22", tot);
       setVal(abs, "F23", gst);
