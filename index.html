@@ -149,11 +149,9 @@
       <b id="scanAskTitle">SS માં કયું કામ?</b>
       <p class="muted" id="scanAskMsg">ફોટો આવ્યો. કામ પસંદ કરો.</p>
       <div id="scanWorkList" class="actions" style="flex-direction:column;max-height:240px;overflow:auto"></div>
-      <div class="actions" style="flex-direction:column">
+      <div id="scanFallback" class="actions hidden" style="flex-direction:column">
         <button class="btn btn-g" onclick="scanPick('cc')">CC Road</button>
         <button class="btn btn-g" onclick="scanPick('paver')">Paver Block</button>
-        <button class="btn btn-w" onclick="scanPick('gutter')">Gutter line</button>
-        <button class="btn btn-w" onclick="scanPick('pipe')">Pipe Line</button>
         <button class="btn btn-w" onclick="document.getElementById('scanAsk').classList.add('hidden')">રદ</button>
       </div>
     </div>
@@ -409,7 +407,10 @@
     if (!f || !f.files || !f.files[0]) return;
     var box = document.getElementById("scanAsk");
     box.classList.remove("hidden");
-    box.querySelector("b").textContent = "SS વાંચી રહ્યા છીએ…";
+    document.getElementById("scanAskTitle").textContent = "SS વાંચી રહ્યા છીએ…";
+    document.getElementById("scanAskMsg").textContent = "રાહ જુઓ. પ્રકાર હજુ પસંદ ન કરો.";
+    document.getElementById("scanWorkList").innerHTML = "";
+    document.getElementById("scanFallback").classList.add("hidden");
     var reader = new FileReader();
     reader.onload = async function () {
       var data = { type: "unknown" };
@@ -426,9 +427,10 @@
       var works = data.works || [];
       var ccN = works.filter(function (w) { return w.type === "cc"; }).length;
       var pvN = works.filter(function (w) { return w.type === "paver"; }).length;
+      document.getElementById("scanFallback").classList.toggle("hidden", !!works.length);
       document.getElementById("scanAskMsg").textContent = works.length
-        ? ("કુલ " + works.length + " · CC " + ccN + " · Paver " + pvN + " · બાકી skip")
-        : ("વાંચાયું નહીં. " + (data.error || data.ocr === false ? "OCR fail. " : "") + "નીચે પ્રકાર પસંદ કરો.");
+        ? ("કુલ " + works.length + " · CC " + ccN + " · Paver " + pvN)
+        : ("વાંચાયું નહીં. " + (data.error || "OCR fail."));
       var list = document.getElementById("scanWorkList");
       list.innerHTML = "";
       function addGrp(label, items) {
