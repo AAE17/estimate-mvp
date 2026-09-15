@@ -563,6 +563,20 @@ app.post("/api/estimate/cc", async (req, res) => {
     const ccQty = area * ccT;
     const work = d.work_name || "";
     const taluka = d.taluka || "";
+    const say = Number(d.amounting || 0);
+
+    const a1 = boxQty * 156.56;
+    const a2 = btQty * 677.83;
+    const a3 = murQty * 171.8;
+    const a4 = btQty * 247.28;
+    const a5 = murQty * 146.01;
+    const a6r = 0;
+    const a6c = ccQty * 4866.35;
+    const a7 = 2656;
+    const a8 = 306.14;
+    const tot = a1 + a2 + a3 + a4 + a5 + a6r + a6c + a7 + a8;
+    const gst = tot * 0.18;
+    const grand = tot + gst;
 
     setVal(face, "F3", d.division);
     setVal(face, "G3", d.jilla);
@@ -570,20 +584,19 @@ app.post("/api/estimate/cc", async (req, res) => {
     setVal(face, "I5", d.nani_address);
     setVal(face, "D9", d.fund_head);
     setVal(face, "E35", d.fund_head);
-    setVal(face, "F35", d.fund_head);
     setVal(face, "H19", taluka);
     setVal(face, "H40", taluka);
+    setVal(face, "I40", taluka);
     setVal(face, "C21", work);
-    setVal(face, "G22", Number(d.amounting || 0));
+    setVal(face, "G22", say);
     setVal(face, "D28", d.prepared_by);
     setVal(face, "B34", d.sr_no);
     setVal(face, "C34", d.ss_details);
     setVal(face, "B35", d.village);
 
+    setVal(meas, "C2", work);
     setVal(meas, "C3", L);
     setVal(meas, "C4", W);
-    setVal(meas, "C2", work);
-    setVal(meas, "D2", work);
     setVal(meas, "I3", L);
     setVal(meas, "J3", W);
     setVal(meas, "K3", area);
@@ -594,6 +607,7 @@ app.post("/api/estimate/cc", async (req, res) => {
     setVal(meas, "G9", area);
     setVal(meas, "I9", btT);
     setVal(meas, "K9", btBase);
+    setVal(meas, "E10", btBase);
     setVal(meas, "G10", voids);
     setVal(meas, "K10", btBase * voids);
     setVal(meas, "K11", btQty);
@@ -602,6 +616,8 @@ app.post("/api/estimate/cc", async (req, res) => {
     setVal(meas, "K14", murQty);
     setVal(meas, "K16", btQty);
     setVal(meas, "K18", murQty);
+    setVal(meas, "E22", L);
+    setVal(meas, "G22", area);
     setVal(meas, "K22", area);
     setVal(meas, "G26", area);
     setVal(meas, "I26", ccT);
@@ -610,7 +626,6 @@ app.post("/api/estimate/cc", async (req, res) => {
     setVal(lead, "D5", Number(d.lead_sevaliya_to_taluka_km));
     setVal(lead, "D6", Number(d.lead_taluka_to_site_km));
     setVal(lead, "D11", 5);
-    setVal(lead, "A2", work);
     setVal(lead, "B2", work);
     lead.getCell("C5").value = taluka;
     lead.getCell("A6").value = taluka;
@@ -618,23 +633,31 @@ app.post("/api/estimate/cc", async (req, res) => {
 
     if (abs) {
       setVal(abs, "B2", work);
-      setVal(abs, "C2", work);
       setVal(abs, "A4", boxQty);
+      setVal(abs, "F4", a1);
       setVal(abs, "A6", btQty);
+      setVal(abs, "F6", a2);
       setVal(abs, "A8", murQty);
+      setVal(abs, "F8", a3);
       setVal(abs, "A10", btQty);
+      setVal(abs, "F10", a4);
       setVal(abs, "A12", murQty);
+      setVal(abs, "F12", a5);
       setVal(abs, "A14", 0);
+      setVal(abs, "F14", a6r);
       setVal(abs, "A16", ccQty);
+      setVal(abs, "F16", a6c);
+      setVal(abs, "F22", tot);
+      setVal(abs, "F23", gst);
+      setVal(abs, "F24", grand);
+      setVal(abs, "F25", say);
       abs.getCell("A32").value = taluka;
     }
     if (ra) {
-      setVal(ra, "B2", work);
       setVal(ra, "C2", work);
       ra.getCell("D38").value = taluka;
     }
     if (sch) {
-      setVal(sch, "B2", work);
       setVal(sch, "C2", work);
       sch.getCell("C18").value = taluka;
     }
@@ -645,6 +668,7 @@ app.post("/api/estimate/cc", async (req, res) => {
     res.status(500).json({ ok: false, error: String(err.message || err) });
   }
 });
+
 app.post("/api/estimate/paver", async (req, res) => {
   try {
     const d = req.body || {};
