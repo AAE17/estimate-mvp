@@ -594,6 +594,7 @@ app.post("/api/estimate/cc", async (req, res) => {
     setVal(face, "C34", d.ss_details);
     setVal(face, "B35", d.village);
 
+    setVal(meas, "A2", "કામ નું નામ : " + work);
     setVal(meas, "C2", work);
     setVal(meas, "C3", L);
     setVal(meas, "C4", W);
@@ -620,6 +621,7 @@ app.post("/api/estimate/cc", async (req, res) => {
     setVal(meas, "K26", ccQty);
 
     if (abs) {
+      setVal(abs, "A2", "કામ નું નામ : " + work);
       setVal(abs, "B2", work);
       setVal(abs, "A4", boxQty);
       setVal(abs, "F4", a1);
@@ -641,13 +643,16 @@ app.post("/api/estimate/cc", async (req, res) => {
       abs.getCell("A32").value = taluka;
     }
     if (ra) {
+      setVal(ra, "A2", "કામ નું નામ : " + work);
       setVal(ra, "C2", work);
       ra.getCell("D38").value = taluka;
     }
     if (sch) {
+      setVal(sch, "A2", "કામ નું નામ : " + work);
       setVal(sch, "C2", work);
       sch.getCell("C18").value = taluka;
     }
+    setVal(lead, "A2", "કામ નું નામ : " + work);
     setVal(lead, "B2", work);
     lead.getCell("C5").value = taluka;
     lead.getCell("A6").value = taluka;
