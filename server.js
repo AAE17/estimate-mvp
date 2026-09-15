@@ -583,7 +583,7 @@ app.post("/api/estimate/cc", async (req, res) => {
     setVal(face, "F5", d.subdiv_address);
     setVal(face, "I5", d.nani_address);
     setVal(face, "D9", d.fund_head);
-    setVal(face, "E35", d.fund_head);
+    setVal(face, "E35", "મોજે");
     setVal(face, "H19", taluka);
     setVal(face, "H39", "");
     setVal(face, "F40", taluka);
@@ -612,6 +612,7 @@ app.post("/api/estimate/cc", async (req, res) => {
     setVal(meas, "K11", btQty);
     setVal(meas, "I14", murPct);
     setVal(meas, "K14", murQty);
+    setVal(meas, "A16", "Item No. :- 4 Spreading the stone aggregates for soiling and W. B. M. including filling the inter stices forming the surface to required camber and gradient (excluding spreading of blindage) (ii) 40 mm to 63 mm size aggreates (HB)");
     setVal(meas, "K16", btQty);
     setVal(meas, "K22", area);
     setVal(meas, "G26", area);
@@ -626,6 +627,7 @@ app.post("/api/estimate/cc", async (req, res) => {
       setVal(abs, "F6", a2);
       setVal(abs, "A8", murQty);
       setVal(abs, "F8", a3);
+      setVal(abs, "C10", "Item No. :- 4 Spreading the stone aggregates for soiling and W. B. M. including filling the inter stices forming the surface to required camber and gradient (excluding spreading of blindage) (ii) 40 mm to 63 mm size aggreates (HB)");
       setVal(abs, "F10", a4);
       setVal(abs, "A12", murQty);
       setVal(abs, "F12", a5);
