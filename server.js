@@ -366,12 +366,11 @@ app.post("/api/scan", (req, res) => {
   } catch (e) {
     return res.json({ ok: false, error: "save fail" });
   }
-  execFile("tesseract", [tmp, "stdout", "-l", "eng+guj", "--psm", "6"], { timeout: 25000 }, (err, stdout) => {
-    try { fs.unlinkSync(tmp); } catch (e) {}
+  function finish(err, stdout) {
     const text = String(stdout || "");
     const type = detectTypeFromText(text);
-    logEvent("scan_ocr", { type, chars: text.length, err: err ? String(err.message || err) : "" }, req);
     const works = detectWorks(text);
+    logEvent("scan_ocr", { type, chars: text.length, n: works.length, err: err ? String(err.message || err) : "" }, req);
     res.json({
       ok: true,
       type: works[0] ? works[0].type : type,
@@ -380,7 +379,18 @@ app.post("/api/scan", (req, res) => {
       work_name: works[0] ? works[0].work_name : "",
       works: works,
       raw: text.slice(0, 1500),
-      ocr: !err
+      ocr: !err,
+      error: err ? String(err.message || err).slice(0, 180) : ""
+    });
+  }
+  execFile("tesseract", [tmp, "stdout", "-l", "eng+guj", "--psm", "6"], { timeout: 25000 }, (err, stdout) => {
+    if (!err && String(stdout || "").trim()) {
+      try { fs.unlinkSync(tmp); } catch (e) {}
+      return finish(null, stdout);
+    }
+    execFile("tesseract", [tmp, "stdout", "-l", "eng", "--psm", "6"], { timeout: 25000 }, (err2, stdout2) => {
+      try { fs.unlinkSync(tmp); } catch (e) {}
+      finish(err2, stdout2);
     });
   });
 });
