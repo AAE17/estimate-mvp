@@ -395,6 +395,16 @@ app.post("/api/scan", (req, res) => {
   });
 });
 
+app.get("/api/ocr", (_req, res) => {
+  execFile("tesseract", ["--version"], { timeout: 8000 }, (err, stdout, stderr) => {
+    res.json({
+      ok: !err,
+      version: String(stdout || stderr || "").split("\n")[0] || "",
+      err: err ? String(err.message || err) : ""
+    });
+  });
+});
+
 app.get("/api/health", (_req, res) => {
   res.json({ ok: true, service: "parastate-mvp" });
 });
