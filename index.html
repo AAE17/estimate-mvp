@@ -69,6 +69,7 @@
         <button onclick="soon('Pipe Line')">Pipe Line</button>
         <button type="button" onclick="startScan()">Scan SS letter</button>
       </div>
+      <input id="ssFileVisible" type="file" accept="image/*" style="margin-top:12px;width:100%">
       <div class="actions"><button class="btn btn-w" onclick="show('s-hi')">પાછા</button></div>
     </section>
 
@@ -311,7 +312,7 @@
     document.getElementById("pop").classList.remove("hidden");
   }
   function startScan() {
-    var f = document.getElementById("ssFile");
+    var f = document.getElementById("ssFileVisible") || document.getElementById("ssFile");
     f.value = "";
     f.click();
   }
@@ -405,8 +406,9 @@
     msg.textContent = items.length + " એસ્ટીમેટ ડાઉનલોડ.";
   }
   function onSsFile() {
-    var f = document.getElementById("ssFile");
-    if (!f.files || !f.files[0]) return;
+    var f = document.getElementById("ssFileVisible");
+    if (!f || !f.files || !f.files[0]) f = document.getElementById("ssFile");
+    if (!f || !f.files || !f.files[0]) return;
     var box = document.getElementById("scanAsk");
     box.classList.remove("hidden");
     box.querySelector("b").textContent = "SS વાંચી રહ્યા છીએ…";
@@ -428,7 +430,7 @@
       var pvN = works.filter(function (w) { return w.type === "paver"; }).length;
       document.getElementById("scanAskMsg").textContent = works.length
         ? ("કુલ " + works.length + " · CC " + ccN + " · Paver " + pvN + " · બાકી skip")
-        : "ઓટો ન મળ્યું. નીચે પ્રકાર પસંદ કરો.";
+        : ("વાંચાયું નહીં. " + (data.error || data.ocr === false ? "OCR fail. " : "") + "નીચે પ્રકાર પસંદ કરો.");
       var list = document.getElementById("scanWorkList");
       list.innerHTML = "";
       function addGrp(label, items) {
@@ -470,6 +472,10 @@
     reader.readAsDataURL(f.files[0]);
   }
   document.getElementById("ssFile").addEventListener("change", onSsFile);
+  document.getElementById("ssFileVisible").addEventListener("change", function () {
+    document.getElementById("ssFile").files = this.files;
+    onSsFile();
+  });
   function scanPick(kind) {
     document.getElementById("scanAsk").classList.add("hidden");
     if (kind === "gutter") return soon("Gutter line");
