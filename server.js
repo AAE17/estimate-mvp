@@ -55,7 +55,7 @@ function colLetterToNum(letter) {
 const PRINT_AREA = {
   "FACE SHEET": "A1:I40",
   Abstract: "A1:F36",
-  Measurement: "A1:L29",
+  Measurement: "A1:L40",
   RA: "A1:I39",
   Lead: "A1:H42",
   Schedule: "A1:I30",
@@ -584,6 +584,8 @@ app.post("/api/estimate/cc", async (req, res) => {
     setVal(face, "I5", d.nani_address);
     setVal(face, "D9", d.fund_head);
     setVal(face, "E35", d.fund_head);
+    setVal(face, "F35", d.fund_head);
+    setVal(face, "H39", taluka);
     setVal(face, "F40", taluka);
     setVal(face, "C21", work);
     setVal(face, "G22", say);
@@ -610,17 +612,12 @@ app.post("/api/estimate/cc", async (req, res) => {
     setVal(meas, "K11", btQty);
     setVal(meas, "I14", murPct);
     setVal(meas, "K14", murQty);
-    setVal(meas, "K16", btQty);
+    setVal(meas, "A16", btQty);
     setVal(meas, "K22", area);
+    setVal(meas, "G26", area);
     setVal(meas, "I26", ccT);
     setVal(meas, "K26", ccQty);
-
-    setVal(lead, "D5", Number(d.lead_sevaliya_to_taluka_km));
-    setVal(lead, "D6", Number(d.lead_taluka_to_site_km));
-    setVal(lead, "D11", 5);
-    lead.getCell("C5").value = taluka;
-    lead.getCell("A6").value = taluka;
-    lead.getCell("B38").value = taluka;
+    meas.getCell("A28").value = { formula: "Abstract!C18" };
 
     if (abs) {
       setVal(abs, "B2", work);
@@ -641,12 +638,6 @@ app.post("/api/estimate/cc", async (req, res) => {
       setVal(abs, "F24", grand);
       setVal(abs, "F25", say);
       abs.getCell("A32").value = taluka;
-    }
-    if (ra) {
-      ra.getCell("D38").value = taluka;
-    }
-    if (sch) {
-      sch.getCell("C18").value = taluka;
     }
 
     await writeAndRespond(req, res, wb, d, "CC", PRINT_AREA, "estimate_cc");
