@@ -319,13 +319,20 @@ async function writeAndRespond(req, res, wb, d, prefix, areas, kind) {
 }
 
 function detectTypeFromText(t) {
-  const s = String(t || "").toLowerCase();
-  if (/gutter|ગટર|ગટ્ટર/.test(s)) return "gutter";
-  if (/pipe line|pipeline|પાઇપ|પાઈપ|hume pipe/.test(s)) return "pipe";
-  if (/paver|પેવર|पेवर|interlock|ઇન્ટરલોક|block/.test(s)) return "paver";
-  if (/\bcc\b|સીસી|સી\.સી|सीसी|cement concrete|કોંક્રિટ|રસ્તા|road/.test(s)) return "cc";
-  if (/બોર|bore|પંપ/.test(s)) return "unknown";
+  const s = String(t || "").toLowerCase().replace(/\s+/g, " ");
+  if (/ગટર|ગટ્ટર|gutter|સેનિટેશન/.test(s)) return "gutter";
+  if (/પાઇપ|પાઈપ|pipe line|pipeline|hume/.test(s)) return "pipe";
+  if (/પેવર|पेवर|paver|interlock|ઇન્ટરલોક|બ્લોકનું|બ્લોક નું/.test(s)) return "paver";
+  if (/સી\s*સી|સીસી|સી\.?\s*સી|सी\s*सी|\bcc\b|सीसी|સી સી રોડ|સીસી રોડ|cement concrete/.test(s)) return "cc";
+  if (/બોર|bore|પમ્પ|પંપ|મશીનરી/.test(s)) return "unknown";
   return "unknown";
+}
+
+function detectVillage(t) {
+  const m = String(t || "").match(/([^\s,]{2,20})\s*ગામે/);
+  if (m) return m[1];
+  const m2 = String(t || "").match(/ગામ(?:નું નામ)?\s*[:\-–]?\s*([^\s,]{2,20})/);
+  return m2 ? m2[1] : "";
 }
 
 function detectWorks(t) {
@@ -339,7 +346,12 @@ function detectWorks(t) {
     if (amt < 20000 || amt > 20000000) return;
     const name = raw.replace(m[1], "").replace(/^\d+\s*/, "").trim();
     if (name.length < 6) return;
-    works.push({ work_name: name, amounting: amt, type: detectTypeFromText(name) });
+    works.push({
+      work_name: name,
+      amounting: amt,
+      type: detectTypeFromText(name),
+      village: detectVillage(name) || detectVillage(raw)
+    });
   });
   return works.slice(0, 25);
 }
