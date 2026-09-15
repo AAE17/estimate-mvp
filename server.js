@@ -360,17 +360,27 @@ app.post("/api/scan", (req, res) => {
   if (!img || typeof img !== "string") return res.json({ ok: false, error: "no image" });
   const m = img.match(/^data:image\/\w+;base64,(.+)$/);
   const b64 = m ? m[1] : img;
-  const tmp = path.join(OUT_DIR, "scan-" + Date.now() + ".jpg");
+  const id = "scan-" + Date.now();
+  const ext = (img.match(/^data:image\/([\w+]+);/) || [])[1] === "png" ? ".png" : ".jpg";
+  const tmp = path.join(OUT_DIR, id + ext);
+  const outBase = path.join(OUT_DIR, id + "-out");
   try {
     fs.writeFileSync(tmp, Buffer.from(b64, "base64"));
   } catch (e) {
     return res.json({ ok: false, error: "save fail" });
   }
-  function finish(err, stdout) {
-    const text = String(stdout || "");
+  function readOut() {
+    try { return fs.readFileSync(outBase + ".txt", "utf8"); } catch (e) { return ""; }
+  }
+  function cleanup() {
+    try { fs.unlinkSync(tmp); } catch (e) {}
+    try { fs.unlinkSync(outBase + ".txt"); } catch (e) {}
+  }
+  function finish(err, text) {
+    cleanup();
     const type = detectTypeFromText(text);
     const works = detectWorks(text);
-    logEvent("scan_ocr", { type, chars: text.length, n: works.length, err: err ? String(err.message || err) : "" }, req);
+    logEvent("scan_ocr", { type, chars: String(text||"").length, n: works.length, err: err ? String(err.message || err) : "" }, req);
     res.json({
       ok: true,
       type: works[0] ? works[0].type : type,
@@ -378,19 +388,17 @@ app.post("/api/scan", (req, res) => {
       year: detectYear(text),
       work_name: works[0] ? works[0].work_name : "",
       works: works,
-      raw: text.slice(0, 1500),
-      ocr: !err,
+      raw: String(text || "").slice(0, 1500),
+      ocr: !err && !!String(text || "").trim(),
       error: err ? String(err.message || err).slice(0, 180) : ""
     });
   }
-  execFile("tesseract", [tmp, "stdout", "-l", "eng+guj", "--psm", "6"], { timeout: 25000 }, (err, stdout) => {
-    if (!err && String(stdout || "").trim()) {
-      try { fs.unlinkSync(tmp); } catch (e) {}
-      return finish(null, stdout);
-    }
-    execFile("tesseract", [tmp, "stdout", "-l", "eng", "--psm", "6"], { timeout: 25000 }, (err2, stdout2) => {
-      try { fs.unlinkSync(tmp); } catch (e) {}
-      finish(err2, stdout2);
+  const args1 = [tmp, outBase, "-l", "eng+guj", "--psm", "4"];
+  execFile("tesseract", args1, { timeout: 40000 }, (err) => {
+    const t1 = readOut();
+    if (!err && t1.trim()) return finish(null, t1);
+    execFile("tesseract", [tmp, outBase, "-l", "eng", "--psm", "6"], { timeout: 40000 }, (err2) => {
+      finish(err2, readOut());
     });
   });
 });
