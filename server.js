@@ -594,6 +594,7 @@ app.post("/api/estimate/cc", async (req, res) => {
     setVal(face, "C34", d.ss_details);
     setVal(face, "B35", d.village);
 
+    setVal(meas, "C2", work);
     setVal(meas, "C3", L);
     setVal(meas, "C4", W);
     setVal(meas, "I3", L);
@@ -639,8 +640,15 @@ app.post("/api/estimate/cc", async (req, res) => {
       setVal(abs, "F25", say);
       abs.getCell("A32").value = taluka;
     }
-    if (ra) ra.getCell("D38").value = taluka;
-    if (sch) sch.getCell("C18").value = taluka;
+    if (ra) {
+      setVal(ra, "C2", work);
+      ra.getCell("D38").value = taluka;
+    }
+    if (sch) {
+      setVal(sch, "C2", work);
+      sch.getCell("C18").value = taluka;
+    }
+    setVal(lead, "B2", work);
     lead.getCell("C5").value = taluka;
     lead.getCell("A6").value = taluka;
     lead.getCell("B38").value = taluka;
