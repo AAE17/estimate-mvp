@@ -336,23 +336,45 @@ function detectVillage(t) {
 }
 
 function detectWorks(t) {
-  const works = [];
-  String(t || "").split(/\n+/).forEach((line) => {
-    const raw = line.replace(/,/g, " ").replace(/\s+/g, " ").trim();
-    if (raw.length < 8) return;
-    const m = raw.match(/(\d{5,8})\s*$/);
-    if (!m) return;
-    const amt = Number(m[1]);
-    if (amt < 20000 || amt > 20000000) return;
-    const name = raw.replace(m[1], "").replace(/^\d+\s*/, "").trim();
-    if (name.length < 6) return;
+  const g = "૦૧૨૩૪૫૬૭૮૯";
+  const raw = String(t || "").replace(/[૦-૯]/g, (ch) => String(g.indexOf(ch)));
+  const parts = raw.split(/(?=(?:^|\n)\s*(?:[1-9]|1[0-9]|2[0-2])\s+)/);
+  let works = [];
+  parts.forEach((p) => {
+    const sm = p.match(/^\s*(\d{1,2})\s+/);
+    const sr = sm ? Number(sm[1]) : 0;
+    if (sr < 1 || sr > 22) return;
+    const nums = String(p).replace(/,/g, "").match(/\d{5,8}/g) || [];
+    const amts = nums.map(Number).filter((n) => n >= 25000 && n <= 2000000);
+    const amt = amts.length ? amts[amts.length - 1] : 0;
     works.push({
-      work_name: name,
+      sr,
+      work_name: p.replace(/\s+/g, " ").trim().slice(0, 120),
       amounting: amt,
-      type: detectTypeFromText(name),
-      village: detectVillage(name) || detectVillage(raw)
+      type: detectTypeFromText(p),
+      village: detectVillage(p)
     });
   });
+  if (works.length < 2) {
+    String(raw).split(/\n+/).forEach((line) => {
+      const ln = line.replace(/,/g, " ").replace(/\s+/g, " ").trim();
+      const m = ln.match(/(\d{5,8})\s*$/);
+      if (!m) return;
+      const amt = Number(m[1]);
+      if (amt < 25000 || amt > 2000000) return;
+      if (/કુલ/.test(ln) && !/ગામે|ફળીયા/.test(ln)) return;
+      works.push({
+        sr: works.length + 1,
+        work_name: ln.replace(m[1], "").trim(),
+        amounting: amt,
+        type: detectTypeFromText(ln),
+        village: detectVillage(ln)
+      });
+    });
+  }
+  let max = 0;
+  works.forEach((w) => { if (w.amounting > max) max = w.amounting; });
+  if (max >= 800000) works = works.filter((w) => w.amounting !== max);
   return works.slice(0, 25);
 }
 
@@ -366,6 +388,38 @@ function detectAmount(t) {
 function detectYear(t) {
   const m = String(t || "").match(/20\d{2}\s*[-–]\s*\d{2,4}/);
   return m ? m[0].replace(/\s/g, "") : "";
+}
+
+async function geminiWorks(b64, mime) {
+  const key = process.env.GEMINI_API_KEY;
+  if (!key) return null;
+  const body = {
+    contents: [{
+      parts: [
+        { text: "This is a Gujarati Panchayat parishisht / SS sanction table. Extract EVERY work row. Ignore header and TOTAL (કુલ) rows. Reply ONLY JSON array: [{\"sr\":1,\"type\":\"cc|paver|gutter|pipe|bore|unknown\",\"work_name\":\"gujarati name\",\"amounting\":100000,\"village\":\"\",\"taluka\":\"\"}]. type: સીસી/સી સી/CC=cc, પેવર=paver, ગટર=gutter, પાઇપ=pipe, બોર/પમ્પ=bore." },
+        { inline_data: { mime_type: mime || "image/jpeg", data: b64 } }
+      ]
+    }]
+  };
+  const url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=" + encodeURIComponent(key);
+  const r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  const j = await r.json();
+  const txt = (((j.candidates || [])[0] || {}).content || {}).parts
+    ? j.candidates[0].content.parts.map((p) => p.text || "").join("\n")
+    : "";
+  const m = String(txt).match(/\[[\s\S]*\]/);
+  if (!m) return { works: [], raw: txt.slice(0, 1500) };
+  let works = [];
+  try { works = JSON.parse(m[0]); } catch (e) { works = []; }
+  works = (works || []).map((w, i) => ({
+    sr: Number(w.sr || i + 1),
+    type: detectTypeFromText(String(w.type || "") + " " + String(w.work_name || "")) || w.type || "unknown",
+    work_name: String(w.work_name || ""),
+    amounting: Number(String(w.amounting || "0").replace(/[^\d]/g, "")) || 0,
+    village: String(w.village || detectVillage(w.work_name || "")),
+    taluka: String(w.taluka || "")
+  })).filter((w) => w.work_name || w.amounting);
+  return { works, raw: txt.slice(0, 1500) };
 }
 
 app.post("/api/scan", (req, res) => {
@@ -382,6 +436,26 @@ app.post("/api/scan", (req, res) => {
   } catch (e) {
     return res.json({ ok: false, error: "save fail" });
   }
+  const mime = (img.match(/^data:(image\/[\w+]+);/) || [])[1] || "image/jpeg";
+  geminiWorks(b64, mime).then((g) => {
+    if (g && g.works && g.works.length) {
+      try { fs.unlinkSync(tmp); } catch (e) {}
+      logEvent("scan_gemini", { n: g.works.length }, req);
+      return res.json({
+        ok: true,
+        type: g.works[0].type,
+        amounting: g.works[0].amounting,
+        year: "",
+        work_name: g.works[0].work_name,
+        works: g.works,
+        raw: g.raw,
+        ocr: true,
+        error: ""
+      });
+    }
+    runTess();
+  }).catch(() => runTess());
+  function runTess() {
   function readOut() {
     try { return fs.readFileSync(outBase + ".txt", "utf8"); } catch (e) { return ""; }
   }
@@ -426,6 +500,7 @@ app.post("/api/scan", (req, res) => {
     .catch(function (e) {
       finish(e, "");
     });
+  }
 });
 
 app.get("/api/ocr", (_req, res) => {
