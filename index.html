@@ -129,6 +129,8 @@
         <button class="btn btn-w dl" onclick="submitForm('both')" style="border-color:var(--g);color:var(--g)">Excel + PDF</button>
       </div>
       <p class="muted" id="msg"></p>
+      <p class="muted" id="batchBar"></p>
+      <div id="batchActions"></div>
     </section>
   </div>
 
@@ -144,8 +146,9 @@
 
   <div id="scanAsk" class="toast hidden">
     <div class="box" onclick="event.stopPropagation()">
-      <b>SS માં કયું કામ?</b>
-      <p class="muted">ફોટો આવ્યો. હાલ એપ પૂછે છે — ખોટું હોય તો બીજું પસંદ કરો.</p>
+      <b id="scanAskTitle">SS માં કયું કામ?</b>
+      <p class="muted" id="scanAskMsg">ફોટો આવ્યો. કામ પસંદ કરો.</p>
+      <div id="scanWorkList" class="actions" style="flex-direction:column;max-height:240px;overflow:auto"></div>
       <div class="actions" style="flex-direction:column">
         <button class="btn btn-g" onclick="scanPick('cc')">CC Road</button>
         <button class="btn btn-g" onclick="scanPick('paver')">Paver Block</button>
@@ -357,6 +360,49 @@
     document.getElementById("width_m").value = "3";
     document.getElementById("length_m").value = String(lengthFromAmount(type, Number(data.amounting || 0)));
     liveF24();
+    renderBatchBar();
+  }
+  function readyWorks() {
+    const all = (window._scanData && window._scanData.works) ? window._scanData.works : [];
+    return all.filter(function (w) { return w.type === "cc" || w.type === "paver"; });
+  }
+  function startBatch(items) {
+    window._scanBatch = items || [];
+    if (!window._scanBatch.length) return;
+    document.getElementById("scanAsk").classList.add("hidden");
+    applyScanToForm(window._scanBatch[0].type, window._scanBatch[0]);
+  }
+  function renderBatchBar() {
+    const bar = document.getElementById("batchBar");
+    const act = document.getElementById("batchActions");
+    const n = (window._scanBatch || []).length;
+    if (!bar) return;
+    if (n < 2) {
+      bar.textContent = "";
+      if (act) act.innerHTML = "";
+      return;
+    }
+    bar.textContent = n + " કામ પસંદ. પહેલા જિલ્લો-ગામ-Grant Head ભરો. પછી બધા Excel+PDF.";
+    act.innerHTML = "";
+    const b = document.createElement("button");
+    b.className = "btn btn-s";
+    b.textContent = "બધા " + n + " Excel + PDF";
+    b.onclick = runBatch;
+    act.appendChild(b);
+  }
+  async function runBatch() {
+    const items = window._scanBatch || [];
+    const msg = document.getElementById("msg");
+    if (!val("jilla") || !val("taluka") || !villageName() || !fundHead()) {
+      msg.textContent = "પહેલા જિલ્લો, તાલુકો, ગામ, Grant Head, Year ભરો.";
+      return;
+    }
+    for (let i = 0; i < items.length; i++) {
+      msg.textContent = (i + 1) + "/" + items.length + " બની રહ્યું છે…";
+      applyScanToForm(items[i].type, items[i]);
+      await submitForm("both");
+    }
+    msg.textContent = items.length + " એસ્ટીમેટ ડાઉનલોડ.";
   }
   function onSsFile() {
     var f = document.getElementById("ssFile");
@@ -376,16 +422,49 @@
         data = await res.json();
       } catch (e) {}
       window._scanData = data;
-      box.querySelector("b").textContent = "SS માં કયું કામ?";
+      document.getElementById("scanAskTitle").textContent = "SS માં કયું કામ?";
+      var works = data.works || [];
+      var ccN = works.filter(function (w) { return w.type === "cc"; }).length;
+      var pvN = works.filter(function (w) { return w.type === "paver"; }).length;
+      document.getElementById("scanAskMsg").textContent = works.length
+        ? ("કુલ " + works.length + " · CC " + ccN + " · Paver " + pvN + " · બાકી skip")
+        : "ઓટો ન મળ્યું. નીચે પ્રકાર પસંદ કરો.";
+      var list = document.getElementById("scanWorkList");
+      list.innerHTML = "";
+      function addGrp(label, items) {
+        if (!items.length) return;
+        var g = document.createElement("button");
+        g.className = "btn btn-g";
+        g.textContent = label;
+        g.onclick = function () { startBatch(items); };
+        list.appendChild(g);
+      }
+      addGrp("બધા CC + Paver (" + (ccN + pvN) + ")", works.filter(function (w) { return w.type === "cc" || w.type === "paver"; }));
+      addGrp("ફક્ત Paver (" + pvN + ")", works.filter(function (w) { return w.type === "paver"; }));
+      addGrp("ફક્ત CC (" + ccN + ")", works.filter(function (w) { return w.type === "cc"; }));
+      (data.works || []).forEach(function (w, i) {
+        var b = document.createElement("button");
+        b.className = "btn btn-w";
+        b.style.textAlign = "left";
+        b.textContent = (w.type || "?") + " · ₹" + w.amounting + " · " + w.work_name;
+        b.onclick = function () {
+          if (w.type === "gutter") { document.getElementById("scanAsk").classList.add("hidden"); return soon("Gutter line"); }
+          if (w.type === "pipe") { document.getElementById("scanAsk").classList.add("hidden"); return soon("Pipe Line"); }
+          if (w.type !== "cc" && w.type !== "paver") {
+            window._scanData = w;
+            document.getElementById("scanAskMsg").textContent = "આ કામ CC કે Paver?";
+            return;
+          }
+          document.getElementById("scanAsk").classList.add("hidden");
+          applyScanToForm(w.type, w);
+        };
+        list.appendChild(b);
+      });
       if (data.type === "gutter" || data.type === "pipe") {
         if (confirm((data.type === "gutter" ? "Gutter line" : "Pipe Line") + " lage che. Confirm?")) {
           box.classList.add("hidden");
           return soon(data.type === "gutter" ? "Gutter line" : "Pipe Line");
         }
-      }
-      if (data.type === "cc" || data.type === "paver") {
-        box.classList.add("hidden");
-        return applyScanToForm(data.type, data);
       }
     };
     reader.readAsDataURL(f.files[0]);
