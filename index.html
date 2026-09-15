@@ -67,7 +67,8 @@
         <button onclick="goForm('paver')">Paver Block</button>
         <button onclick="soon('Gutter line')">Gutter line</button>
         <button onclick="soon('Pipe Line')">Pipe Line</button>
-        <button type="button" onclick="startScan()">📷 Scan SS letter</button>
+        <button type="button" onclick="startScan(true)">📷 Scan SS letter</button>
+        <button type="button" onclick="startScan(false)">📁 File upload</button>
       </div>
       <div class="actions"><button class="btn btn-w" onclick="show('s-hi')">પાછા</button></div>
     </section>
@@ -134,6 +135,7 @@
     </section>
   </div>
 
+  <input id="ssFileCam" type="file" accept="image/*" capture="environment" style="position:absolute;left:-9999px;width:1px;height:1px;">
   <input id="ssFile" type="file" accept="image/*" style="position:absolute;left:-9999px;width:1px;height:1px;">
 
   <div id="pop" class="toast hidden" onclick="this.classList.add('hidden')">
@@ -308,8 +310,8 @@
     document.getElementById("popText").textContent = "Gutter line અને Pipe Line under construction. Select CC Road or Paver Block.";
     document.getElementById("pop").classList.remove("hidden");
   }
-  function startScan() {
-    var f = document.getElementById("ssFile");
+  function startScan(camera) {
+    var f = document.getElementById(camera ? "ssFileCam" : "ssFile");
     f.value = "";
     f.click();
   }
@@ -403,12 +405,13 @@
     msg.textContent = items.length + " એસ્ટીમેટ ડાઉનલોડ.";
   }
   function onSsFile() {
-    var f = document.getElementById("ssFile");
+    var f = document.getElementById("ssFileCam");
+    if (!f || !f.files || !f.files[0]) f = document.getElementById("ssFile");
     if (!f || !f.files || !f.files[0]) return;
     var box = document.getElementById("scanAsk");
     box.classList.remove("hidden");
     document.getElementById("scanAskTitle").textContent = "SS વાંચી રહ્યા છીએ…";
-    document.getElementById("scanAskMsg").textContent = "રાહ જુઓ. પ્રકાર હજુ પસંદ ન કરો.";
+    document.getElementById("scanAskMsg").textContent = "";
     document.getElementById("scanWorkList").innerHTML = "";
     document.getElementById("scanFallback").classList.add("hidden");
     var reader = new FileReader();
@@ -472,6 +475,7 @@
     reader.readAsDataURL(f.files[0]);
   }
   document.getElementById("ssFile").addEventListener("change", onSsFile);
+  document.getElementById("ssFileCam").addEventListener("change", onSsFile);
   function scanPick(kind) {
     document.getElementById("scanAsk").classList.add("hidden");
     if (kind === "gutter") return soon("Gutter line");
