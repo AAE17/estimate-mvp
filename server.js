@@ -8,7 +8,7 @@ const PDFDocument = require("pdfkit");
 
 const app = express();
 app.use(cors());
-app.use(express.json({ limit: "2mb" }));
+app.use(express.json({ limit: "12mb" }));
 app.use(express.static(__dirname));
 
 const LOG_FILE = path.join(__dirname, "events.jsonl");
@@ -316,6 +316,55 @@ async function writeAndRespond(req, res, wb, d, prefix, areas, kind) {
     pdf_error: pdfError,
   });
 }
+
+function detectTypeFromText(t) {
+  const s = String(t || "").toLowerCase();
+  if (/gutter|ગટર|ગટ્ટર/.test(s)) return "gutter";
+  if (/pipe line|pipeline|પાઇપ|પાઈપ|hume pipe/.test(s)) return "pipe";
+  if (/paver|પેવર|interlock|ઇન્ટરલોક/.test(s)) return "paver";
+  if (/\bcc\b|સીસી|cement concrete|કોંક્રિટ રોડ|cc road/.test(s)) return "cc";
+  return "unknown";
+}
+
+function detectAmount(t) {
+  const nums = String(t || "").replace(/,/g, "").match(/\d{4,9}/g) || [];
+  const vals = nums.map(Number).filter((n) => n >= 10000 && n <= 99999999);
+  if (!vals.length) return 0;
+  return Math.max.apply(null, vals);
+}
+
+function detectYear(t) {
+  const m = String(t || "").match(/20\d{2}\s*[-–]\s*\d{2,4}/);
+  return m ? m[0].replace(/\s/g, "") : "";
+}
+
+app.post("/api/scan", (req, res) => {
+  const img = req.body && req.body.image;
+  if (!img || typeof img !== "string") return res.json({ ok: false, error: "no image" });
+  const m = img.match(/^data:image\/\w+;base64,(.+)$/);
+  const b64 = m ? m[1] : img;
+  const tmp = path.join(OUT_DIR, "scan-" + Date.now() + ".jpg");
+  try {
+    fs.writeFileSync(tmp, Buffer.from(b64, "base64"));
+  } catch (e) {
+    return res.json({ ok: false, error: "save fail" });
+  }
+  execFile("tesseract", [tmp, "stdout", "-l", "eng+guj", "--psm", "6"], { timeout: 25000 }, (err, stdout) => {
+    try { fs.unlinkSync(tmp); } catch (e) {}
+    const text = String(stdout || "");
+    const type = detectTypeFromText(text);
+    logEvent("scan_ocr", { type, chars: text.length, err: err ? String(err.message || err) : "" }, req);
+    res.json({
+      ok: true,
+      type,
+      amounting: detectAmount(text),
+      year: detectYear(text),
+      work_name: text.split("\n").map((x) => x.trim()).filter((x) => x.length > 12).slice(0, 1)[0] || "",
+      raw: text.slice(0, 1200),
+      ocr: !err
+    });
+  });
+});
 
 app.get("/api/health", (_req, res) => {
   res.json({ ok: true, service: "parastate-mvp" });
