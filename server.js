@@ -54,11 +54,11 @@ function colLetterToNum(letter) {
 
 const PRINT_AREA = {
   "FACE SHEET": "A1:I40",
-  Abstract: "A1:F36",
-  Measurement: "A1:L40",
+  Abstract: "A1:F32",
+  Measurement: "A1:L32",
   RA: "A1:I39",
-  Lead: "A1:H42",
-  Schedule: "A1:I30",
+  Lead: "A1:H40",
+  Schedule: "A1:I20",
 };
 
 const PRINT_AREA_PAVER = {
@@ -88,12 +88,12 @@ function applyOnePage(wb, areas) {
     ws.pageSetup.horizontalDpi = 300;
     ws.pageSetup.verticalDpi = 300;
     ws.pageSetup.margins = {
-      left: 0.5,
-      right: 0.5,
-      top: 0.5,
-      bottom: 0.5,
-      header: 0.25,
-      footer: 0.25,
+      left: 0.3,
+      right: 0.3,
+      top: 0.35,
+      bottom: 0.3,
+      header: 0.12,
+      footer: 0.12,
     };
     ws.pageSetup.printArea = area;
 
@@ -583,6 +583,7 @@ app.post("/api/estimate/cc", async (req, res) => {
     setVal(face, "F5", d.subdiv_address);
     setVal(face, "I5", d.nani_address);
     setVal(face, "D9", d.fund_head);
+    setVal(face, "F35", d.fund_head);
     setVal(face, "E35", "મોજે");
     setVal(face, "H19", taluka);
     setVal(face, "H39", "");
