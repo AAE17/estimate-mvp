@@ -38,6 +38,12 @@
     .actions { display:flex; gap:8px; flex-wrap:wrap; margin-top:16px; }
     .choice { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
     .choice button { text-align:left; padding:14px; border-radius:12px; border:2px solid var(--l); background:#fff; cursor:pointer; font:inherit; }
+        .stats { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin:14px 0 8px; }
+    .stat { background:#14211A; color:#fff; border-radius:12px; padding:12px; }
+    .stat span { display:block; font-size:11px; opacity:.75; }
+    .stat b { font-size:18px; }
+    .mini { font-size:13px; margin:8px 0 0; }
+    .mini div { display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid var(--l); }
     .hidden { display: none !important; }
     .toast {
       position:fixed; inset:0; background:rgba(20,33,26,.45); display:flex; align-items:center; justify-content:center; padding:16px; z-index:50;
@@ -98,6 +104,13 @@
     <section id="s-hi" class="card">
       <h2>નમસ્તે, Section Officer</h2>
       <p class="muted">Taluka Panchayat Estimate MVP. <b>CC Road</b> અને <b>Paver Block</b> ચાલુ છે.</p>
+      <div class="stats">
+        <div class="stat"><span>આજે</span><b id="dToday">0</b></div>
+        <div class="stat"><span>કુલ એસ્ટિમેટ</span><b id="dTotal">0</b></div>
+        <div class="stat"><span>CC / Paver</span><b id="dSplit">0 / 0</b></div>
+        <div class="stat"><span>કુલ મંજૂર રકમ</span><b id="dAmt">₹ 0</b></div>
+      </div>
+      <p class="muted mini" id="dTopTal">તાલુકો: —</p>
       <button class="btn btn-g" onclick="goTypes()">Estimate Generate</button>
     </section>
 
@@ -179,7 +192,17 @@
 
     <section id="s-an" class="card hidden">
       <h2>Analytics</h2>
-      <p class="muted">ટૂંક સમયમાં — કેટલા એસ્ટિમેટ, કયું તાલુકું.</p>
+      <p class="muted">events.jsonl પરથી — કેટલા એસ્ટિમેટ, કયો તાલુકો.</p>
+      <div class="stats">
+        <div class="stat"><span>આજે</span><b id="aToday">0</b></div>
+        <div class="stat"><span>કુલ</span><b id="aTotal">0</b></div>
+        <div class="stat"><span>CC</span><b id="aCc">0</b></div>
+        <div class="stat"><span>Paver</span><b id="aPv">0</b></div>
+      </div>
+      <h3 style="margin:16px 0 6px;font-size:16px">તાલુકો</h3>
+      <div class="mini" id="aTal"></div>
+      <h3 style="margin:16px 0 6px;font-size:16px">છેલ્લા એસ્ટિમેટ</h3>
+      <div class="mini" id="aRecent"></div>
     </section>
     <section id="s-pr" class="card hidden">
       <h2>Profile</h2>
@@ -352,18 +375,88 @@
       if (el) el.classList.toggle("hidden", s !== id);
     });
     document.body.classList.toggle("form-on", id === "s-form");
-    if (id === "s-hi") setTab("tab-dash");
+    if (id === "s-hi") { setTab("tab-dash"); loadStats(); }
     if (id === "s-type" || id === "s-form") setTab("tab-est");
-    if (id === "s-an") setTab("tab-an");
+    if (id === "s-an") { setTab("tab-an"); loadStats(); }
     if (id === "s-pr") setTab("tab-pr");
   }
   function goTypes() {
-    fetch(API + "/api/log", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({kind:"open_generate"}) });
+    
+  function fillStats(s) {
+    s = s || {};
+    const inr0 = (x) => "₹ " + Number(x || 0).toLocaleString("en-IN", { maximumFractionDigits: 0 });
+    const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+    set("dToday", s.today || 0);
+    set("dTotal", s.total || 0);
+    set("dSplit", (s.cc || 0) + " / " + (s.paver || 0));
+    set("dAmt", inr0(s.amount));
+    set("aToday", s.today || 0);
+    set("aTotal", s.total || 0);
+    set("aCc", s.cc || 0);
+    set("aPv", s.paver || 0);
+    const top = (s.talukas && s.talukas[0]) ? (s.talukas[0].name + " (" + s.talukas[0].n + ")") : "—";
+    set("dTopTal", "સૌથી વધુ તાલુકો: " + top);
+    const tal = document.getElementById("aTal");
+    if (tal) {
+      tal.innerHTML = (s.talukas || []).length
+        ? s.talukas.map((t) => "<div><span>" + t.name + "</span><b>" + t.n + "</b></div>").join("")
+        : "<div><span>હજુ ડેટા નથી</span><b></b></div>";
+    }
+    const rec = document.getElementById("aRecent");
+    if (rec) {
+      rec.innerHTML = (s.recent || []).length
+        ? s.recent.map((r) => {
+            const d = (r.ts || "").slice(0, 10);
+            return "<div><span>" + d + " · " + r.type + " · " + (r.village || r.taluka) + "</span><b>" + inr0(r.amounting) + "</b></div>";
+          }).join("")
+        : "<div><span>હજુ એસ્ટિમેટ નથી</span><b></b></div>";
+    }
+  }
+  function loadStats() {
+    fetch(API + "/api/stats").then((r) => r.json()).then(fillStats).catch(function () {});
+  }
+
+  fetch(API + "/api/log", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({kind:"open_generate"}) });
     show("s-type");
   }
   function goForm(type) {
     currentType = type === "paver" ? "paver" : "cc";
-    fetch(API + "/api/log", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({kind:"select_" + currentType}) });
+    
+  function fillStats(s) {
+    s = s || {};
+    const inr0 = (x) => "₹ " + Number(x || 0).toLocaleString("en-IN", { maximumFractionDigits: 0 });
+    const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+    set("dToday", s.today || 0);
+    set("dTotal", s.total || 0);
+    set("dSplit", (s.cc || 0) + " / " + (s.paver || 0));
+    set("dAmt", inr0(s.amount));
+    set("aToday", s.today || 0);
+    set("aTotal", s.total || 0);
+    set("aCc", s.cc || 0);
+    set("aPv", s.paver || 0);
+    const top = (s.talukas && s.talukas[0]) ? (s.talukas[0].name + " (" + s.talukas[0].n + ")") : "—";
+    set("dTopTal", "સૌથી વધુ તાલુકો: " + top);
+    const tal = document.getElementById("aTal");
+    if (tal) {
+      tal.innerHTML = (s.talukas || []).length
+        ? s.talukas.map((t) => "<div><span>" + t.name + "</span><b>" + t.n + "</b></div>").join("")
+        : "<div><span>હજુ ડેટા નથી</span><b></b></div>";
+    }
+    const rec = document.getElementById("aRecent");
+    if (rec) {
+      rec.innerHTML = (s.recent || []).length
+        ? s.recent.map((r) => {
+            const d = (r.ts || "").slice(0, 10);
+            return "<div><span>" + d + " · " + r.type + " · " + (r.village || r.taluka) + "</span><b>" + inr0(r.amounting) + "</b></div>";
+          }).join("")
+        : "<div><span>હજુ એસ્ટિમેટ નથી</span><b></b></div>";
+    }
+  }
+  function loadStats() {
+    fetch(API + "/api/stats").then((r) => r.json()).then(fillStats).catch(function () {});
+  }
+
+  fetch(API + "/api/log", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({kind:"select_" + currentType}) });
     document.getElementById("formTitle").textContent = currentType === "paver" ? "Paver Block — ફોર્મ" : "CC Road — ફોર્મ";
     document.querySelectorAll(".cc-only").forEach((el) => el.classList.toggle("hidden", currentType !== "cc"));
     document.querySelectorAll(".paver-only").forEach((el) => el.classList.toggle("hidden", currentType !== "paver"));
@@ -389,7 +482,42 @@
     liveF24();
   }
   function soon(name) {
-    fetch(API + "/api/log", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({kind:"blocked_type", type:name}) });
+    
+  function fillStats(s) {
+    s = s || {};
+    const inr0 = (x) => "₹ " + Number(x || 0).toLocaleString("en-IN", { maximumFractionDigits: 0 });
+    const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+    set("dToday", s.today || 0);
+    set("dTotal", s.total || 0);
+    set("dSplit", (s.cc || 0) + " / " + (s.paver || 0));
+    set("dAmt", inr0(s.amount));
+    set("aToday", s.today || 0);
+    set("aTotal", s.total || 0);
+    set("aCc", s.cc || 0);
+    set("aPv", s.paver || 0);
+    const top = (s.talukas && s.talukas[0]) ? (s.talukas[0].name + " (" + s.talukas[0].n + ")") : "—";
+    set("dTopTal", "સૌથી વધુ તાલુકો: " + top);
+    const tal = document.getElementById("aTal");
+    if (tal) {
+      tal.innerHTML = (s.talukas || []).length
+        ? s.talukas.map((t) => "<div><span>" + t.name + "</span><b>" + t.n + "</b></div>").join("")
+        : "<div><span>હજુ ડેટા નથી</span><b></b></div>";
+    }
+    const rec = document.getElementById("aRecent");
+    if (rec) {
+      rec.innerHTML = (s.recent || []).length
+        ? s.recent.map((r) => {
+            const d = (r.ts || "").slice(0, 10);
+            return "<div><span>" + d + " · " + r.type + " · " + (r.village || r.taluka) + "</span><b>" + inr0(r.amounting) + "</b></div>";
+          }).join("")
+        : "<div><span>હજુ એસ્ટિમેટ નથી</span><b></b></div>";
+    }
+  }
+  function loadStats() {
+    fetch(API + "/api/stats").then((r) => r.json()).then(fillStats).catch(function () {});
+  }
+
+  fetch(API + "/api/log", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({kind:"blocked_type", type:name}) });
     document.getElementById("popText").textContent = "Gutter line અને Pipe Line under construction. Select CC Road or Paver Block.";
     document.getElementById("pop").classList.remove("hidden");
   }
@@ -693,7 +821,43 @@
   document.getElementById("jilla").addEventListener("change", onJilla);
   document.getElementById("taluka").addEventListener("change", onTaluka);
   document.getElementById("village").addEventListener("change", onVillage);
+  
+  function fillStats(s) {
+    s = s || {};
+    const inr0 = (x) => "₹ " + Number(x || 0).toLocaleString("en-IN", { maximumFractionDigits: 0 });
+    const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+    set("dToday", s.today || 0);
+    set("dTotal", s.total || 0);
+    set("dSplit", (s.cc || 0) + " / " + (s.paver || 0));
+    set("dAmt", inr0(s.amount));
+    set("aToday", s.today || 0);
+    set("aTotal", s.total || 0);
+    set("aCc", s.cc || 0);
+    set("aPv", s.paver || 0);
+    const top = (s.talukas && s.talukas[0]) ? (s.talukas[0].name + " (" + s.talukas[0].n + ")") : "—";
+    set("dTopTal", "સૌથી વધુ તાલુકો: " + top);
+    const tal = document.getElementById("aTal");
+    if (tal) {
+      tal.innerHTML = (s.talukas || []).length
+        ? s.talukas.map((t) => "<div><span>" + t.name + "</span><b>" + t.n + "</b></div>").join("")
+        : "<div><span>હજુ ડેટા નથી</span><b></b></div>";
+    }
+    const rec = document.getElementById("aRecent");
+    if (rec) {
+      rec.innerHTML = (s.recent || []).length
+        ? s.recent.map((r) => {
+            const d = (r.ts || "").slice(0, 10);
+            return "<div><span>" + d + " · " + r.type + " · " + (r.village || r.taluka) + "</span><b>" + inr0(r.amounting) + "</b></div>";
+          }).join("")
+        : "<div><span>હજુ એસ્ટિમેટ નથી</span><b></b></div>";
+    }
+  }
+  function loadStats() {
+    fetch(API + "/api/stats").then((r) => r.json()).then(fillStats).catch(function () {});
+  }
+
   fetch(API + "/api/log", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({kind:"page_open"}) });
+  loadStats();
 </script>
 </body>
 </html>
