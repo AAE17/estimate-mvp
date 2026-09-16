@@ -671,6 +671,9 @@ app.post("/api/estimate/cc", async (req, res) => {
     setVal(meas, "G26", area);
     setVal(meas, "I26", ccT);
     setVal(meas, "K26", ccQty);
+    setVal(meas, "A28", "Item No :- 7 Testing charges for Kapchi,Metal,Sand,Cement,C.C. Cube as per schedule of testing");
+    setVal(meas, "A30", "Item No :- 8 Providing and fixing number plate of marble stone of required size set in C. M. 1 : 4 including finishing and engraving letters etc. complete.");
+    setVal(meas, "K31", 1);
 
     if (abs) {
       setVal(abs, "B2", work);
@@ -689,6 +692,8 @@ app.post("/api/estimate/cc", async (req, res) => {
       setVal(abs, "F14", a6r);
       setVal(abs, "A16", ccQty);
       setVal(abs, "F16", a6c);
+      setVal(abs, "C18", "Item No :- 7 Testing charges for Kapchi,Metal,Sand,Cement,C.C. Cube as per schedule of testing");
+      setVal(abs, "C20", "Item No :- 8 Providing and fixing number plate of marble stone of required size set in C. M. 1 : 4 including finishing and engraving letters etc. complete.");
       setVal(abs, "F22", tot);
       setVal(abs, "F23", gst);
       setVal(abs, "F24", grand);
