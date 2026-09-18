@@ -44,6 +44,31 @@
     .stat b { font-size:18px; }
     .mini { font-size:13px; margin:8px 0 0; }
     .mini div { display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid var(--l); }
+    
+    .diary {
+      background:
+        linear-gradient(#cfd8d0 1px, transparent 1px) 0 0 / 18px 18px,
+        linear-gradient(90deg, #cfd8d0 1px, transparent 1px) 0 0 / 18px 18px,
+        #f7f4ea;
+      border:1px solid #c5b89a; border-radius:8px; padding:16px 14px 22px;
+      position:relative; min-height:420px;
+    }
+    .diary .brand {
+      position:absolute; right:12px; bottom:10px; text-align:right;
+      font-size:11px; font-weight:800; color:#1B5D45; letter-spacing:.02em;
+      line-height:1.2; opacity:.85;
+    }
+    .diary h3 { margin:0 0 10px; font-size:16px; }
+    .diary .head { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:12px; }
+    .diary input {
+      background:transparent; border:0; border-bottom:1px solid #7a8a7e;
+      border-radius:0; padding:6px 4px;
+    }
+    .diary table { width:100%; border-collapse:collapse; font-size:13px; }
+    .diary th, .diary td { border-bottom:1px dashed #9aaa9e; padding:6px 4px; text-align:left; }
+    .diary td input { width:100%; }
+    #segBox .seg { display:grid; grid-template-columns:28px 1fr 1fr 1fr 28px; gap:6px; margin-bottom:6px; align-items:center; }
+
     .hidden { display: none !important; }
     .toast {
       position:fixed; inset:0; background:rgba(20,33,26,.45); display:flex; align-items:center; justify-content:center; padding:16px; z-index:50;
@@ -77,7 +102,7 @@
     .wrap { padding-bottom: 84px; }
     .dock {
       position:fixed; left:0; right:0; bottom:0; z-index:40;
-      display:grid; grid-template-columns:1fr 1fr 1fr 1fr;
+      display:grid; grid-template-columns:1fr 1fr 1fr 1fr 1fr;
       background:#111; color:#888;
       border-top:1px solid #2a2a2a;
       padding:8px 4px calc(8px + env(safe-area-inset-bottom));
@@ -111,7 +136,10 @@
         <div class="stat"><span>કુલ મંજૂર રકમ</span><b id="dAmt">₹ 0</b></div>
       </div>
       <p class="muted mini" id="dTopTal">તાલુકો: —</p>
-      <button class="btn btn-g" onclick="goTypes()">Estimate Generate</button>
+      <div class="actions">
+        <button class="btn btn-g" onclick="goTypes()">Estimate Generate</button>
+        <button class="btn btn-s" onclick="show('s-site')">Site Measurement</button>
+      </div>
     </section>
 
     <section id="s-type" class="card hidden">
@@ -163,8 +191,12 @@
         <div class="field"><label>Prepared by</label><input id="prepared_by" value="MR.V.A.THAKOR. A.A.E."></div>
         <div class="field"><label>Sr No</label><input id="sr_no" value="6"></div>
         <div class="field full"><label>SS વિગત</label><input id="ss_details" value=""></div>
-        <div class="field"><label>લંબાઈ (m)</label><input id="length_m" type="number" step="0.01" value="40"></div>
-        <div class="field"><label>પહોળાઈ (m)</label><input id="width_m" type="number" step="0.01" value="3"></div>
+        <div class="field full"><label>સાઇટ માપ (મહત્તમ 5 પંક્તિ)</label>
+          <div id="segBox"></div>
+          <button type="button" class="btn btn-w" onclick="addSeg()">+ પહોળાઈ ઉમેરો</button>
+          <input id="length_m" type="hidden" value="40">
+          <input id="width_m" type="hidden" value="3">
+        </div>
         <div class="field"><label>Box જાડાઈ (m)</label><input id="box_thick_m" type="number" step="0.01" value="0.3"></div>
         <div class="field cc-only"><label>BT જાડાઈ (m)</label><input id="bt_thick_m" type="number" step="0.01" value="0.12"></div>
         <div class="field cc-only"><label>Voids (0.15 = 15%)</label><input id="voids" type="number" step="0.01" value="0.15"></div>
@@ -190,6 +222,37 @@
       <div id="batchActions"></div>
     </section>
 
+
+    <section id="s-site" class="card hidden">
+      <h2>Site Measurement</h2>
+      <p class="muted">તૈયાર એસ્ટિમેટ પસંદ કરો અથવા નવું કામ.</p>
+      <div id="siteList" class="mini"></div>
+      <div class="actions" style="margin-bottom:12px">
+        <button class="btn btn-g" onclick="openDiary(null)">New work</button>
+      </div>
+      <div id="diaryWrap" class="hidden">
+        <div class="diary">
+          <h3>સાઇટ માપ પત્રક</h3>
+          <div class="head">
+            <div class="field"><label>તારીખ</label><input id="dDate"></div>
+            <div class="field"><label>Grant Head</label><input id="dGrant"></div>
+            <div class="field full" style="grid-column:1/-1"><label>કામનું નામ</label><input id="dWork"></div>
+            <div class="field"><label>રકમ ₹</label><input id="dAmtIn" type="number"></div>
+            <div class="field"><label>કુલ Area SMT</label><input id="dArea" readonly></div>
+          </div>
+          <table>
+            <thead><tr><th>Sr</th><th>લંબાઈ</th><th>પહોળાઈ</th><th>જાડાઈ</th></tr></thead>
+            <tbody id="dRows"></tbody>
+          </table>
+          <div class="brand">Co-Pilot Estimate</div>
+        </div>
+        <div class="actions">
+          <button class="btn btn-w" onclick="addDiaryRow()">+ પંક્તિ</button>
+          <button class="btn btn-g" onclick="diaryToForm()">ફોર્મમાં મોકલો</button>
+        </div>
+      </div>
+    </section>
+
     <section id="s-an" class="card hidden">
       <h2>Analytics</h2>
       <p class="muted">events.jsonl પરથી — કેટલા એસ્ટિમેટ, કયો તાલુકો.</p>
@@ -213,6 +276,7 @@
   <nav class="dock">
     <button type="button" id="tab-dash" class="on" onclick="show('s-hi')"><i>⌂</i>Dashboard</button>
     <button type="button" id="tab-est" onclick="goTypes()"><i>▤</i>Estimate</button>
+    <button type="button" id="tab-site" onclick="show('s-site')"><i>▦</i>Site</button>
     <button type="button" id="tab-an" onclick="show('s-an')"><i>▧</i>Analytics</button>
     <button type="button" id="tab-pr" onclick="show('s-pr')"><i>●</i>Profile</button>
   </nav>
@@ -364,24 +428,122 @@
   }
 
   function setTab(which) {
-    ["tab-dash","tab-est","tab-an","tab-pr"].forEach((tid) => {
+    ["tab-dash","tab-est","tab-site","tab-an","tab-pr"].forEach((tid) => {
       const el = document.getElementById(tid);
       if (el) el.classList.toggle("on", tid === which);
     });
   }
   function show(id) {
-    ["s-hi","s-type","s-form","s-an","s-pr"].forEach(s => {
+    ["s-hi","s-type","s-form","s-site","s-an","s-pr"].forEach(s => {
       const el = document.getElementById(s);
       if (el) el.classList.toggle("hidden", s !== id);
     });
     document.body.classList.toggle("form-on", id === "s-form");
     if (id === "s-hi") { setTab("tab-dash"); loadStats(); }
     if (id === "s-type" || id === "s-form") setTab("tab-est");
+    if (id === "s-site") { setTab("tab-site"); loadStats(); renderSiteList(); }
     if (id === "s-an") { setTab("tab-an"); loadStats(); }
     if (id === "s-pr") setTab("tab-pr");
   }
   function goTypes() {
     
+
+  let SEGS = [{l:40,w:3,d:0.1}];
+  function syncSegToLW() {
+    let area = 0, Lsum = 0;
+    SEGS.forEach((s) => { const a=Number(s.l||0)*Number(s.w||0); area+=a; Lsum+=Number(s.l||0); });
+    const W = Lsum ? (area/Lsum) : 3;
+    const L = Lsum || 40;
+    const lm=document.getElementById("length_m");
+    const wm=document.getElementById("width_m");
+    if (lm) lm.value = String(Math.round(L*100)/100);
+    if (wm) wm.value = String(Math.round(W*100)/100);
+    const da=document.getElementById("dArea");
+    if (da) da.value = String(Math.round(area*100)/100);
+    return {L,W,area};
+  }
+  function renderSegs() {
+    const box=document.getElementById("segBox");
+    if (!box) return;
+    box.innerHTML="";
+    SEGS.forEach((s,i)=>{
+      const row=document.createElement("div");
+      row.className="seg";
+      row.innerHTML='<span>'+(i+1)+'</span>'+
+        '<input type="number" step="0.01" value="'+s.l+'" data-k="l" data-i="'+i+'">'+
+        '<input type="number" step="0.01" value="'+s.w+'" data-k="w" data-i="'+i+'">'+
+        '<input type="number" step="0.01" value="'+(s.d||0.1)+'" data-k="d" data-i="'+i+'">'+
+        '<button type="button" class="btn btn-w" data-del="'+i+'">×</button>';
+      box.appendChild(row);
+    });
+    box.querySelectorAll("input").forEach((inp)=>{
+      inp.oninput=function(){ const i=+this.dataset.i; SEGS[i][this.dataset.k]=Number(this.value||0); syncSegToLW(); liveF24(); };
+    });
+    box.querySelectorAll("[data-del]").forEach((b)=>{
+      b.onclick=function(){ if(SEGS.length<2) return; SEGS.splice(+this.dataset.del,1); renderSegs(); syncSegToLW(); liveF24(); };
+    });
+    syncSegToLW();
+  }
+  function addSeg() {
+    if (SEGS.length>=5) return;
+    SEGS.push({l:10,w:3,d:Number(document.getElementById("cc_thick_m")&&document.getElementById("cc_thick_m").value||0.1)});
+    renderSegs(); liveF24();
+  }
+  function renderDiaryRows() {
+    const tb=document.getElementById("dRows");
+    if (!tb) return;
+    tb.innerHTML="";
+    SEGS.forEach((s,i)=>{
+      const tr=document.createElement("tr");
+      tr.innerHTML='<td>'+(i+1)+'</td>'+
+        '<td><input type="number" step="0.01" value="'+s.l+'" data-k="l" data-i="'+i+'"></td>'+
+        '<td><input type="number" step="0.01" value="'+s.w+'" data-k="w" data-i="'+i+'"></td>'+
+        '<td><input type="number" step="0.01" value="'+(s.d||0.1)+'" data-k="d" data-i="'+i+'"></td>';
+      tb.appendChild(tr);
+    });
+    tb.querySelectorAll("input").forEach((inp)=>{
+      inp.oninput=function(){ SEGS[+this.dataset.i][this.dataset.k]=Number(this.value||0); syncSegToLW(); };
+    });
+    syncSegToLW();
+  }
+  function addDiaryRow(){ addSeg(); renderDiaryRows(); }
+  function openDiary(est) {
+    document.getElementById("diaryWrap").classList.remove("hidden");
+    const today=new Date();
+    document.getElementById("dDate").value = today.toISOString().slice(0,10);
+    if (est) {
+      document.getElementById("dWork").value = est.work_name||"";
+      document.getElementById("dGrant").value = est.taluka||"";
+      document.getElementById("dAmtIn").value = est.amounting||"";
+    }
+    if (!SEGS.length) SEGS=[{l:40,w:3,d:0.1}];
+    renderDiaryRows();
+  }
+  function diaryToForm() {
+    const w=document.getElementById("dWork").value;
+    const a=document.getElementById("dAmtIn").value;
+    goForm(currentType||"cc");
+    if (w) document.getElementById("work_name").value=w;
+    if (a) document.getElementById("amounting").value=a;
+    const d0=SEGS[0]&&SEGS[0].d; if (d0) document.getElementById("cc_thick_m").value=String(d0);
+    renderSegs(); syncSegToLW(); liveF24();
+  }
+  function renderSiteList() {
+    const el=document.getElementById("siteList");
+    if (!el) return;
+    fetch(API+"/api/stats").then(r=>r.json()).then((s)=>{
+      const rec=s.recent||[];
+      el.innerHTML = rec.length ? rec.map((r,i)=>
+        '<div><span>'+ (r.ts||"").slice(0,10)+' · '+(r.type||"")+' · '+(r.village||r.taluka||"")+
+        '</span><button type="button" class="btn btn-w" data-pick="'+i+'">પસંદ</button></div>'
+      ).join("") : "<div>હજુ એસ્ટિમેટ નથી</div>";
+      window._siteRecent=rec;
+      el.querySelectorAll("[data-pick]").forEach((b)=>{
+        b.onclick=function(){ openDiary(window._siteRecent[+this.dataset.pick]); };
+      });
+    }).catch(function(){ el.textContent="યાદી લાવી ન શકાઈ"; });
+  }
+
   function fillStats(s) {
     s = s || {};
     const inr0 = (x) => "₹ " + Number(x || 0).toLocaleString("en-IN", { maximumFractionDigits: 0 });
@@ -422,6 +584,103 @@
   function goForm(type) {
     currentType = type === "paver" ? "paver" : "cc";
     
+
+  let SEGS = [{l:40,w:3,d:0.1}];
+  function syncSegToLW() {
+    let area = 0, Lsum = 0;
+    SEGS.forEach((s) => { const a=Number(s.l||0)*Number(s.w||0); area+=a; Lsum+=Number(s.l||0); });
+    const W = Lsum ? (area/Lsum) : 3;
+    const L = Lsum || 40;
+    const lm=document.getElementById("length_m");
+    const wm=document.getElementById("width_m");
+    if (lm) lm.value = String(Math.round(L*100)/100);
+    if (wm) wm.value = String(Math.round(W*100)/100);
+    const da=document.getElementById("dArea");
+    if (da) da.value = String(Math.round(area*100)/100);
+    return {L,W,area};
+  }
+  function renderSegs() {
+    const box=document.getElementById("segBox");
+    if (!box) return;
+    box.innerHTML="";
+    SEGS.forEach((s,i)=>{
+      const row=document.createElement("div");
+      row.className="seg";
+      row.innerHTML='<span>'+(i+1)+'</span>'+
+        '<input type="number" step="0.01" value="'+s.l+'" data-k="l" data-i="'+i+'">'+
+        '<input type="number" step="0.01" value="'+s.w+'" data-k="w" data-i="'+i+'">'+
+        '<input type="number" step="0.01" value="'+(s.d||0.1)+'" data-k="d" data-i="'+i+'">'+
+        '<button type="button" class="btn btn-w" data-del="'+i+'">×</button>';
+      box.appendChild(row);
+    });
+    box.querySelectorAll("input").forEach((inp)=>{
+      inp.oninput=function(){ const i=+this.dataset.i; SEGS[i][this.dataset.k]=Number(this.value||0); syncSegToLW(); liveF24(); };
+    });
+    box.querySelectorAll("[data-del]").forEach((b)=>{
+      b.onclick=function(){ if(SEGS.length<2) return; SEGS.splice(+this.dataset.del,1); renderSegs(); syncSegToLW(); liveF24(); };
+    });
+    syncSegToLW();
+  }
+  function addSeg() {
+    if (SEGS.length>=5) return;
+    SEGS.push({l:10,w:3,d:Number(document.getElementById("cc_thick_m")&&document.getElementById("cc_thick_m").value||0.1)});
+    renderSegs(); liveF24();
+  }
+  function renderDiaryRows() {
+    const tb=document.getElementById("dRows");
+    if (!tb) return;
+    tb.innerHTML="";
+    SEGS.forEach((s,i)=>{
+      const tr=document.createElement("tr");
+      tr.innerHTML='<td>'+(i+1)+'</td>'+
+        '<td><input type="number" step="0.01" value="'+s.l+'" data-k="l" data-i="'+i+'"></td>'+
+        '<td><input type="number" step="0.01" value="'+s.w+'" data-k="w" data-i="'+i+'"></td>'+
+        '<td><input type="number" step="0.01" value="'+(s.d||0.1)+'" data-k="d" data-i="'+i+'"></td>';
+      tb.appendChild(tr);
+    });
+    tb.querySelectorAll("input").forEach((inp)=>{
+      inp.oninput=function(){ SEGS[+this.dataset.i][this.dataset.k]=Number(this.value||0); syncSegToLW(); };
+    });
+    syncSegToLW();
+  }
+  function addDiaryRow(){ addSeg(); renderDiaryRows(); }
+  function openDiary(est) {
+    document.getElementById("diaryWrap").classList.remove("hidden");
+    const today=new Date();
+    document.getElementById("dDate").value = today.toISOString().slice(0,10);
+    if (est) {
+      document.getElementById("dWork").value = est.work_name||"";
+      document.getElementById("dGrant").value = est.taluka||"";
+      document.getElementById("dAmtIn").value = est.amounting||"";
+    }
+    if (!SEGS.length) SEGS=[{l:40,w:3,d:0.1}];
+    renderDiaryRows();
+  }
+  function diaryToForm() {
+    const w=document.getElementById("dWork").value;
+    const a=document.getElementById("dAmtIn").value;
+    goForm(currentType||"cc");
+    if (w) document.getElementById("work_name").value=w;
+    if (a) document.getElementById("amounting").value=a;
+    const d0=SEGS[0]&&SEGS[0].d; if (d0) document.getElementById("cc_thick_m").value=String(d0);
+    renderSegs(); syncSegToLW(); liveF24();
+  }
+  function renderSiteList() {
+    const el=document.getElementById("siteList");
+    if (!el) return;
+    fetch(API+"/api/stats").then(r=>r.json()).then((s)=>{
+      const rec=s.recent||[];
+      el.innerHTML = rec.length ? rec.map((r,i)=>
+        '<div><span>'+ (r.ts||"").slice(0,10)+' · '+(r.type||"")+' · '+(r.village||r.taluka||"")+
+        '</span><button type="button" class="btn btn-w" data-pick="'+i+'">પસંદ</button></div>'
+      ).join("") : "<div>હજુ એસ્ટિમેટ નથી</div>";
+      window._siteRecent=rec;
+      el.querySelectorAll("[data-pick]").forEach((b)=>{
+        b.onclick=function(){ openDiary(window._siteRecent[+this.dataset.pick]); };
+      });
+    }).catch(function(){ el.textContent="યાદી લાવી ન શકાઈ"; });
+  }
+
   function fillStats(s) {
     s = s || {};
     const inr0 = (x) => "₹ " + Number(x || 0).toLocaleString("en-IN", { maximumFractionDigits: 0 });
@@ -478,11 +737,109 @@
       document.getElementById("prepared_by").value = "MR.V.A.THAKOR. A.A.E.";
     }
     show("s-form");
+    renderSegs();
     onAmount();
     liveF24();
   }
   function soon(name) {
     
+
+  let SEGS = [{l:40,w:3,d:0.1}];
+  function syncSegToLW() {
+    let area = 0, Lsum = 0;
+    SEGS.forEach((s) => { const a=Number(s.l||0)*Number(s.w||0); area+=a; Lsum+=Number(s.l||0); });
+    const W = Lsum ? (area/Lsum) : 3;
+    const L = Lsum || 40;
+    const lm=document.getElementById("length_m");
+    const wm=document.getElementById("width_m");
+    if (lm) lm.value = String(Math.round(L*100)/100);
+    if (wm) wm.value = String(Math.round(W*100)/100);
+    const da=document.getElementById("dArea");
+    if (da) da.value = String(Math.round(area*100)/100);
+    return {L,W,area};
+  }
+  function renderSegs() {
+    const box=document.getElementById("segBox");
+    if (!box) return;
+    box.innerHTML="";
+    SEGS.forEach((s,i)=>{
+      const row=document.createElement("div");
+      row.className="seg";
+      row.innerHTML='<span>'+(i+1)+'</span>'+
+        '<input type="number" step="0.01" value="'+s.l+'" data-k="l" data-i="'+i+'">'+
+        '<input type="number" step="0.01" value="'+s.w+'" data-k="w" data-i="'+i+'">'+
+        '<input type="number" step="0.01" value="'+(s.d||0.1)+'" data-k="d" data-i="'+i+'">'+
+        '<button type="button" class="btn btn-w" data-del="'+i+'">×</button>';
+      box.appendChild(row);
+    });
+    box.querySelectorAll("input").forEach((inp)=>{
+      inp.oninput=function(){ const i=+this.dataset.i; SEGS[i][this.dataset.k]=Number(this.value||0); syncSegToLW(); liveF24(); };
+    });
+    box.querySelectorAll("[data-del]").forEach((b)=>{
+      b.onclick=function(){ if(SEGS.length<2) return; SEGS.splice(+this.dataset.del,1); renderSegs(); syncSegToLW(); liveF24(); };
+    });
+    syncSegToLW();
+  }
+  function addSeg() {
+    if (SEGS.length>=5) return;
+    SEGS.push({l:10,w:3,d:Number(document.getElementById("cc_thick_m")&&document.getElementById("cc_thick_m").value||0.1)});
+    renderSegs(); liveF24();
+  }
+  function renderDiaryRows() {
+    const tb=document.getElementById("dRows");
+    if (!tb) return;
+    tb.innerHTML="";
+    SEGS.forEach((s,i)=>{
+      const tr=document.createElement("tr");
+      tr.innerHTML='<td>'+(i+1)+'</td>'+
+        '<td><input type="number" step="0.01" value="'+s.l+'" data-k="l" data-i="'+i+'"></td>'+
+        '<td><input type="number" step="0.01" value="'+s.w+'" data-k="w" data-i="'+i+'"></td>'+
+        '<td><input type="number" step="0.01" value="'+(s.d||0.1)+'" data-k="d" data-i="'+i+'"></td>';
+      tb.appendChild(tr);
+    });
+    tb.querySelectorAll("input").forEach((inp)=>{
+      inp.oninput=function(){ SEGS[+this.dataset.i][this.dataset.k]=Number(this.value||0); syncSegToLW(); };
+    });
+    syncSegToLW();
+  }
+  function addDiaryRow(){ addSeg(); renderDiaryRows(); }
+  function openDiary(est) {
+    document.getElementById("diaryWrap").classList.remove("hidden");
+    const today=new Date();
+    document.getElementById("dDate").value = today.toISOString().slice(0,10);
+    if (est) {
+      document.getElementById("dWork").value = est.work_name||"";
+      document.getElementById("dGrant").value = est.taluka||"";
+      document.getElementById("dAmtIn").value = est.amounting||"";
+    }
+    if (!SEGS.length) SEGS=[{l:40,w:3,d:0.1}];
+    renderDiaryRows();
+  }
+  function diaryToForm() {
+    const w=document.getElementById("dWork").value;
+    const a=document.getElementById("dAmtIn").value;
+    goForm(currentType||"cc");
+    if (w) document.getElementById("work_name").value=w;
+    if (a) document.getElementById("amounting").value=a;
+    const d0=SEGS[0]&&SEGS[0].d; if (d0) document.getElementById("cc_thick_m").value=String(d0);
+    renderSegs(); syncSegToLW(); liveF24();
+  }
+  function renderSiteList() {
+    const el=document.getElementById("siteList");
+    if (!el) return;
+    fetch(API+"/api/stats").then(r=>r.json()).then((s)=>{
+      const rec=s.recent||[];
+      el.innerHTML = rec.length ? rec.map((r,i)=>
+        '<div><span>'+ (r.ts||"").slice(0,10)+' · '+(r.type||"")+' · '+(r.village||r.taluka||"")+
+        '</span><button type="button" class="btn btn-w" data-pick="'+i+'">પસંદ</button></div>'
+      ).join("") : "<div>હજુ એસ્ટિમેટ નથી</div>";
+      window._siteRecent=rec;
+      el.querySelectorAll("[data-pick]").forEach((b)=>{
+        b.onclick=function(){ openDiary(window._siteRecent[+this.dataset.pick]); };
+      });
+    }).catch(function(){ el.textContent="યાદી લાવી ન શકાઈ"; });
+  }
+
   function fillStats(s) {
     s = s || {};
     const inr0 = (x) => "₹ " + Number(x || 0).toLocaleString("en-IN", { maximumFractionDigits: 0 });
@@ -560,7 +917,9 @@
     const wEl = document.getElementById("width_m");
     if (!Number(wEl.value)) wEl.value = "3";
     const L = lengthFromAmount(currentType, amt);
+    if (SEGS && SEGS[0]) { SEGS[0].l = L; SEGS[0].w = Number(wEl.value)||3; }
     document.getElementById("length_m").value = String(L);
+    renderSegs();
     const hint = document.getElementById("lenHint");
     if (hint) {
       hint.classList.remove("hidden");
@@ -822,6 +1181,103 @@
   document.getElementById("taluka").addEventListener("change", onTaluka);
   document.getElementById("village").addEventListener("change", onVillage);
   
+
+  let SEGS = [{l:40,w:3,d:0.1}];
+  function syncSegToLW() {
+    let area = 0, Lsum = 0;
+    SEGS.forEach((s) => { const a=Number(s.l||0)*Number(s.w||0); area+=a; Lsum+=Number(s.l||0); });
+    const W = Lsum ? (area/Lsum) : 3;
+    const L = Lsum || 40;
+    const lm=document.getElementById("length_m");
+    const wm=document.getElementById("width_m");
+    if (lm) lm.value = String(Math.round(L*100)/100);
+    if (wm) wm.value = String(Math.round(W*100)/100);
+    const da=document.getElementById("dArea");
+    if (da) da.value = String(Math.round(area*100)/100);
+    return {L,W,area};
+  }
+  function renderSegs() {
+    const box=document.getElementById("segBox");
+    if (!box) return;
+    box.innerHTML="";
+    SEGS.forEach((s,i)=>{
+      const row=document.createElement("div");
+      row.className="seg";
+      row.innerHTML='<span>'+(i+1)+'</span>'+
+        '<input type="number" step="0.01" value="'+s.l+'" data-k="l" data-i="'+i+'">'+
+        '<input type="number" step="0.01" value="'+s.w+'" data-k="w" data-i="'+i+'">'+
+        '<input type="number" step="0.01" value="'+(s.d||0.1)+'" data-k="d" data-i="'+i+'">'+
+        '<button type="button" class="btn btn-w" data-del="'+i+'">×</button>';
+      box.appendChild(row);
+    });
+    box.querySelectorAll("input").forEach((inp)=>{
+      inp.oninput=function(){ const i=+this.dataset.i; SEGS[i][this.dataset.k]=Number(this.value||0); syncSegToLW(); liveF24(); };
+    });
+    box.querySelectorAll("[data-del]").forEach((b)=>{
+      b.onclick=function(){ if(SEGS.length<2) return; SEGS.splice(+this.dataset.del,1); renderSegs(); syncSegToLW(); liveF24(); };
+    });
+    syncSegToLW();
+  }
+  function addSeg() {
+    if (SEGS.length>=5) return;
+    SEGS.push({l:10,w:3,d:Number(document.getElementById("cc_thick_m")&&document.getElementById("cc_thick_m").value||0.1)});
+    renderSegs(); liveF24();
+  }
+  function renderDiaryRows() {
+    const tb=document.getElementById("dRows");
+    if (!tb) return;
+    tb.innerHTML="";
+    SEGS.forEach((s,i)=>{
+      const tr=document.createElement("tr");
+      tr.innerHTML='<td>'+(i+1)+'</td>'+
+        '<td><input type="number" step="0.01" value="'+s.l+'" data-k="l" data-i="'+i+'"></td>'+
+        '<td><input type="number" step="0.01" value="'+s.w+'" data-k="w" data-i="'+i+'"></td>'+
+        '<td><input type="number" step="0.01" value="'+(s.d||0.1)+'" data-k="d" data-i="'+i+'"></td>';
+      tb.appendChild(tr);
+    });
+    tb.querySelectorAll("input").forEach((inp)=>{
+      inp.oninput=function(){ SEGS[+this.dataset.i][this.dataset.k]=Number(this.value||0); syncSegToLW(); };
+    });
+    syncSegToLW();
+  }
+  function addDiaryRow(){ addSeg(); renderDiaryRows(); }
+  function openDiary(est) {
+    document.getElementById("diaryWrap").classList.remove("hidden");
+    const today=new Date();
+    document.getElementById("dDate").value = today.toISOString().slice(0,10);
+    if (est) {
+      document.getElementById("dWork").value = est.work_name||"";
+      document.getElementById("dGrant").value = est.taluka||"";
+      document.getElementById("dAmtIn").value = est.amounting||"";
+    }
+    if (!SEGS.length) SEGS=[{l:40,w:3,d:0.1}];
+    renderDiaryRows();
+  }
+  function diaryToForm() {
+    const w=document.getElementById("dWork").value;
+    const a=document.getElementById("dAmtIn").value;
+    goForm(currentType||"cc");
+    if (w) document.getElementById("work_name").value=w;
+    if (a) document.getElementById("amounting").value=a;
+    const d0=SEGS[0]&&SEGS[0].d; if (d0) document.getElementById("cc_thick_m").value=String(d0);
+    renderSegs(); syncSegToLW(); liveF24();
+  }
+  function renderSiteList() {
+    const el=document.getElementById("siteList");
+    if (!el) return;
+    fetch(API+"/api/stats").then(r=>r.json()).then((s)=>{
+      const rec=s.recent||[];
+      el.innerHTML = rec.length ? rec.map((r,i)=>
+        '<div><span>'+ (r.ts||"").slice(0,10)+' · '+(r.type||"")+' · '+(r.village||r.taluka||"")+
+        '</span><button type="button" class="btn btn-w" data-pick="'+i+'">પસંદ</button></div>'
+      ).join("") : "<div>હજુ એસ્ટિમેટ નથી</div>";
+      window._siteRecent=rec;
+      el.querySelectorAll("[data-pick]").forEach((b)=>{
+        b.onclick=function(){ openDiary(window._siteRecent[+this.dataset.pick]); };
+      });
+    }).catch(function(){ el.textContent="યાદી લાવી ન શકાઈ"; });
+  }
+
   function fillStats(s) {
     s = s || {};
     const inr0 = (x) => "₹ " + Number(x || 0).toLocaleString("en-IN", { maximumFractionDigits: 0 });
