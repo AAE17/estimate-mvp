@@ -950,9 +950,18 @@
     const el=document.getElementById("doneList");
     if (!el) return;
     fetch(API+"/api/db/site").then(function(r){return r.json();}).then(function(d){
-      const rec=(d.items||[]).slice().sort(function(a,b){return String(b.ts).localeCompare(String(a.ts));});
+      const raw=(d.items||[]).slice().sort(function(a,b){return String(b.ts||"").localeCompare(String(a.ts||""));});
+      const seen={}; const rec=[];
+      raw.forEach(function(r){
+        const k=String(r.work_name||r.estimate_id||r.id||"");
+        if (k && seen[k]) return;
+        seen[k]=1; rec.push(r);
+      });
+      const inr0=function(x){return "₹ "+Number(x||0).toLocaleString("en-IN",{maximumFractionDigits:0});};
       el.innerHTML = rec.length ? rec.map(function(r,i){
-        return "<div><span>"+String(r.ts||"").slice(0,10)+" · "+(r.type||"")+" · "+(r.work_name||"")+"</span><button type='button' class='btn btn-w' data-done='"+i+"'>એડિટ</button></div>";
+        return "<div><span>"+String(r.ts||"").slice(0,10)+" · "+(r.work_name||"")+"<br>એસ્ટિમેટ "+inr0(r.amounting)+" · બિલ "+inr0(r.bill)+
+          "</span><span><button type='button' class='btn btn-w' data-done='"+i+"'>એડિટ</button> "+
+          "<button type='button' class='btn btn-w' data-del='"+i+"'>ડિલીટ</button></span></div>";
       }).join("") : "<div>હજુ Work Done નથી</div>";
       window._doneRecent=rec;
       el.querySelectorAll("[data-done]").forEach(function(b){
@@ -962,6 +971,14 @@
             id:s.estimate_id||s.id, work_name:s.work_name, amounting:s.amounting, type:s.type,
             taluka:"", village:""
           });
+        };
+      });
+      el.querySelectorAll("[data-del]").forEach(function(b){
+        b.onclick=function(){
+          const s=window._doneRecent[+this.dataset.del];
+          if (!s || !confirm("ડિલીટ કરો?")) return;
+          fetch(API+"/api/db/site/delete",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({id:s.id})})
+            .then(function(){ renderDoneList(); });
         };
       });
     }).catch(function(){ el.textContent="યાદી ન આવી"; });
