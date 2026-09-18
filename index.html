@@ -162,6 +162,7 @@
       <div class="actions">
         <button class="btn btn-g" onclick="goTypes()">Estimate Generate</button>
         <button class="btn btn-s" onclick="show('s-site')">Site Measurement</button>
+        <button class="btn btn-s" onclick="openTour()">Tour Diary</button>
       </div>
     </section>
 
@@ -299,6 +300,53 @@
           <div class="brand">Co-Pilot Estimate</div>
         </div>
 
+      </div>
+    </section>
+
+    <section id="s-tour" class="card hidden">
+      <div id="tourCover">
+        <div class="diary" style="min-height:auto;text-align:center;padding:40px 16px 28px;background:#8B4513;color:#f3e6c8">
+          <div style="font-size:42px;font-weight:800;letter-spacing:.08em">2026</div>
+          <h2 style="margin:24px 0 8px;color:#f3e6c8">Tour Diary</h2>
+          <p style="opacity:.9">Co-Pilot Estimate</p>
+          <p class="muted" style="color:#e8d7b0">Taluka Panchayat AAE</p>
+          <div class="actions" style="justify-content:center;margin-top:22px">
+            <button class="btn btn-g" onclick="tourPage('person')">ખોલો</button>
+          </div>
+        </div>
+      </div>
+      <div id="tourPerson" class="hidden">
+        <h2>Personal Information</h2>
+        <div class="field"><label>નામ</label><input id="tdName"></div>
+        <div class="field"><label>ઓફિસ</label><input id="tdOffice"></div>
+        <div class="field"><label>મોબાઈલ</label><input id="tdMobile"></div>
+        <div class="field"><label>ઈમેલ</label><input id="tdEmail"></div>
+        <div class="actions">
+          <button class="btn btn-w" onclick="tourPage('cover')">કવર</button>
+          <button class="btn btn-g" onclick="saveTourPerson()">સેવ · મહિનો</button>
+        </div>
+      </div>
+      <div id="tourMonth" class="hidden">
+        <h2 id="tmTitle">Monthly Index</h2>
+        <div class="actions">
+          <button class="btn btn-w" onclick="tourShift(-1)">‹</button>
+          <button class="btn btn-w" onclick="tourPage('person')">Personal</button>
+          <button class="btn btn-w" onclick="tourShift(1)">›</button>
+        </div>
+        <div id="tmGrid" class="stats" style="grid-template-columns:repeat(7,1fr)"></div>
+      </div>
+      <div id="tourDay" class="hidden">
+        <h2 id="tdTitle">દિવસ</h2>
+        <div class="stats">
+          <div class="stat"><span>એસ્ટિમેટ</span><b id="tdEst">0</b></div>
+          <div class="stat"><span>સાઇટ</span><b id="tdSite">0</b></div>
+          <div class="stat"><span>બિલ</span><b id="tdBill">0</b></div>
+        </div>
+        <div class="field full"><label>નોંધ</label><textarea id="tdNote" rows="5"></textarea></div>
+        <div class="actions">
+          <button class="btn btn-w" onclick="tourPage('month')">મહિનો</button>
+          <button class="btn btn-g" onclick="saveTourNote()">નોંધ સેવ</button>
+        </div>
       </div>
     </section>
 
@@ -485,7 +533,7 @@
     });
   }
   function show(id) {
-    ["s-hi","s-type","s-form","s-site","s-an","s-pr"].forEach(s => {
+    ["s-hi","s-type","s-form","s-site","s-tour","s-an","s-pr"].forEach(s => {
       const el = document.getElementById(s);
       if (el) el.classList.toggle("hidden", s !== id);
     });
@@ -493,6 +541,7 @@
     if (id === "s-hi") { setTab("tab-dash"); loadStats(); }
     if (id === "s-type" || id === "s-form") setTab("tab-est");
     if (id === "s-site") { setTab("tab-site"); loadStats(); renderSiteList(); }
+    if (id === "s-tour") { setTab("tab-dash"); }
     if (id === "s-an") { setTab("tab-an"); loadStats(); }
     if (id === "s-pr") { setTab("tab-pr"); renderMedia(); }
   }
@@ -616,6 +665,83 @@
       } else store("");
     };
     reader.readAsDataURL(file);
+  }
+
+
+  let tourYM = {y:2026,m:8};
+  function openTour(){ show("s-tour"); tourPage("cover"); }
+  function tourPage(which){
+    ["tourCover","tourPerson","tourMonth","tourDay"].forEach(function(id){
+      const el=document.getElementById(id); if(el) el.classList.toggle("hidden", id!=="tour"+which.charAt(0).toUpperCase()+which.slice(1) && !(which==="cover"&&id==="tourCover") && !(which==="person"&&id==="tourPerson") && !(which==="month"&&id==="tourMonth") && !(which==="day"&&id==="tourDay"));
+    });
+    if (which==="person") loadTourPerson();
+    if (which==="month") renderTourMonth();
+  }
+  function loadTourPerson(){
+    try{
+      const p=JSON.parse(localStorage.getItem("copilot_profile")||"{}");
+      const set=function(id,v){ const e=document.getElementById(id); if(e) e.value=v||""; };
+      set("tdName", p.name); set("tdOffice", p.office); set("tdMobile", p.mobile); set("tdEmail", p.email);
+    }catch(e){}
+  }
+  function saveTourPerson(){
+    const p={
+      name:(document.getElementById("tdName")||{}).value||"",
+      office:(document.getElementById("tdOffice")||{}).value||"",
+      mobile:(document.getElementById("tdMobile")||{}).value||"",
+      email:(document.getElementById("tdEmail")||{}).value||""
+    };
+    localStorage.setItem("copilot_profile", JSON.stringify(p));
+    tourPage("month");
+  }
+  function tourShift(d){
+    tourYM.m += d;
+    if (tourYM.m<0){ tourYM.m=11; tourYM.y--; }
+    if (tourYM.m>11){ tourYM.m=0; tourYM.y++; }
+    renderTourMonth();
+  }
+  function renderTourMonth(){
+    const names=["જાન્યુ","ફેબ","માર્ચ","એપ્રિલ","મે","જૂન","જુલાઈ","ઓગ","સપ્ટે","ઓક્ટો","નવે","ડિસે"];
+    const title=document.getElementById("tmTitle");
+    if (title) title.textContent = names[tourYM.m] + " " + tourYM.y;
+    const grid=document.getElementById("tmGrid");
+    if (!grid) return;
+    const first=new Date(tourYM.y, tourYM.m, 1);
+    const last=new Date(tourYM.y, tourYM.m+1, 0).getDate();
+    const skip=first.getDay();
+    let html="";
+    ["ર","સો","મં","બુ","ગુ","શુ","શ"].forEach(function(d){ html += "<div class='stat'><span>"+d+"</span><b></b></div>"; });
+    for (let i=0;i<skip;i++) html += "<div class='stat' style='opacity:.2'></div>";
+    for (let d=1;d<=last;d++){
+      const ds = tourYM.y + "-" + String(tourYM.m+1).padStart(2,"0") + "-" + String(d).padStart(2,"0");
+      html += "<div class='stat' onclick='openTourDay(\""+ds+"\")' style='cursor:pointer'><span>"+d+"</span><b></b></div>";
+    }
+    grid.innerHTML=html;
+  }
+  function openTourDay(ds){
+    tourPage("day");
+    const el=document.getElementById("tdTitle");
+    if (el) el.textContent = ds;
+    const notes=JSON.parse(localStorage.getItem("copilot_tour_notes")||"{}");
+    document.getElementById("tdNote").value = notes[ds] || "";
+    Promise.all([
+      fetch(API+"/api/db/estimates").then(function(r){return r.json();}).catch(function(){return {items:[]};}),
+      fetch(API+"/api/db/site").then(function(r){return r.json();}).catch(function(){return {items:[]};})
+    ]).then(function(arr){
+      const est=(arr[0].items||[]).filter(function(x){return String(x.ts||"").slice(0,10)===ds;});
+      const site=(arr[1].items||[]).filter(function(x){return String(x.ts||"").slice(0,10)===ds;});
+      const bills=site.filter(function(x){return Number(x.bill||0)>0;});
+      document.getElementById("tdEst").textContent=est.length;
+      document.getElementById("tdSite").textContent=site.length;
+      document.getElementById("tdBill").textContent=bills.length;
+    });
+  }
+  function saveTourNote(){
+    const ds=(document.getElementById("tdTitle")||{}).textContent||"";
+    const notes=JSON.parse(localStorage.getItem("copilot_tour_notes")||"{}");
+    notes[ds]=(document.getElementById("tdNote")||{}).value||"";
+    localStorage.setItem("copilot_tour_notes", JSON.stringify(notes));
+    alert("નોંધ સેવ");
   }
 
   fetch(API + "/api/log", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({kind:"open_generate"}) });
@@ -969,6 +1095,83 @@
     reader.readAsDataURL(file);
   }
 
+
+  let tourYM = {y:2026,m:8};
+  function openTour(){ show("s-tour"); tourPage("cover"); }
+  function tourPage(which){
+    ["tourCover","tourPerson","tourMonth","tourDay"].forEach(function(id){
+      const el=document.getElementById(id); if(el) el.classList.toggle("hidden", id!=="tour"+which.charAt(0).toUpperCase()+which.slice(1) && !(which==="cover"&&id==="tourCover") && !(which==="person"&&id==="tourPerson") && !(which==="month"&&id==="tourMonth") && !(which==="day"&&id==="tourDay"));
+    });
+    if (which==="person") loadTourPerson();
+    if (which==="month") renderTourMonth();
+  }
+  function loadTourPerson(){
+    try{
+      const p=JSON.parse(localStorage.getItem("copilot_profile")||"{}");
+      const set=function(id,v){ const e=document.getElementById(id); if(e) e.value=v||""; };
+      set("tdName", p.name); set("tdOffice", p.office); set("tdMobile", p.mobile); set("tdEmail", p.email);
+    }catch(e){}
+  }
+  function saveTourPerson(){
+    const p={
+      name:(document.getElementById("tdName")||{}).value||"",
+      office:(document.getElementById("tdOffice")||{}).value||"",
+      mobile:(document.getElementById("tdMobile")||{}).value||"",
+      email:(document.getElementById("tdEmail")||{}).value||""
+    };
+    localStorage.setItem("copilot_profile", JSON.stringify(p));
+    tourPage("month");
+  }
+  function tourShift(d){
+    tourYM.m += d;
+    if (tourYM.m<0){ tourYM.m=11; tourYM.y--; }
+    if (tourYM.m>11){ tourYM.m=0; tourYM.y++; }
+    renderTourMonth();
+  }
+  function renderTourMonth(){
+    const names=["જાન્યુ","ફેબ","માર્ચ","એપ્રિલ","મે","જૂન","જુલાઈ","ઓગ","સપ્ટે","ઓક્ટો","નવે","ડિસે"];
+    const title=document.getElementById("tmTitle");
+    if (title) title.textContent = names[tourYM.m] + " " + tourYM.y;
+    const grid=document.getElementById("tmGrid");
+    if (!grid) return;
+    const first=new Date(tourYM.y, tourYM.m, 1);
+    const last=new Date(tourYM.y, tourYM.m+1, 0).getDate();
+    const skip=first.getDay();
+    let html="";
+    ["ર","સો","મં","બુ","ગુ","શુ","શ"].forEach(function(d){ html += "<div class='stat'><span>"+d+"</span><b></b></div>"; });
+    for (let i=0;i<skip;i++) html += "<div class='stat' style='opacity:.2'></div>";
+    for (let d=1;d<=last;d++){
+      const ds = tourYM.y + "-" + String(tourYM.m+1).padStart(2,"0") + "-" + String(d).padStart(2,"0");
+      html += "<div class='stat' onclick='openTourDay(\""+ds+"\")' style='cursor:pointer'><span>"+d+"</span><b></b></div>";
+    }
+    grid.innerHTML=html;
+  }
+  function openTourDay(ds){
+    tourPage("day");
+    const el=document.getElementById("tdTitle");
+    if (el) el.textContent = ds;
+    const notes=JSON.parse(localStorage.getItem("copilot_tour_notes")||"{}");
+    document.getElementById("tdNote").value = notes[ds] || "";
+    Promise.all([
+      fetch(API+"/api/db/estimates").then(function(r){return r.json();}).catch(function(){return {items:[]};}),
+      fetch(API+"/api/db/site").then(function(r){return r.json();}).catch(function(){return {items:[]};})
+    ]).then(function(arr){
+      const est=(arr[0].items||[]).filter(function(x){return String(x.ts||"").slice(0,10)===ds;});
+      const site=(arr[1].items||[]).filter(function(x){return String(x.ts||"").slice(0,10)===ds;});
+      const bills=site.filter(function(x){return Number(x.bill||0)>0;});
+      document.getElementById("tdEst").textContent=est.length;
+      document.getElementById("tdSite").textContent=site.length;
+      document.getElementById("tdBill").textContent=bills.length;
+    });
+  }
+  function saveTourNote(){
+    const ds=(document.getElementById("tdTitle")||{}).textContent||"";
+    const notes=JSON.parse(localStorage.getItem("copilot_tour_notes")||"{}");
+    notes[ds]=(document.getElementById("tdNote")||{}).value||"";
+    localStorage.setItem("copilot_tour_notes", JSON.stringify(notes));
+    alert("નોંધ સેવ");
+  }
+
   fetch(API + "/api/log", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({kind:"select_" + currentType}) });
     document.getElementById("formTitle").textContent = currentType === "paver" ? "Paver Block — ફોર્મ" : "CC Road — ફોર્મ";
     document.querySelectorAll(".cc-only").forEach((el) => el.classList.toggle("hidden", currentType !== "cc"));
@@ -1101,6 +1304,83 @@
       } else store("");
     };
     reader.readAsDataURL(file);
+  }
+
+
+  let tourYM = {y:2026,m:8};
+  function openTour(){ show("s-tour"); tourPage("cover"); }
+  function tourPage(which){
+    ["tourCover","tourPerson","tourMonth","tourDay"].forEach(function(id){
+      const el=document.getElementById(id); if(el) el.classList.toggle("hidden", id!=="tour"+which.charAt(0).toUpperCase()+which.slice(1) && !(which==="cover"&&id==="tourCover") && !(which==="person"&&id==="tourPerson") && !(which==="month"&&id==="tourMonth") && !(which==="day"&&id==="tourDay"));
+    });
+    if (which==="person") loadTourPerson();
+    if (which==="month") renderTourMonth();
+  }
+  function loadTourPerson(){
+    try{
+      const p=JSON.parse(localStorage.getItem("copilot_profile")||"{}");
+      const set=function(id,v){ const e=document.getElementById(id); if(e) e.value=v||""; };
+      set("tdName", p.name); set("tdOffice", p.office); set("tdMobile", p.mobile); set("tdEmail", p.email);
+    }catch(e){}
+  }
+  function saveTourPerson(){
+    const p={
+      name:(document.getElementById("tdName")||{}).value||"",
+      office:(document.getElementById("tdOffice")||{}).value||"",
+      mobile:(document.getElementById("tdMobile")||{}).value||"",
+      email:(document.getElementById("tdEmail")||{}).value||""
+    };
+    localStorage.setItem("copilot_profile", JSON.stringify(p));
+    tourPage("month");
+  }
+  function tourShift(d){
+    tourYM.m += d;
+    if (tourYM.m<0){ tourYM.m=11; tourYM.y--; }
+    if (tourYM.m>11){ tourYM.m=0; tourYM.y++; }
+    renderTourMonth();
+  }
+  function renderTourMonth(){
+    const names=["જાન્યુ","ફેબ","માર્ચ","એપ્રિલ","મે","જૂન","જુલાઈ","ઓગ","સપ્ટે","ઓક્ટો","નવે","ડિસે"];
+    const title=document.getElementById("tmTitle");
+    if (title) title.textContent = names[tourYM.m] + " " + tourYM.y;
+    const grid=document.getElementById("tmGrid");
+    if (!grid) return;
+    const first=new Date(tourYM.y, tourYM.m, 1);
+    const last=new Date(tourYM.y, tourYM.m+1, 0).getDate();
+    const skip=first.getDay();
+    let html="";
+    ["ર","સો","મં","બુ","ગુ","શુ","શ"].forEach(function(d){ html += "<div class='stat'><span>"+d+"</span><b></b></div>"; });
+    for (let i=0;i<skip;i++) html += "<div class='stat' style='opacity:.2'></div>";
+    for (let d=1;d<=last;d++){
+      const ds = tourYM.y + "-" + String(tourYM.m+1).padStart(2,"0") + "-" + String(d).padStart(2,"0");
+      html += "<div class='stat' onclick='openTourDay(\""+ds+"\")' style='cursor:pointer'><span>"+d+"</span><b></b></div>";
+    }
+    grid.innerHTML=html;
+  }
+  function openTourDay(ds){
+    tourPage("day");
+    const el=document.getElementById("tdTitle");
+    if (el) el.textContent = ds;
+    const notes=JSON.parse(localStorage.getItem("copilot_tour_notes")||"{}");
+    document.getElementById("tdNote").value = notes[ds] || "";
+    Promise.all([
+      fetch(API+"/api/db/estimates").then(function(r){return r.json();}).catch(function(){return {items:[]};}),
+      fetch(API+"/api/db/site").then(function(r){return r.json();}).catch(function(){return {items:[]};})
+    ]).then(function(arr){
+      const est=(arr[0].items||[]).filter(function(x){return String(x.ts||"").slice(0,10)===ds;});
+      const site=(arr[1].items||[]).filter(function(x){return String(x.ts||"").slice(0,10)===ds;});
+      const bills=site.filter(function(x){return Number(x.bill||0)>0;});
+      document.getElementById("tdEst").textContent=est.length;
+      document.getElementById("tdSite").textContent=site.length;
+      document.getElementById("tdBill").textContent=bills.length;
+    });
+  }
+  function saveTourNote(){
+    const ds=(document.getElementById("tdTitle")||{}).textContent||"";
+    const notes=JSON.parse(localStorage.getItem("copilot_tour_notes")||"{}");
+    notes[ds]=(document.getElementById("tdNote")||{}).value||"";
+    localStorage.setItem("copilot_tour_notes", JSON.stringify(notes));
+    alert("નોંધ સેવ");
   }
 
   fetch(API + "/api/log", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({kind:"blocked_type", type:name}) });
@@ -1524,6 +1804,83 @@ function startScan(camera) {
       } else store("");
     };
     reader.readAsDataURL(file);
+  }
+
+
+  let tourYM = {y:2026,m:8};
+  function openTour(){ show("s-tour"); tourPage("cover"); }
+  function tourPage(which){
+    ["tourCover","tourPerson","tourMonth","tourDay"].forEach(function(id){
+      const el=document.getElementById(id); if(el) el.classList.toggle("hidden", id!=="tour"+which.charAt(0).toUpperCase()+which.slice(1) && !(which==="cover"&&id==="tourCover") && !(which==="person"&&id==="tourPerson") && !(which==="month"&&id==="tourMonth") && !(which==="day"&&id==="tourDay"));
+    });
+    if (which==="person") loadTourPerson();
+    if (which==="month") renderTourMonth();
+  }
+  function loadTourPerson(){
+    try{
+      const p=JSON.parse(localStorage.getItem("copilot_profile")||"{}");
+      const set=function(id,v){ const e=document.getElementById(id); if(e) e.value=v||""; };
+      set("tdName", p.name); set("tdOffice", p.office); set("tdMobile", p.mobile); set("tdEmail", p.email);
+    }catch(e){}
+  }
+  function saveTourPerson(){
+    const p={
+      name:(document.getElementById("tdName")||{}).value||"",
+      office:(document.getElementById("tdOffice")||{}).value||"",
+      mobile:(document.getElementById("tdMobile")||{}).value||"",
+      email:(document.getElementById("tdEmail")||{}).value||""
+    };
+    localStorage.setItem("copilot_profile", JSON.stringify(p));
+    tourPage("month");
+  }
+  function tourShift(d){
+    tourYM.m += d;
+    if (tourYM.m<0){ tourYM.m=11; tourYM.y--; }
+    if (tourYM.m>11){ tourYM.m=0; tourYM.y++; }
+    renderTourMonth();
+  }
+  function renderTourMonth(){
+    const names=["જાન્યુ","ફેબ","માર્ચ","એપ્રિલ","મે","જૂન","જુલાઈ","ઓગ","સપ્ટે","ઓક્ટો","નવે","ડિસે"];
+    const title=document.getElementById("tmTitle");
+    if (title) title.textContent = names[tourYM.m] + " " + tourYM.y;
+    const grid=document.getElementById("tmGrid");
+    if (!grid) return;
+    const first=new Date(tourYM.y, tourYM.m, 1);
+    const last=new Date(tourYM.y, tourYM.m+1, 0).getDate();
+    const skip=first.getDay();
+    let html="";
+    ["ર","સો","મં","બુ","ગુ","શુ","શ"].forEach(function(d){ html += "<div class='stat'><span>"+d+"</span><b></b></div>"; });
+    for (let i=0;i<skip;i++) html += "<div class='stat' style='opacity:.2'></div>";
+    for (let d=1;d<=last;d++){
+      const ds = tourYM.y + "-" + String(tourYM.m+1).padStart(2,"0") + "-" + String(d).padStart(2,"0");
+      html += "<div class='stat' onclick='openTourDay(\""+ds+"\")' style='cursor:pointer'><span>"+d+"</span><b></b></div>";
+    }
+    grid.innerHTML=html;
+  }
+  function openTourDay(ds){
+    tourPage("day");
+    const el=document.getElementById("tdTitle");
+    if (el) el.textContent = ds;
+    const notes=JSON.parse(localStorage.getItem("copilot_tour_notes")||"{}");
+    document.getElementById("tdNote").value = notes[ds] || "";
+    Promise.all([
+      fetch(API+"/api/db/estimates").then(function(r){return r.json();}).catch(function(){return {items:[]};}),
+      fetch(API+"/api/db/site").then(function(r){return r.json();}).catch(function(){return {items:[]};})
+    ]).then(function(arr){
+      const est=(arr[0].items||[]).filter(function(x){return String(x.ts||"").slice(0,10)===ds;});
+      const site=(arr[1].items||[]).filter(function(x){return String(x.ts||"").slice(0,10)===ds;});
+      const bills=site.filter(function(x){return Number(x.bill||0)>0;});
+      document.getElementById("tdEst").textContent=est.length;
+      document.getElementById("tdSite").textContent=site.length;
+      document.getElementById("tdBill").textContent=bills.length;
+    });
+  }
+  function saveTourNote(){
+    const ds=(document.getElementById("tdTitle")||{}).textContent||"";
+    const notes=JSON.parse(localStorage.getItem("copilot_tour_notes")||"{}");
+    notes[ds]=(document.getElementById("tdNote")||{}).value||"";
+    localStorage.setItem("copilot_tour_notes", JSON.stringify(notes));
+    alert("નોંધ સેવ");
   }
 
   fetch(API + "/api/log", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({kind:"page_open"}) });
