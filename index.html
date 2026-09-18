@@ -76,7 +76,9 @@
     .diary table { width:100%; border-collapse:collapse; font-size:13px; }
     .diary th, .diary td { border-bottom:1px dashed #9aaa9e; padding:6px 4px; text-align:left; }
     .diary td input { width:100%; }
-    #segBox .seg { display:grid; grid-template-columns:28px 1fr 1fr 28px; gap:6px; margin-bottom:6px; align-items:center; }
+    #segBox .seg, #segHead.seg { display:grid; grid-template-columns:28px 1fr 1fr 28px; gap:6px; margin-bottom:6px; align-items:center; }
+    #segHead.seg { font-size:12px; font-weight:700; color:#5a6a62; text-align:center; margin:4px 0 2px; }
+    #segHead.seg span { text-align:center; }
     body.paver-on #segBox .seg { grid-template-columns:28px 1fr 1fr 28px; }
 
     .hidden { display: none !important; }
@@ -202,7 +204,7 @@
         <div class="field"><label>Sr No</label><input id="sr_no" value="6"></div>
         <div class="field full"><label>SS વિગત</label><input id="ss_details" value=""></div>
         <div class="field full"><label>સાઇટ માપ</label>
-          <div class="seg" style="font-size:12px;font-weight:700;color:#5a6a62;margin-bottom:4px"><span>#</span><span>લંબાઈ</span><span>પહોળાઈ</span><span></span></div>
+          <div id="segHead" class="seg"><span></span><span>લંબાઈ</span><span>પહોળાઈ</span><span></span></div>
           <div id="segBox"></div>
           <button type="button" class="btn btn-w" onclick="addSeg()">Add</button>
           <input id="length_m" type="hidden" value="40">
@@ -576,14 +578,13 @@
     let html = "";
     if (type==="paver") {
       const siteBrass = area * 10.7584 / 100;
-      let estBrass = diaryEst && Number(diaryEst.brass||0);
-      if (!estBrass && diaryEst && diaryEst.length_m && diaryEst.width_m) {
-        estBrass = Number(diaryEst.length_m) * Number(diaryEst.width_m) * 10.7584 / 100;
-      }
+      let estBrass = 0;
+      if (diaryEst && Number(diaryEst.brass||0)) estBrass = Number(diaryEst.brass);
+      else if (diaryEst && Number(diaryEst.length_m||0) && Number(diaryEst.width_m||0))
+        estBrass = Number(diaryEst.length_m)*Number(diaryEst.width_m)*10.7584/100;
       if (!estBrass) {
-        const eL = Number(diaryEst && diaryEst.length_m) || 0;
-        const eW = Number(diaryEst && diaryEst.width_m) || 0;
-        estBrass = (eL && eW) ? eL*eW*10.7584/100 : siteBrass;
+        const eL = lengthFromAmount("paver", estAmt || 100000);
+        estBrass = eL * 3 * 10.7584 / 100;
       }
       const diff = siteBrass - estBrass;
       const bill = scanF24("paver", L, W);
