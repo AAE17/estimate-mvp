@@ -640,6 +640,7 @@ app.post("/api/estimate/cc", async (req, res) => {
     setVal(face, "C21", work);
     setVal(face, "G22", say);
     setVal(face, "D28", d.prepared_by);
+    setVal(face, "D30", d.prepared_by);
     setVal(face, "B34", d.sr_no);
     setVal(face, "C34", d.ss_details);
     setVal(face, "B35", d.village);
@@ -674,6 +675,10 @@ app.post("/api/estimate/cc", async (req, res) => {
     setVal(meas, "A28", "Item No :- 7 Testing charges for Kapchi,Metal,Sand,Cement,C.C. Cube as per schedule of testing");
     setVal(meas, "A30", "Item No :- 8 Providing and fixing number plate of marble stone of required size set in C. M. 1 : 4 including finishing and engraving letters etc. complete.");
     setVal(meas, "K31", 1);
+    try { meas.unMergeCells("A30:L30"); } catch (e) {}
+    try { meas.mergeCells("A30:L30"); } catch (e) {}
+    meas.getCell("A30").alignment = { wrapText: true, horizontal: "left", vertical: "middle" };
+    meas.getRow(30).height = 36;
 
     if (abs) {
       setVal(abs, "B2", work);
