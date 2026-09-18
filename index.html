@@ -50,8 +50,17 @@
         linear-gradient(#cfd8d0 1px, transparent 1px) 0 0 / 18px 18px,
         linear-gradient(90deg, #cfd8d0 1px, transparent 1px) 0 0 / 18px 18px,
         #f7f4ea;
-      border:1px solid #c5b89a; border-radius:8px; padding:16px 14px 22px;
-      position:relative; min-height:420px;
+      border:1px solid #c5b89a; border-radius:4px; padding:14px 16px 36px;
+      position:relative; width:100%; max-width:210mm; min-height:297mm;
+      margin:0 auto; box-sizing:border-box;
+    }
+    .diary .auto {
+      background:rgba(255,255,255,.72); border:1px solid #c5b89a; border-radius:6px;
+      padding:10px; margin-bottom:14px;
+    }
+    .diary .work {
+      background:rgba(255,255,255,.35); border:1px dashed #8a9a88; border-radius:6px;
+      padding:10px; min-height:280px;
     }
     .diary .brand {
       position:absolute; right:12px; bottom:10px; text-align:right;
@@ -234,22 +243,32 @@
       <div id="diaryWrap" class="hidden">
         <div class="diary">
           <h3>સાઇટ માપ પત્રક</h3>
-          <div class="head">
-            <div class="field"><label>તારીખ</label><input id="dDate"></div>
-            <div class="field"><label>Grant Head</label><input id="dGrant"></div>
-            <div class="field full" style="grid-column:1/-1"><label>કામનું નામ</label><input id="dWork"></div>
-            <div class="field"><label>રકમ ₹</label><input id="dAmtIn" type="number"></div>
-            <div class="field"><label>કુલ Area SMT</label><input id="dArea" readonly></div>
+          <div class="auto">
+            <p class="muted" style="margin:0 0 8px">ઓટો ડેટા</p>
+            <div class="head">
+              <div class="field"><label>તારીખ</label><input id="dDate"></div>
+              <div class="field"><label>પ્રકાર</label>
+                <select id="dType"><option value="cc">CC Road</option><option value="paver">Paver Block</option></select>
+              </div>
+              <div class="field" style="grid-column:1/-1"><label>કામનું નામ</label><input id="dWork"></div>
+              <div class="field"><label>Grant / તાલુકો</label><input id="dGrant"></div>
+              <div class="field"><label>એસ્ટિમેટ ₹</label><input id="dAmtIn" type="number"></div>
+            </div>
           </div>
-          <table>
-            <thead><tr><th>Sr</th><th>લંબાઈ</th><th>પહોળાઈ</th></tr></thead>
-            <tbody id="dRows"></tbody>
-          </table>
+          <div class="work">
+            <p class="muted" style="margin:0 0 8px">વર્કિંગ સ્પેસ — ખાલી માપ લખો</p>
+            <table>
+              <thead id="dHead"></thead>
+              <tbody id="dRows"></tbody>
+            </table>
+            <p class="muted" id="dAreaLine">Area: 0 SMT</p>
+            <div id="dBill" class="live hidden" style="margin-top:10px"></div>
+          </div>
           <div class="brand">Co-Pilot Estimate</div>
         </div>
         <div class="actions">
           <button class="btn btn-w" onclick="addDiaryRow()">Add</button>
-          <button class="btn btn-g" onclick="diaryToForm()">ફોર્મમાં મોકલો</button>
+          <button class="btn btn-g" onclick="workIsDone()">Work is Done</button>
         </div>
       </div>
     </section>
@@ -492,44 +511,89 @@
     SEGS.push({l:10,w:3,d:Number(document.getElementById("cc_thick_m")&&document.getElementById("cc_thick_m").value||0.1)});
     renderSegs(); liveF24();
   }
+  let DIARY = [{l:"",w:"",d:""}];
+  let diaryEst = null;
+  function diaryType() {
+    const el=document.getElementById("dType");
+    return (el && el.value==="paver") ? "paver" : "cc";
+  }
+  function diaryArea() {
+    let area=0;
+    DIARY.forEach((s)=>{ area += Number(s.l||0)*Number(s.w||0); });
+    return area;
+  }
   function renderDiaryRows() {
     const tb=document.getElementById("dRows");
+    const th=document.getElementById("dHead");
     if (!tb) return;
+    const paver = diaryType()==="paver";
+    if (th) th.innerHTML = paver
+      ? "<tr><th>Sr</th><th>લંબાઈ</th><th>પહોળાઈ</th></tr>"
+      : "<tr><th>Sr</th><th>લંબાઈ</th><th>પહોળાઈ</th><th>જાડાઈ</th></tr>";
     tb.innerHTML="";
-    SEGS.forEach((s,i)=>{
+    DIARY.forEach((s,i)=>{
       const tr=document.createElement("tr");
-      tr.innerHTML='<td>'+(i+1)+'</td>'+
-        '<td><input type="number" step="0.01" value="'+s.l+'" data-k="l" data-i="'+i+'"></td>'+
-        '<td><input type="number" step="0.01" value="'+s.w+'" data-k="w" data-i="'+i+'"></td>'+
-        '<td><input type="number" step="0.01" value="'+(s.d||0.1)+'" data-k="d" data-i="'+i+'"></td>';
+      let html='<td>'+(i+1)+'</td>'+
+        '<td><input type="number" step="0.01" value="'+(s.l||"")+'" data-k="l" data-i="'+i+'"></td>'+
+        '<td><input type="number" step="0.01" value="'+(s.w||"")+'" data-k="w" data-i="'+i+'"></td>';
+      if (!paver) html += '<td><input type="number" step="0.01" value="'+(s.d||"")+'" data-k="d" data-i="'+i+'" placeholder="0.10"></td>';
+      tr.innerHTML=html;
       tb.appendChild(tr);
     });
     tb.querySelectorAll("input").forEach((inp)=>{
-      inp.oninput=function(){ SEGS[+this.dataset.i][this.dataset.k]=Number(this.value||0); syncSegToLW(); };
+      inp.oninput=function(){ DIARY[+this.dataset.i][this.dataset.k]=this.value; const a=document.getElementById("dAreaLine"); if(a) a.textContent="Area: "+(Math.round(diaryArea()*100)/100)+" SMT"; };
     });
-    syncSegToLW();
+    const a=document.getElementById("dAreaLine");
+    if (a) a.textContent="Area: "+(Math.round(diaryArea()*100)/100)+" SMT";
   }
-  function addDiaryRow(){ addSeg(); renderDiaryRows(); }
-  function openDiary(est) {
-    document.getElementById("diaryWrap").classList.remove("hidden");
-    const today=new Date();
-    document.getElementById("dDate").value = today.toISOString().slice(0,10);
-    if (est) {
-      document.getElementById("dWork").value = est.work_name||"";
-      document.getElementById("dGrant").value = est.taluka||"";
-      document.getElementById("dAmtIn").value = est.amounting||"";
-    }
-    if (!SEGS.length) SEGS=[{l:40,w:3,d:0.1}];
+  function addDiaryRow(){
+    if (DIARY.length>=10) return;
+    DIARY.push({l:"",w:"",d:""});
     renderDiaryRows();
   }
-  function diaryToForm() {
-    const w=document.getElementById("dWork").value;
-    const a=document.getElementById("dAmtIn").value;
-    goForm(currentType||"cc");
-    if (w) document.getElementById("work_name").value=w;
-    if (a) document.getElementById("amounting").value=a;
-    const d0=SEGS[0]&&SEGS[0].d; if (d0) document.getElementById("cc_thick_m").value=String(d0);
-    renderSegs(); syncSegToLW(); liveF24();
+  function openDiary(est) {
+    diaryEst = est || null;
+    document.getElementById("diaryWrap").classList.remove("hidden");
+    document.getElementById("dDate").value = new Date().toISOString().slice(0,10);
+    document.getElementById("dWork").value = est && est.work_name ? est.work_name : "";
+    document.getElementById("dGrant").value = est && est.taluka ? est.taluka : "";
+    document.getElementById("dAmtIn").value = est && est.amounting ? est.amounting : "";
+    const typ = (est && String(est.type||"").toLowerCase().indexOf("paver")>=0) ? "paver" : "cc";
+    document.getElementById("dType").value = typ;
+    DIARY = [{l:"",w:"",d:""}];
+    const bill=document.getElementById("dBill");
+    if (bill) { bill.classList.add("hidden"); bill.innerHTML=""; }
+    renderDiaryRows();
+  }
+  function workIsDone() {
+    const type = diaryType();
+    const area = diaryArea();
+    if (!area) { alert("પહેલા સાઇટ માપ લખો"); return; }
+    const estAmt = Number(document.getElementById("dAmtIn").value||0);
+    const L = DIARY.reduce((s,r)=>s+Number(r.l||0),0);
+    const W = L ? area/L : 0;
+    let html = "";
+    if (type==="paver") {
+      const siteBrass = area * 10.7584 / 100;
+      const estL = lengthFromAmount("paver", estAmt || 100000);
+      const estArea = estL * 3;
+      const estBrass = estArea * 10.7584 / 100;
+      const diff = siteBrass - estBrass;
+      const bill = scanF24("paver", L, W);
+      html = "<span>Bill</span><b>"+inr(bill)+"</b>"+
+        "<span>સાઇટ Brass: "+siteBrass.toFixed(2)+" · એસ્ટિમેટ Brass: "+estBrass.toFixed(2)+"</span>"+
+        "<span>"+(diff>=0?("વધારે +"+diff.toFixed(2)):("ઓછું "+diff.toFixed(2)))+" Brass</span>";
+    } else {
+      const d = Number((DIARY[0]&&DIARY[0].d)||0.1);
+      const bill = scanF24("cc", L, W);
+      const diff = bill - estAmt;
+      html = "<span>Bill</span><b>"+inr(bill)+"</b>"+
+        "<span>એસ્ટિમેટ: "+inr(estAmt)+"</span>"+
+        "<span>"+(diff>=0?("વધારે કામ "+inr(diff)):("ઓછું કામ "+inr(Math.abs(diff))))+"</span>";
+    }
+    const box=document.getElementById("dBill");
+    box.innerHTML=html;
+    box.classList.remove("hidden");
   }
   function renderSiteList() {
     const el=document.getElementById("siteList");
@@ -914,6 +978,7 @@ function startScan(camera) {
   document.getElementById("jilla").addEventListener("change", onJilla);
   document.getElementById("taluka").addEventListener("change", onTaluka);
   document.getElementById("village").addEventListener("change", onVillage);
+  const _dt=document.getElementById("dType"); if(_dt) _dt.addEventListener("change", renderDiaryRows);
   
 
 
