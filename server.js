@@ -325,6 +325,19 @@ async function writeAndRespond(req, res, wb, d, prefix, areas, kind) {
     xlsx: xlsxName,
     pdf: pdfUrl
   }, req);
+  try {
+    const rec = dbAppend(DB_EST, {
+      kind: "estimate",
+      type: kind === "estimate_paver" ? "Paver" : "CC",
+      village: d.village, taluka: d.taluka, jilla: d.jilla,
+      work_name: d.work_name || "",
+      amounting: Number(d.amounting || 0),
+      length_m: Lm, width_m: Wm, area: areaM,
+      brass: kind === "estimate_paver" ? areaM * 10.7584 / 100 : 0,
+      prepared_by: d.prepared_by || ""
+    });
+    if (typeof sbOn === "function" && sbOn()) sbInsert("estimates", rec).catch(function(e){ console.error(e.message); });
+  } catch (_e) {}
   const wantXlsx = output === "xlsx" || output === "both";
   res.json({
     ok: true,
@@ -846,6 +859,165 @@ app.get("/api/download/:name", (req, res) => {
   if (!fs.existsSync(full)) return res.status(404).json({ ok: false });
   res.download(full, name);
 });
+
+
+const DB_DIR = path.join(__dirname, "db");
+if (!fs.existsSync(DB_DIR)) fs.mkdirSync(DB_DIR);
+const DB_EST = path.join(DB_DIR, "estimates.jsonl");
+const DB_SITE = path.join(DB_DIR, "site.jsonl");
+const DB_MEDIA = path.join(DB_DIR, "media.jsonl");
+const MEDIA_DIR = path.join(DB_DIR, "media");
+if (!fs.existsSync(MEDIA_DIR)) fs.mkdirSync(MEDIA_DIR);
+
+function dbAppend(file, rec) {
+  rec.id = rec.id || (Date.now() + "-" + Math.random().toString(36).slice(2, 8));
+  rec.ts = rec.ts || new Date().toISOString();
+  fs.appendFileSync(file, JSON.stringify(rec) + "\n");
+  return rec;
+}
+function dbRead(file, limit) {
+  if (!fs.existsSync(file)) return [];
+  const lines = fs.readFileSync(file, "utf8").trim().split("\n").filter(Boolean);
+  const out = [];
+  for (const line of lines) {
+    try { out.push(JSON.parse(line)); } catch (_e) {}
+  }
+  return out.reverse().slice(0, limit || 200);
+}
+
+const SB_URL = (process.env.SUPABASE_URL || "").replace(/\/$/, "");
+const SB_KEY = process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_KEY || "";
+function sbOn() { return !!(SB_URL && SB_KEY); }
+async function sbInsert(table, row) {
+  const r = await fetch(SB_URL + "/rest/v1/" + table, {
+    method: "POST",
+    headers: {
+      apikey: SB_KEY,
+      Authorization: "Bearer " + SB_KEY,
+      "Content-Type": "application/json",
+      Prefer: "return=representation"
+    },
+    body: JSON.stringify(row)
+  });
+  if (!r.ok) throw new Error(await r.text());
+  const js = await r.json();
+  return Array.isArray(js) ? js[0] : js;
+}
+async function sbSelect(table, limit) {
+  const r = await fetch(SB_URL + "/rest/v1/" + table + "?select=*&order=ts.desc&limit=" + (limit || 200), {
+    headers: { apikey: SB_KEY, Authorization: "Bearer " + SB_KEY }
+  });
+  if (!r.ok) throw new Error(await r.text());
+  return await r.json();
+}
+async function sbUpload(name, buf) {
+  const r = await fetch(SB_URL + "/storage/v1/object/site-media/" + name, {
+    method: "POST",
+    headers: {
+      apikey: SB_KEY,
+      Authorization: "Bearer " + SB_KEY,
+      "Content-Type": "image/jpeg",
+      "x-upsert": "true"
+    },
+    body: buf
+  });
+  if (!r.ok) throw new Error(await r.text());
+  return SB_URL + "/storage/v1/object/public/site-media/" + name;
+}
+
+app.post("/api/db/estimate", (req, res) => {
+  const b = req.body || {};
+  const rec = dbAppend(DB_EST, {
+    kind: "estimate",
+    type: b.type || "",
+    village: b.village || "",
+    taluka: b.taluka || "",
+    jilla: b.jilla || "",
+    work_name: b.work_name || "",
+    amounting: Number(b.amounting || 0),
+    length_m: Number(b.length_m || 0),
+    width_m: Number(b.width_m || 0),
+    brass: Number(b.brass || 0),
+    prepared_by: b.prepared_by || ""
+  });
+  if (sbOn()) sbInsert("estimates", rec).catch(function(e){ console.error(e.message); });
+  res.json({ ok: true, id: rec.id });
+});
+app.get("/api/db/estimates", async (_req, res) => {
+  try { if (sbOn()) return res.json({ ok: true, items: await sbSelect("estimates", 200) }); }
+  catch (e) { console.error(e.message); }
+  res.json({ ok: true, items: dbRead(DB_EST, 200) });
+});
+app.post("/api/db/site", (req, res) => {
+  const b = req.body || {};
+  const rec = dbAppend(DB_SITE, {
+    kind: "site",
+    type: b.type || "",
+    work_name: b.work_name || "",
+    amounting: Number(b.amounting || 0),
+    rows: b.rows || [],
+    area: Number(b.area || 0),
+    brass: Number(b.brass || 0),
+    bill: Number(b.bill || 0),
+    gps: b.gps || "",
+    estimate_id: b.estimate_id || ""
+  });
+  if (sbOn()) sbInsert("site_measures", rec).catch(function(e){ console.error(e.message); });
+  res.json({ ok: true, id: rec.id });
+});
+app.get("/api/db/site", async (_req, res) => {
+  try { if (sbOn()) return res.json({ ok: true, items: await sbSelect("site_measures", 200) }); }
+  catch (e) { console.error(e.message); }
+  res.json({ ok: true, items: dbRead(DB_SITE, 200) });
+});
+app.post("/api/db/media", (req, res) => {
+  const b = req.body || {};
+  let file = "";
+  let url = "";
+  if (b.data && String(b.data).startsWith("data:")) {
+    const raw = String(b.data);
+    const comma = raw.indexOf(",");
+    const buf = Buffer.from(raw.slice(comma + 1), "base64");
+    if (buf.length <= 4 * 1024 * 1024) {
+      file = (b.kind || "media") + "-" + Date.now() + ".jpg";
+      fs.writeFileSync(path.join(MEDIA_DIR, file), buf);
+      url = "/db/media/" + file;
+    }
+  }
+  const rec = dbAppend(DB_MEDIA, {
+    kind: b.kind || "photo",
+    work_name: b.work_name || "",
+    gps: b.gps || "",
+    file, url
+  });
+  if (sbOn() && b.data && String(b.data).startsWith("data:")) {
+    const raw = String(b.data);
+    const comma = raw.indexOf(",");
+    const buf = Buffer.from(raw.slice(comma + 1), "base64");
+    const name = (b.kind || "media") + "-" + Date.now() + ".jpg";
+    sbUpload(name, buf).then(function (u) {
+      rec.url = u;
+      sbInsert("media", { id: rec.id, ts: rec.ts, kind: rec.kind, work_name: rec.work_name, gps: rec.gps, url: u }).catch(function(){});
+      res.json({ ok: true, id: rec.id, file: u });
+    }).catch(function (e) {
+      console.error(e.message);
+      res.json({ ok: true, id: rec.id, file: url });
+    });
+    return;
+  }
+  res.json({ ok: true, id: rec.id, file: url });
+});
+app.get("/api/db/media", async (_req, res) => {
+  try { if (sbOn()) return res.json({ ok: true, items: await sbSelect("media", 80) }); }
+  catch (e) { console.error(e.message); }
+  const items = dbRead(DB_MEDIA, 80).map((m) => ({
+    id: m.id, ts: m.ts, kind: m.kind, work_name: m.work_name, gps: m.gps,
+    url: m.url || (m.file ? ("/db/media/" + m.file) : "")
+  }));
+  res.json({ ok: true, items });
+});
+app.use("/db/media", express.static(MEDIA_DIR));
+
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
