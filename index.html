@@ -67,7 +67,8 @@
     .diary table { width:100%; border-collapse:collapse; font-size:13px; }
     .diary th, .diary td { border-bottom:1px dashed #9aaa9e; padding:6px 4px; text-align:left; }
     .diary td input { width:100%; }
-    #segBox .seg { display:grid; grid-template-columns:28px 1fr 1fr 1fr 28px; gap:6px; margin-bottom:6px; align-items:center; }
+    #segBox .seg { display:grid; grid-template-columns:28px 1fr 1fr 28px; gap:6px; margin-bottom:6px; align-items:center; }
+    body.paver-on #segBox .seg { grid-template-columns:28px 1fr 1fr 28px; }
 
     .hidden { display: none !important; }
     .toast {
@@ -191,9 +192,9 @@
         <div class="field"><label>Prepared by</label><input id="prepared_by" value="MR.V.A.THAKOR. A.A.E."></div>
         <div class="field"><label>Sr No</label><input id="sr_no" value="6"></div>
         <div class="field full"><label>SS વિગત</label><input id="ss_details" value=""></div>
-        <div class="field full"><label>સાઇટ માપ (મહત્તમ 5 પંક્તિ)</label>
+        <div class="field full"><label>સાઇટ માપ</label>
           <div id="segBox"></div>
-          <button type="button" class="btn btn-w" onclick="addSeg()">+ પહોળાઈ ઉમેરો</button>
+          <button type="button" class="btn btn-w" onclick="addSeg()">Add</button>
           <input id="length_m" type="hidden" value="40">
           <input id="width_m" type="hidden" value="3">
         </div>
@@ -241,13 +242,13 @@
             <div class="field"><label>કુલ Area SMT</label><input id="dArea" readonly></div>
           </div>
           <table>
-            <thead><tr><th>Sr</th><th>લંબાઈ</th><th>પહોળાઈ</th><th>જાડાઈ</th></tr></thead>
+            <thead><tr><th>Sr</th><th>લંબાઈ</th><th>પહોળાઈ</th></tr></thead>
             <tbody id="dRows"></tbody>
           </table>
           <div class="brand">Co-Pilot Estimate</div>
         </div>
         <div class="actions">
-          <button class="btn btn-w" onclick="addDiaryRow()">+ પંક્તિ</button>
+          <button class="btn btn-w" onclick="addDiaryRow()">Add</button>
           <button class="btn btn-g" onclick="diaryToForm()">ફોર્મમાં મોકલો</button>
         </div>
       </div>
@@ -315,6 +316,7 @@
   </div>
 
 <script>
+
   const API = "";
   let GJ = {};
   let currentType = "cc";
@@ -446,144 +448,9 @@
     if (id === "s-pr") setTab("tab-pr");
   }
   function goTypes() {
-    
-
-  let SEGS = [{l:40,w:3,d:0.1}];
-  function syncSegToLW() {
-    let area = 0, Lsum = 0;
-    SEGS.forEach((s) => { const a=Number(s.l||0)*Number(s.w||0); area+=a; Lsum+=Number(s.l||0); });
-    const W = Lsum ? (area/Lsum) : 3;
-    const L = Lsum || 40;
-    const lm=document.getElementById("length_m");
-    const wm=document.getElementById("width_m");
-    if (lm) lm.value = String(Math.round(L*100)/100);
-    if (wm) wm.value = String(Math.round(W*100)/100);
-    const da=document.getElementById("dArea");
-    if (da) da.value = String(Math.round(area*100)/100);
-    return {L,W,area};
-  }
-  function renderSegs() {
-    const box=document.getElementById("segBox");
-    if (!box) return;
-    box.innerHTML="";
-    SEGS.forEach((s,i)=>{
-      const row=document.createElement("div");
-      row.className="seg";
-      row.innerHTML='<span>'+(i+1)+'</span>'+
-        '<input type="number" step="0.01" value="'+s.l+'" data-k="l" data-i="'+i+'">'+
-        '<input type="number" step="0.01" value="'+s.w+'" data-k="w" data-i="'+i+'">'+
-        '<input type="number" step="0.01" value="'+(s.d||0.1)+'" data-k="d" data-i="'+i+'">'+
-        '<button type="button" class="btn btn-w" data-del="'+i+'">×</button>';
-      box.appendChild(row);
-    });
-    box.querySelectorAll("input").forEach((inp)=>{
-      inp.oninput=function(){ const i=+this.dataset.i; SEGS[i][this.dataset.k]=Number(this.value||0); syncSegToLW(); liveF24(); };
-    });
-    box.querySelectorAll("[data-del]").forEach((b)=>{
-      b.onclick=function(){ if(SEGS.length<2) return; SEGS.splice(+this.dataset.del,1); renderSegs(); syncSegToLW(); liveF24(); };
-    });
-    syncSegToLW();
-  }
-  function addSeg() {
-    if (SEGS.length>=5) return;
-    SEGS.push({l:10,w:3,d:Number(document.getElementById("cc_thick_m")&&document.getElementById("cc_thick_m").value||0.1)});
-    renderSegs(); liveF24();
-  }
-  function renderDiaryRows() {
-    const tb=document.getElementById("dRows");
-    if (!tb) return;
-    tb.innerHTML="";
-    SEGS.forEach((s,i)=>{
-      const tr=document.createElement("tr");
-      tr.innerHTML='<td>'+(i+1)+'</td>'+
-        '<td><input type="number" step="0.01" value="'+s.l+'" data-k="l" data-i="'+i+'"></td>'+
-        '<td><input type="number" step="0.01" value="'+s.w+'" data-k="w" data-i="'+i+'"></td>'+
-        '<td><input type="number" step="0.01" value="'+(s.d||0.1)+'" data-k="d" data-i="'+i+'"></td>';
-      tb.appendChild(tr);
-    });
-    tb.querySelectorAll("input").forEach((inp)=>{
-      inp.oninput=function(){ SEGS[+this.dataset.i][this.dataset.k]=Number(this.value||0); syncSegToLW(); };
-    });
-    syncSegToLW();
-  }
-  function addDiaryRow(){ addSeg(); renderDiaryRows(); }
-  function openDiary(est) {
-    document.getElementById("diaryWrap").classList.remove("hidden");
-    const today=new Date();
-    document.getElementById("dDate").value = today.toISOString().slice(0,10);
-    if (est) {
-      document.getElementById("dWork").value = est.work_name||"";
-      document.getElementById("dGrant").value = est.taluka||"";
-      document.getElementById("dAmtIn").value = est.amounting||"";
-    }
-    if (!SEGS.length) SEGS=[{l:40,w:3,d:0.1}];
-    renderDiaryRows();
-  }
-  function diaryToForm() {
-    const w=document.getElementById("dWork").value;
-    const a=document.getElementById("dAmtIn").value;
-    goForm(currentType||"cc");
-    if (w) document.getElementById("work_name").value=w;
-    if (a) document.getElementById("amounting").value=a;
-    const d0=SEGS[0]&&SEGS[0].d; if (d0) document.getElementById("cc_thick_m").value=String(d0);
-    renderSegs(); syncSegToLW(); liveF24();
-  }
-  function renderSiteList() {
-    const el=document.getElementById("siteList");
-    if (!el) return;
-    fetch(API+"/api/stats").then(r=>r.json()).then((s)=>{
-      const rec=s.recent||[];
-      el.innerHTML = rec.length ? rec.map((r,i)=>
-        '<div><span>'+ (r.ts||"").slice(0,10)+' · '+(r.type||"")+' · '+(r.village||r.taluka||"")+
-        '</span><button type="button" class="btn btn-w" data-pick="'+i+'">પસંદ</button></div>'
-      ).join("") : "<div>હજુ એસ્ટિમેટ નથી</div>";
-      window._siteRecent=rec;
-      el.querySelectorAll("[data-pick]").forEach((b)=>{
-        b.onclick=function(){ openDiary(window._siteRecent[+this.dataset.pick]); };
-      });
-    }).catch(function(){ el.textContent="યાદી લાવી ન શકાઈ"; });
-  }
-
-  function fillStats(s) {
-    s = s || {};
-    const inr0 = (x) => "₹ " + Number(x || 0).toLocaleString("en-IN", { maximumFractionDigits: 0 });
-    const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
-    set("dToday", s.today || 0);
-    set("dTotal", s.total || 0);
-    set("dSplit", (s.cc || 0) + " / " + (s.paver || 0));
-    set("dAmt", inr0(s.amount));
-    set("aToday", s.today || 0);
-    set("aTotal", s.total || 0);
-    set("aCc", s.cc || 0);
-    set("aPv", s.paver || 0);
-    const top = (s.talukas && s.talukas[0]) ? (s.talukas[0].name + " (" + s.talukas[0].n + ")") : "—";
-    set("dTopTal", "સૌથી વધુ તાલુકો: " + top);
-    const tal = document.getElementById("aTal");
-    if (tal) {
-      tal.innerHTML = (s.talukas || []).length
-        ? s.talukas.map((t) => "<div><span>" + t.name + "</span><b>" + t.n + "</b></div>").join("")
-        : "<div><span>હજુ ડેટા નથી</span><b></b></div>";
-    }
-    const rec = document.getElementById("aRecent");
-    if (rec) {
-      rec.innerHTML = (s.recent || []).length
-        ? s.recent.map((r) => {
-            const d = (r.ts || "").slice(0, 10);
-            return "<div><span>" + d + " · " + r.type + " · " + (r.village || r.taluka) + "</span><b>" + inr0(r.amounting) + "</b></div>";
-          }).join("")
-        : "<div><span>હજુ એસ્ટિમેટ નથી</span><b></b></div>";
-    }
-  }
-  function loadStats() {
-    fetch(API + "/api/stats").then((r) => r.json()).then(fillStats).catch(function () {});
-  }
-
-  fetch(API + "/api/log", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({kind:"open_generate"}) });
+    fetch(API + "/api/log", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({kind:"open_generate"}) });
     show("s-type");
   }
-  function goForm(type) {
-    currentType = type === "paver" ? "paver" : "cc";
-    
 
   let SEGS = [{l:40,w:3,d:0.1}];
   function syncSegToLW() {
@@ -609,7 +476,6 @@
       row.innerHTML='<span>'+(i+1)+'</span>'+
         '<input type="number" step="0.01" value="'+s.l+'" data-k="l" data-i="'+i+'">'+
         '<input type="number" step="0.01" value="'+s.w+'" data-k="w" data-i="'+i+'">'+
-        '<input type="number" step="0.01" value="'+(s.d||0.1)+'" data-k="d" data-i="'+i+'">'+
         '<button type="button" class="btn btn-w" data-del="'+i+'">×</button>';
       box.appendChild(row);
     });
@@ -622,7 +488,7 @@
     syncSegToLW();
   }
   function addSeg() {
-    if (SEGS.length>=5) return;
+    if (SEGS.length>=10) return;
     SEGS.push({l:10,w:3,d:Number(document.getElementById("cc_thick_m")&&document.getElementById("cc_thick_m").value||0.1)});
     renderSegs(); liveF24();
   }
@@ -715,7 +581,10 @@
     fetch(API + "/api/stats").then((r) => r.json()).then(fillStats).catch(function () {});
   }
 
-  fetch(API + "/api/log", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({kind:"select_" + currentType}) });
+  function goForm(type) {
+    currentType = type === "paver" ? "paver" : "cc";
+    document.body.classList.toggle("paver-on", currentType==="paver");
+    fetch(API + "/api/log", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({kind:"select_" + currentType}) });
     document.getElementById("formTitle").textContent = currentType === "paver" ? "Paver Block — ફોર્મ" : "CC Road — ફોર્મ";
     document.querySelectorAll(".cc-only").forEach((el) => el.classList.toggle("hidden", currentType !== "cc"));
     document.querySelectorAll(".paver-only").forEach((el) => el.classList.toggle("hidden", currentType !== "paver"));
@@ -725,14 +594,10 @@
     document.getElementById("grantOtherWrap").classList.add("hidden");
     if (currentType === "paver") {
       document.getElementById("box_thick_m").value = "0.2";
-      document.getElementById("width_m").value = "3";
-      document.getElementById("length_m").value = String(lengthFromAmount("paver", num("amounting") || 100000));
       document.getElementById("sr_no").value = "18";
       document.getElementById("prepared_by").value = "Shree V.A.Thakor. A.A.E.";
     } else {
       document.getElementById("box_thick_m").value = "0.3";
-      document.getElementById("width_m").value = "3";
-      document.getElementById("length_m").value = String(lengthFromAmount("cc", num("amounting") || 100000));
       document.getElementById("sr_no").value = "6";
       document.getElementById("prepared_by").value = "MR.V.A.THAKOR. A.A.E.";
     }
@@ -742,143 +607,12 @@
     liveF24();
   }
   function soon(name) {
-    
-
-  let SEGS = [{l:40,w:3,d:0.1}];
-  function syncSegToLW() {
-    let area = 0, Lsum = 0;
-    SEGS.forEach((s) => { const a=Number(s.l||0)*Number(s.w||0); area+=a; Lsum+=Number(s.l||0); });
-    const W = Lsum ? (area/Lsum) : 3;
-    const L = Lsum || 40;
-    const lm=document.getElementById("length_m");
-    const wm=document.getElementById("width_m");
-    if (lm) lm.value = String(Math.round(L*100)/100);
-    if (wm) wm.value = String(Math.round(W*100)/100);
-    const da=document.getElementById("dArea");
-    if (da) da.value = String(Math.round(area*100)/100);
-    return {L,W,area};
-  }
-  function renderSegs() {
-    const box=document.getElementById("segBox");
-    if (!box) return;
-    box.innerHTML="";
-    SEGS.forEach((s,i)=>{
-      const row=document.createElement("div");
-      row.className="seg";
-      row.innerHTML='<span>'+(i+1)+'</span>'+
-        '<input type="number" step="0.01" value="'+s.l+'" data-k="l" data-i="'+i+'">'+
-        '<input type="number" step="0.01" value="'+s.w+'" data-k="w" data-i="'+i+'">'+
-        '<input type="number" step="0.01" value="'+(s.d||0.1)+'" data-k="d" data-i="'+i+'">'+
-        '<button type="button" class="btn btn-w" data-del="'+i+'">×</button>';
-      box.appendChild(row);
-    });
-    box.querySelectorAll("input").forEach((inp)=>{
-      inp.oninput=function(){ const i=+this.dataset.i; SEGS[i][this.dataset.k]=Number(this.value||0); syncSegToLW(); liveF24(); };
-    });
-    box.querySelectorAll("[data-del]").forEach((b)=>{
-      b.onclick=function(){ if(SEGS.length<2) return; SEGS.splice(+this.dataset.del,1); renderSegs(); syncSegToLW(); liveF24(); };
-    });
-    syncSegToLW();
-  }
-  function addSeg() {
-    if (SEGS.length>=5) return;
-    SEGS.push({l:10,w:3,d:Number(document.getElementById("cc_thick_m")&&document.getElementById("cc_thick_m").value||0.1)});
-    renderSegs(); liveF24();
-  }
-  function renderDiaryRows() {
-    const tb=document.getElementById("dRows");
-    if (!tb) return;
-    tb.innerHTML="";
-    SEGS.forEach((s,i)=>{
-      const tr=document.createElement("tr");
-      tr.innerHTML='<td>'+(i+1)+'</td>'+
-        '<td><input type="number" step="0.01" value="'+s.l+'" data-k="l" data-i="'+i+'"></td>'+
-        '<td><input type="number" step="0.01" value="'+s.w+'" data-k="w" data-i="'+i+'"></td>'+
-        '<td><input type="number" step="0.01" value="'+(s.d||0.1)+'" data-k="d" data-i="'+i+'"></td>';
-      tb.appendChild(tr);
-    });
-    tb.querySelectorAll("input").forEach((inp)=>{
-      inp.oninput=function(){ SEGS[+this.dataset.i][this.dataset.k]=Number(this.value||0); syncSegToLW(); };
-    });
-    syncSegToLW();
-  }
-  function addDiaryRow(){ addSeg(); renderDiaryRows(); }
-  function openDiary(est) {
-    document.getElementById("diaryWrap").classList.remove("hidden");
-    const today=new Date();
-    document.getElementById("dDate").value = today.toISOString().slice(0,10);
-    if (est) {
-      document.getElementById("dWork").value = est.work_name||"";
-      document.getElementById("dGrant").value = est.taluka||"";
-      document.getElementById("dAmtIn").value = est.amounting||"";
-    }
-    if (!SEGS.length) SEGS=[{l:40,w:3,d:0.1}];
-    renderDiaryRows();
-  }
-  function diaryToForm() {
-    const w=document.getElementById("dWork").value;
-    const a=document.getElementById("dAmtIn").value;
-    goForm(currentType||"cc");
-    if (w) document.getElementById("work_name").value=w;
-    if (a) document.getElementById("amounting").value=a;
-    const d0=SEGS[0]&&SEGS[0].d; if (d0) document.getElementById("cc_thick_m").value=String(d0);
-    renderSegs(); syncSegToLW(); liveF24();
-  }
-  function renderSiteList() {
-    const el=document.getElementById("siteList");
-    if (!el) return;
-    fetch(API+"/api/stats").then(r=>r.json()).then((s)=>{
-      const rec=s.recent||[];
-      el.innerHTML = rec.length ? rec.map((r,i)=>
-        '<div><span>'+ (r.ts||"").slice(0,10)+' · '+(r.type||"")+' · '+(r.village||r.taluka||"")+
-        '</span><button type="button" class="btn btn-w" data-pick="'+i+'">પસંદ</button></div>'
-      ).join("") : "<div>હજુ એસ્ટિમેટ નથી</div>";
-      window._siteRecent=rec;
-      el.querySelectorAll("[data-pick]").forEach((b)=>{
-        b.onclick=function(){ openDiary(window._siteRecent[+this.dataset.pick]); };
-      });
-    }).catch(function(){ el.textContent="યાદી લાવી ન શકાઈ"; });
-  }
-
-  function fillStats(s) {
-    s = s || {};
-    const inr0 = (x) => "₹ " + Number(x || 0).toLocaleString("en-IN", { maximumFractionDigits: 0 });
-    const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
-    set("dToday", s.today || 0);
-    set("dTotal", s.total || 0);
-    set("dSplit", (s.cc || 0) + " / " + (s.paver || 0));
-    set("dAmt", inr0(s.amount));
-    set("aToday", s.today || 0);
-    set("aTotal", s.total || 0);
-    set("aCc", s.cc || 0);
-    set("aPv", s.paver || 0);
-    const top = (s.talukas && s.talukas[0]) ? (s.talukas[0].name + " (" + s.talukas[0].n + ")") : "—";
-    set("dTopTal", "સૌથી વધુ તાલુકો: " + top);
-    const tal = document.getElementById("aTal");
-    if (tal) {
-      tal.innerHTML = (s.talukas || []).length
-        ? s.talukas.map((t) => "<div><span>" + t.name + "</span><b>" + t.n + "</b></div>").join("")
-        : "<div><span>હજુ ડેટા નથી</span><b></b></div>";
-    }
-    const rec = document.getElementById("aRecent");
-    if (rec) {
-      rec.innerHTML = (s.recent || []).length
-        ? s.recent.map((r) => {
-            const d = (r.ts || "").slice(0, 10);
-            return "<div><span>" + d + " · " + r.type + " · " + (r.village || r.taluka) + "</span><b>" + inr0(r.amounting) + "</b></div>";
-          }).join("")
-        : "<div><span>હજુ એસ્ટિમેટ નથી</span><b></b></div>";
-    }
-  }
-  function loadStats() {
-    fetch(API + "/api/stats").then((r) => r.json()).then(fillStats).catch(function () {});
-  }
-
-  fetch(API + "/api/log", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({kind:"blocked_type", type:name}) });
+    fetch(API + "/api/log", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({kind:"blocked_type", type:name}) });
     document.getElementById("popText").textContent = "Gutter line અને Pipe Line under construction. Select CC Road or Paver Block.";
     document.getElementById("pop").classList.remove("hidden");
   }
-  function startScan(camera) {
+
+function startScan(camera) {
     var f = document.getElementById(camera ? "ssFileCam" : "ssFile");
     f.value = "";
     f.click();
@@ -1182,135 +916,6 @@
   document.getElementById("village").addEventListener("change", onVillage);
   
 
-  let SEGS = [{l:40,w:3,d:0.1}];
-  function syncSegToLW() {
-    let area = 0, Lsum = 0;
-    SEGS.forEach((s) => { const a=Number(s.l||0)*Number(s.w||0); area+=a; Lsum+=Number(s.l||0); });
-    const W = Lsum ? (area/Lsum) : 3;
-    const L = Lsum || 40;
-    const lm=document.getElementById("length_m");
-    const wm=document.getElementById("width_m");
-    if (lm) lm.value = String(Math.round(L*100)/100);
-    if (wm) wm.value = String(Math.round(W*100)/100);
-    const da=document.getElementById("dArea");
-    if (da) da.value = String(Math.round(area*100)/100);
-    return {L,W,area};
-  }
-  function renderSegs() {
-    const box=document.getElementById("segBox");
-    if (!box) return;
-    box.innerHTML="";
-    SEGS.forEach((s,i)=>{
-      const row=document.createElement("div");
-      row.className="seg";
-      row.innerHTML='<span>'+(i+1)+'</span>'+
-        '<input type="number" step="0.01" value="'+s.l+'" data-k="l" data-i="'+i+'">'+
-        '<input type="number" step="0.01" value="'+s.w+'" data-k="w" data-i="'+i+'">'+
-        '<input type="number" step="0.01" value="'+(s.d||0.1)+'" data-k="d" data-i="'+i+'">'+
-        '<button type="button" class="btn btn-w" data-del="'+i+'">×</button>';
-      box.appendChild(row);
-    });
-    box.querySelectorAll("input").forEach((inp)=>{
-      inp.oninput=function(){ const i=+this.dataset.i; SEGS[i][this.dataset.k]=Number(this.value||0); syncSegToLW(); liveF24(); };
-    });
-    box.querySelectorAll("[data-del]").forEach((b)=>{
-      b.onclick=function(){ if(SEGS.length<2) return; SEGS.splice(+this.dataset.del,1); renderSegs(); syncSegToLW(); liveF24(); };
-    });
-    syncSegToLW();
-  }
-  function addSeg() {
-    if (SEGS.length>=5) return;
-    SEGS.push({l:10,w:3,d:Number(document.getElementById("cc_thick_m")&&document.getElementById("cc_thick_m").value||0.1)});
-    renderSegs(); liveF24();
-  }
-  function renderDiaryRows() {
-    const tb=document.getElementById("dRows");
-    if (!tb) return;
-    tb.innerHTML="";
-    SEGS.forEach((s,i)=>{
-      const tr=document.createElement("tr");
-      tr.innerHTML='<td>'+(i+1)+'</td>'+
-        '<td><input type="number" step="0.01" value="'+s.l+'" data-k="l" data-i="'+i+'"></td>'+
-        '<td><input type="number" step="0.01" value="'+s.w+'" data-k="w" data-i="'+i+'"></td>'+
-        '<td><input type="number" step="0.01" value="'+(s.d||0.1)+'" data-k="d" data-i="'+i+'"></td>';
-      tb.appendChild(tr);
-    });
-    tb.querySelectorAll("input").forEach((inp)=>{
-      inp.oninput=function(){ SEGS[+this.dataset.i][this.dataset.k]=Number(this.value||0); syncSegToLW(); };
-    });
-    syncSegToLW();
-  }
-  function addDiaryRow(){ addSeg(); renderDiaryRows(); }
-  function openDiary(est) {
-    document.getElementById("diaryWrap").classList.remove("hidden");
-    const today=new Date();
-    document.getElementById("dDate").value = today.toISOString().slice(0,10);
-    if (est) {
-      document.getElementById("dWork").value = est.work_name||"";
-      document.getElementById("dGrant").value = est.taluka||"";
-      document.getElementById("dAmtIn").value = est.amounting||"";
-    }
-    if (!SEGS.length) SEGS=[{l:40,w:3,d:0.1}];
-    renderDiaryRows();
-  }
-  function diaryToForm() {
-    const w=document.getElementById("dWork").value;
-    const a=document.getElementById("dAmtIn").value;
-    goForm(currentType||"cc");
-    if (w) document.getElementById("work_name").value=w;
-    if (a) document.getElementById("amounting").value=a;
-    const d0=SEGS[0]&&SEGS[0].d; if (d0) document.getElementById("cc_thick_m").value=String(d0);
-    renderSegs(); syncSegToLW(); liveF24();
-  }
-  function renderSiteList() {
-    const el=document.getElementById("siteList");
-    if (!el) return;
-    fetch(API+"/api/stats").then(r=>r.json()).then((s)=>{
-      const rec=s.recent||[];
-      el.innerHTML = rec.length ? rec.map((r,i)=>
-        '<div><span>'+ (r.ts||"").slice(0,10)+' · '+(r.type||"")+' · '+(r.village||r.taluka||"")+
-        '</span><button type="button" class="btn btn-w" data-pick="'+i+'">પસંદ</button></div>'
-      ).join("") : "<div>હજુ એસ્ટિમેટ નથી</div>";
-      window._siteRecent=rec;
-      el.querySelectorAll("[data-pick]").forEach((b)=>{
-        b.onclick=function(){ openDiary(window._siteRecent[+this.dataset.pick]); };
-      });
-    }).catch(function(){ el.textContent="યાદી લાવી ન શકાઈ"; });
-  }
-
-  function fillStats(s) {
-    s = s || {};
-    const inr0 = (x) => "₹ " + Number(x || 0).toLocaleString("en-IN", { maximumFractionDigits: 0 });
-    const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
-    set("dToday", s.today || 0);
-    set("dTotal", s.total || 0);
-    set("dSplit", (s.cc || 0) + " / " + (s.paver || 0));
-    set("dAmt", inr0(s.amount));
-    set("aToday", s.today || 0);
-    set("aTotal", s.total || 0);
-    set("aCc", s.cc || 0);
-    set("aPv", s.paver || 0);
-    const top = (s.talukas && s.talukas[0]) ? (s.talukas[0].name + " (" + s.talukas[0].n + ")") : "—";
-    set("dTopTal", "સૌથી વધુ તાલુકો: " + top);
-    const tal = document.getElementById("aTal");
-    if (tal) {
-      tal.innerHTML = (s.talukas || []).length
-        ? s.talukas.map((t) => "<div><span>" + t.name + "</span><b>" + t.n + "</b></div>").join("")
-        : "<div><span>હજુ ડેટા નથી</span><b></b></div>";
-    }
-    const rec = document.getElementById("aRecent");
-    if (rec) {
-      rec.innerHTML = (s.recent || []).length
-        ? s.recent.map((r) => {
-            const d = (r.ts || "").slice(0, 10);
-            return "<div><span>" + d + " · " + r.type + " · " + (r.village || r.taluka) + "</span><b>" + inr0(r.amounting) + "</b></div>";
-          }).join("")
-        : "<div><span>હજુ એસ્ટિમેટ નથી</span><b></b></div>";
-    }
-  }
-  function loadStats() {
-    fetch(API + "/api/stats").then((r) => r.json()).then(fillStats).catch(function () {});
-  }
 
   fetch(API + "/api/log", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({kind:"page_open"}) });
   loadStats();
