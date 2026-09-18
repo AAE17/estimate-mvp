@@ -888,6 +888,16 @@ function dbRead(file, limit) {
 const SB_URL = (process.env.SUPABASE_URL || "").replace(/\/$/, "");
 const SB_KEY = process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_KEY || "";
 function sbOn() { return !!(SB_URL && SB_KEY); }
+function sbPick(table, row) {
+  const cols = {
+    estimates: ["id","ts","type","village","taluka","jilla","work_name","amounting","length_m","width_m","area","brass","prepared_by"],
+    site_measures: ["id","ts","type","work_name","amounting","rows","area","brass","bill","gps","estimate_id"],
+    media: ["id","ts","kind","work_name","gps","url"]
+  }[table] || Object.keys(row);
+  const o = {};
+  cols.forEach(function (k) { if (row[k] !== undefined) o[k] = row[k]; });
+  return o;
+}
 async function sbInsert(table, row) {
   const r = await fetch(SB_URL + "/rest/v1/" + table, {
     method: "POST",
@@ -897,7 +907,7 @@ async function sbInsert(table, row) {
       "Content-Type": "application/json",
       Prefer: "return=representation"
     },
-    body: JSON.stringify(row)
+    body: JSON.stringify(sbPick(table, row))
   });
   if (!r.ok) throw new Error(await r.text());
   const js = await r.json();
@@ -1018,6 +1028,10 @@ app.get("/api/db/media", async (_req, res) => {
 });
 app.use("/db/media", express.static(MEDIA_DIR));
 
+
+app.get("/api/db/health", (_req, res) => {
+  res.json({ ok: true, supabase: sbOn(), url: SB_URL ? SB_URL.replace(/https:\/\//,"") : "" });
+});
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
