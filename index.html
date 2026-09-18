@@ -79,6 +79,9 @@
     #segBox .seg, #segHead.seg { display:grid; grid-template-columns:28px 1fr 1fr 28px; gap:6px; margin-bottom:6px; align-items:center; }
     #segHead.seg { font-size:12px; font-weight:700; color:#5a6a62; text-align:center; margin:4px 0 2px; }
     #segHead.seg span { text-align:center; }
+    #planPad { width:100%; height:220px; touch-action:none; background:rgba(255,255,255,.5); border:1px dashed #8a9a88; border-radius:6px; }
+    #photoPrev { max-width:100%; border-radius:8px; margin-top:8px; }
+
     body.paver-on #segBox .seg { grid-template-columns:28px 1fr 1fr 28px; }
 
     .hidden { display: none !important; }
@@ -267,6 +270,20 @@
             <div class="actions" style="margin-top:8px">
               <button type="button" class="btn btn-w" onclick="addDiaryRow()">Add</button>
               <button type="button" class="btn btn-g" onclick="workIsDone()">Work is Done</button>
+              <button type="button" class="btn btn-s" onclick="togglePlan()">Site Plan</button>
+              <button type="button" class="btn btn-s" onclick="takeSitePhoto()">Photo</button>
+            </div>
+            <input id="sitePhotoFile" type="file" accept="image/*" capture="environment" class="hidden">
+            <div id="planBox" class="hidden" style="margin-top:8px">
+              <canvas id="planPad" width="600" height="360"></canvas>
+              <div class="actions">
+                <button type="button" class="btn btn-w" onclick="clearPlan()">Clear</button>
+                <button type="button" class="btn btn-g" onclick="savePlan()">સ્કેચ સેવ</button>
+              </div>
+            </div>
+            <div id="photoBox" class="hidden" style="margin-top:8px">
+              <img id="photoPrev" alt="">
+              <p class="muted" id="photoGps"></p>
             </div>
             <p class="muted" id="dAreaLine">Area: 0 SMT</p>
             <div id="dBill" class="live hidden" style="margin-top:10px"></div>
@@ -293,7 +310,8 @@
     </section>
     <section id="s-pr" class="card hidden">
       <h2>Profile</h2>
-      <p class="muted">ટૂંક સમયમાં — નામ, તાલુકો, તૈયાર કરનાર.</p>
+      <p class="muted">સાઇટ પ્લાન / ફોટો — ફોનમાં સેવ.</p>
+      <div id="mediaList" class="mini"></div>
     </section>
   </div>
 
@@ -468,10 +486,97 @@
     if (id === "s-type" || id === "s-form") setTab("tab-est");
     if (id === "s-site") { setTab("tab-site"); loadStats(); renderSiteList(); }
     if (id === "s-an") { setTab("tab-an"); loadStats(); }
-    if (id === "s-pr") setTab("tab-pr");
+    if (id === "s-pr") { setTab("tab-pr"); renderMedia(); }
   }
   function goTypes() {
-    fetch(API + "/api/log", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({kind:"open_generate"}) });
+  
+  function mediaKey(){ return "copilot_site_media"; }
+  function loadMedia(){ try { return JSON.parse(localStorage.getItem(mediaKey())||"[]"); } catch(e){ return []; } }
+  function pushMedia(item){
+    const all=loadMedia();
+    all.unshift(item);
+    localStorage.setItem(mediaKey(), JSON.stringify(all.slice(0,40)));
+    renderMedia();
+  }
+  function renderMedia(){
+    const el=document.getElementById("mediaList");
+    if (!el) return;
+    const all=loadMedia();
+    el.innerHTML = all.length ? all.map(function(m){
+      return "<div><span>"+(m.ts||"").slice(0,16)+" · "+m.kind+" · "+(m.work||"")+"</span><b>"+(m.gps||"")+"</b></div>";
+    }).join("") : "<div>હજુ સ્કેચ/ફોટો નથી</div>";
+  }
+  function togglePlan(){
+    const box=document.getElementById("planBox");
+    box.classList.toggle("hidden");
+    if (!box.classList.contains("hidden")) bindPlan();
+  }
+  function bindPlan(){
+    const c=document.getElementById("planPad");
+    if (!c || c._bound) return;
+    c._bound=true;
+    const ctx=c.getContext("2d");
+    ctx.strokeStyle="#1B5D45"; ctx.lineWidth=2.5; ctx.lineCap="round";
+    function pos(e){
+      const r=c.getBoundingClientRect();
+      const src=(e.touches&&e.touches[0])?e.touches[0]:e;
+      return {x:(src.clientX-r.left)*c.width/r.width, y:(src.clientY-r.top)*c.height/r.height};
+    }
+    let draw=false;
+    function down(e){ e.preventDefault(); draw=true; const p=pos(e); ctx.beginPath(); ctx.moveTo(p.x,p.y); }
+    function move(e){ if(!draw) return; e.preventDefault(); const p=pos(e); ctx.lineTo(p.x,p.y); ctx.stroke(); }
+    function up(){ draw=false; }
+    c.addEventListener("mousedown", down);
+    c.addEventListener("mousemove", move);
+    window.addEventListener("mouseup", up);
+    c.addEventListener("touchstart", down, {passive:false});
+    c.addEventListener("touchmove", move, {passive:false});
+    c.addEventListener("touchend", up);
+  }
+  function clearPlan(){
+    const c=document.getElementById("planPad");
+    if (c) c.getContext("2d").clearRect(0,0,c.width,c.height);
+  }
+  function savePlan(){
+    const c=document.getElementById("planPad");
+    const work=(document.getElementById("dWork")||{}).value||"";
+    pushMedia({kind:"plan", ts:new Date().toISOString(), work:work, data:c.toDataURL("image/jpeg",0.55), gps:""});
+    alert("સ્કેચ Profileમાં સેવ");
+  }
+  function takeSitePhoto(){
+    const f=document.getElementById("sitePhotoFile");
+    f.value="";
+    f.onchange=onSitePhoto;
+    f.click();
+  }
+  function onSitePhoto(){
+    const f=document.getElementById("sitePhotoFile");
+    const file=f.files&&f.files[0];
+    if (!file) return;
+    const box=document.getElementById("photoBox");
+    box.classList.remove("hidden");
+    const img=document.getElementById("photoPrev");
+    const gpsEl=document.getElementById("photoGps");
+    const reader=new FileReader();
+    reader.onload=function(){
+      img.src=reader.result;
+      function store(gps){
+        gpsEl.textContent = gps || "GPS નથી";
+        const work=(document.getElementById("dWork")||{}).value||"";
+        pushMedia({kind:"photo", ts:new Date().toISOString(), work:work, data:reader.result, gps:gps||""});
+      }
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          function(pos){ store(pos.coords.latitude.toFixed(6)+", "+pos.coords.longitude.toFixed(6)); },
+          function(){ store(""); },
+          {enableHighAccuracy:true, timeout:8000}
+        );
+      } else store("");
+    };
+    reader.readAsDataURL(file);
+  }
+
+  fetch(API + "/api/log", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({kind:"open_generate"}) });
     show("s-type");
   }
 
@@ -659,7 +764,94 @@
   function goForm(type) {
     currentType = type === "paver" ? "paver" : "cc";
     document.body.classList.toggle("paver-on", currentType==="paver");
-    fetch(API + "/api/log", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({kind:"select_" + currentType}) });
+  
+  function mediaKey(){ return "copilot_site_media"; }
+  function loadMedia(){ try { return JSON.parse(localStorage.getItem(mediaKey())||"[]"); } catch(e){ return []; } }
+  function pushMedia(item){
+    const all=loadMedia();
+    all.unshift(item);
+    localStorage.setItem(mediaKey(), JSON.stringify(all.slice(0,40)));
+    renderMedia();
+  }
+  function renderMedia(){
+    const el=document.getElementById("mediaList");
+    if (!el) return;
+    const all=loadMedia();
+    el.innerHTML = all.length ? all.map(function(m){
+      return "<div><span>"+(m.ts||"").slice(0,16)+" · "+m.kind+" · "+(m.work||"")+"</span><b>"+(m.gps||"")+"</b></div>";
+    }).join("") : "<div>હજુ સ્કેચ/ફોટો નથી</div>";
+  }
+  function togglePlan(){
+    const box=document.getElementById("planBox");
+    box.classList.toggle("hidden");
+    if (!box.classList.contains("hidden")) bindPlan();
+  }
+  function bindPlan(){
+    const c=document.getElementById("planPad");
+    if (!c || c._bound) return;
+    c._bound=true;
+    const ctx=c.getContext("2d");
+    ctx.strokeStyle="#1B5D45"; ctx.lineWidth=2.5; ctx.lineCap="round";
+    function pos(e){
+      const r=c.getBoundingClientRect();
+      const src=(e.touches&&e.touches[0])?e.touches[0]:e;
+      return {x:(src.clientX-r.left)*c.width/r.width, y:(src.clientY-r.top)*c.height/r.height};
+    }
+    let draw=false;
+    function down(e){ e.preventDefault(); draw=true; const p=pos(e); ctx.beginPath(); ctx.moveTo(p.x,p.y); }
+    function move(e){ if(!draw) return; e.preventDefault(); const p=pos(e); ctx.lineTo(p.x,p.y); ctx.stroke(); }
+    function up(){ draw=false; }
+    c.addEventListener("mousedown", down);
+    c.addEventListener("mousemove", move);
+    window.addEventListener("mouseup", up);
+    c.addEventListener("touchstart", down, {passive:false});
+    c.addEventListener("touchmove", move, {passive:false});
+    c.addEventListener("touchend", up);
+  }
+  function clearPlan(){
+    const c=document.getElementById("planPad");
+    if (c) c.getContext("2d").clearRect(0,0,c.width,c.height);
+  }
+  function savePlan(){
+    const c=document.getElementById("planPad");
+    const work=(document.getElementById("dWork")||{}).value||"";
+    pushMedia({kind:"plan", ts:new Date().toISOString(), work:work, data:c.toDataURL("image/jpeg",0.55), gps:""});
+    alert("સ્કેચ Profileમાં સેવ");
+  }
+  function takeSitePhoto(){
+    const f=document.getElementById("sitePhotoFile");
+    f.value="";
+    f.onchange=onSitePhoto;
+    f.click();
+  }
+  function onSitePhoto(){
+    const f=document.getElementById("sitePhotoFile");
+    const file=f.files&&f.files[0];
+    if (!file) return;
+    const box=document.getElementById("photoBox");
+    box.classList.remove("hidden");
+    const img=document.getElementById("photoPrev");
+    const gpsEl=document.getElementById("photoGps");
+    const reader=new FileReader();
+    reader.onload=function(){
+      img.src=reader.result;
+      function store(gps){
+        gpsEl.textContent = gps || "GPS નથી";
+        const work=(document.getElementById("dWork")||{}).value||"";
+        pushMedia({kind:"photo", ts:new Date().toISOString(), work:work, data:reader.result, gps:gps||""});
+      }
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          function(pos){ store(pos.coords.latitude.toFixed(6)+", "+pos.coords.longitude.toFixed(6)); },
+          function(){ store(""); },
+          {enableHighAccuracy:true, timeout:8000}
+        );
+      } else store("");
+    };
+    reader.readAsDataURL(file);
+  }
+
+  fetch(API + "/api/log", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({kind:"select_" + currentType}) });
     document.getElementById("formTitle").textContent = currentType === "paver" ? "Paver Block — ફોર્મ" : "CC Road — ફોર્મ";
     document.querySelectorAll(".cc-only").forEach((el) => el.classList.toggle("hidden", currentType !== "cc"));
     document.querySelectorAll(".paver-only").forEach((el) => el.classList.toggle("hidden", currentType !== "paver"));
@@ -682,7 +874,94 @@
     liveF24();
   }
   function soon(name) {
-    fetch(API + "/api/log", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({kind:"blocked_type", type:name}) });
+  
+  function mediaKey(){ return "copilot_site_media"; }
+  function loadMedia(){ try { return JSON.parse(localStorage.getItem(mediaKey())||"[]"); } catch(e){ return []; } }
+  function pushMedia(item){
+    const all=loadMedia();
+    all.unshift(item);
+    localStorage.setItem(mediaKey(), JSON.stringify(all.slice(0,40)));
+    renderMedia();
+  }
+  function renderMedia(){
+    const el=document.getElementById("mediaList");
+    if (!el) return;
+    const all=loadMedia();
+    el.innerHTML = all.length ? all.map(function(m){
+      return "<div><span>"+(m.ts||"").slice(0,16)+" · "+m.kind+" · "+(m.work||"")+"</span><b>"+(m.gps||"")+"</b></div>";
+    }).join("") : "<div>હજુ સ્કેચ/ફોટો નથી</div>";
+  }
+  function togglePlan(){
+    const box=document.getElementById("planBox");
+    box.classList.toggle("hidden");
+    if (!box.classList.contains("hidden")) bindPlan();
+  }
+  function bindPlan(){
+    const c=document.getElementById("planPad");
+    if (!c || c._bound) return;
+    c._bound=true;
+    const ctx=c.getContext("2d");
+    ctx.strokeStyle="#1B5D45"; ctx.lineWidth=2.5; ctx.lineCap="round";
+    function pos(e){
+      const r=c.getBoundingClientRect();
+      const src=(e.touches&&e.touches[0])?e.touches[0]:e;
+      return {x:(src.clientX-r.left)*c.width/r.width, y:(src.clientY-r.top)*c.height/r.height};
+    }
+    let draw=false;
+    function down(e){ e.preventDefault(); draw=true; const p=pos(e); ctx.beginPath(); ctx.moveTo(p.x,p.y); }
+    function move(e){ if(!draw) return; e.preventDefault(); const p=pos(e); ctx.lineTo(p.x,p.y); ctx.stroke(); }
+    function up(){ draw=false; }
+    c.addEventListener("mousedown", down);
+    c.addEventListener("mousemove", move);
+    window.addEventListener("mouseup", up);
+    c.addEventListener("touchstart", down, {passive:false});
+    c.addEventListener("touchmove", move, {passive:false});
+    c.addEventListener("touchend", up);
+  }
+  function clearPlan(){
+    const c=document.getElementById("planPad");
+    if (c) c.getContext("2d").clearRect(0,0,c.width,c.height);
+  }
+  function savePlan(){
+    const c=document.getElementById("planPad");
+    const work=(document.getElementById("dWork")||{}).value||"";
+    pushMedia({kind:"plan", ts:new Date().toISOString(), work:work, data:c.toDataURL("image/jpeg",0.55), gps:""});
+    alert("સ્કેચ Profileમાં સેવ");
+  }
+  function takeSitePhoto(){
+    const f=document.getElementById("sitePhotoFile");
+    f.value="";
+    f.onchange=onSitePhoto;
+    f.click();
+  }
+  function onSitePhoto(){
+    const f=document.getElementById("sitePhotoFile");
+    const file=f.files&&f.files[0];
+    if (!file) return;
+    const box=document.getElementById("photoBox");
+    box.classList.remove("hidden");
+    const img=document.getElementById("photoPrev");
+    const gpsEl=document.getElementById("photoGps");
+    const reader=new FileReader();
+    reader.onload=function(){
+      img.src=reader.result;
+      function store(gps){
+        gpsEl.textContent = gps || "GPS નથી";
+        const work=(document.getElementById("dWork")||{}).value||"";
+        pushMedia({kind:"photo", ts:new Date().toISOString(), work:work, data:reader.result, gps:gps||""});
+      }
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          function(pos){ store(pos.coords.latitude.toFixed(6)+", "+pos.coords.longitude.toFixed(6)); },
+          function(){ store(""); },
+          {enableHighAccuracy:true, timeout:8000}
+        );
+      } else store("");
+    };
+    reader.readAsDataURL(file);
+  }
+
+  fetch(API + "/api/log", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({kind:"blocked_type", type:name}) });
     document.getElementById("popText").textContent = "Gutter line અને Pipe Line under construction. Select CC Road or Paver Block.";
     document.getElementById("pop").classList.remove("hidden");
   }
@@ -993,6 +1272,93 @@ function startScan(camera) {
   const _dt=document.getElementById("dType"); if(_dt) _dt.addEventListener("change", renderDiaryRows);
   
 
+
+
+  function mediaKey(){ return "copilot_site_media"; }
+  function loadMedia(){ try { return JSON.parse(localStorage.getItem(mediaKey())||"[]"); } catch(e){ return []; } }
+  function pushMedia(item){
+    const all=loadMedia();
+    all.unshift(item);
+    localStorage.setItem(mediaKey(), JSON.stringify(all.slice(0,40)));
+    renderMedia();
+  }
+  function renderMedia(){
+    const el=document.getElementById("mediaList");
+    if (!el) return;
+    const all=loadMedia();
+    el.innerHTML = all.length ? all.map(function(m){
+      return "<div><span>"+(m.ts||"").slice(0,16)+" · "+m.kind+" · "+(m.work||"")+"</span><b>"+(m.gps||"")+"</b></div>";
+    }).join("") : "<div>હજુ સ્કેચ/ફોટો નથી</div>";
+  }
+  function togglePlan(){
+    const box=document.getElementById("planBox");
+    box.classList.toggle("hidden");
+    if (!box.classList.contains("hidden")) bindPlan();
+  }
+  function bindPlan(){
+    const c=document.getElementById("planPad");
+    if (!c || c._bound) return;
+    c._bound=true;
+    const ctx=c.getContext("2d");
+    ctx.strokeStyle="#1B5D45"; ctx.lineWidth=2.5; ctx.lineCap="round";
+    function pos(e){
+      const r=c.getBoundingClientRect();
+      const src=(e.touches&&e.touches[0])?e.touches[0]:e;
+      return {x:(src.clientX-r.left)*c.width/r.width, y:(src.clientY-r.top)*c.height/r.height};
+    }
+    let draw=false;
+    function down(e){ e.preventDefault(); draw=true; const p=pos(e); ctx.beginPath(); ctx.moveTo(p.x,p.y); }
+    function move(e){ if(!draw) return; e.preventDefault(); const p=pos(e); ctx.lineTo(p.x,p.y); ctx.stroke(); }
+    function up(){ draw=false; }
+    c.addEventListener("mousedown", down);
+    c.addEventListener("mousemove", move);
+    window.addEventListener("mouseup", up);
+    c.addEventListener("touchstart", down, {passive:false});
+    c.addEventListener("touchmove", move, {passive:false});
+    c.addEventListener("touchend", up);
+  }
+  function clearPlan(){
+    const c=document.getElementById("planPad");
+    if (c) c.getContext("2d").clearRect(0,0,c.width,c.height);
+  }
+  function savePlan(){
+    const c=document.getElementById("planPad");
+    const work=(document.getElementById("dWork")||{}).value||"";
+    pushMedia({kind:"plan", ts:new Date().toISOString(), work:work, data:c.toDataURL("image/jpeg",0.55), gps:""});
+    alert("સ્કેચ Profileમાં સેવ");
+  }
+  function takeSitePhoto(){
+    const f=document.getElementById("sitePhotoFile");
+    f.value="";
+    f.onchange=onSitePhoto;
+    f.click();
+  }
+  function onSitePhoto(){
+    const f=document.getElementById("sitePhotoFile");
+    const file=f.files&&f.files[0];
+    if (!file) return;
+    const box=document.getElementById("photoBox");
+    box.classList.remove("hidden");
+    const img=document.getElementById("photoPrev");
+    const gpsEl=document.getElementById("photoGps");
+    const reader=new FileReader();
+    reader.onload=function(){
+      img.src=reader.result;
+      function store(gps){
+        gpsEl.textContent = gps || "GPS નથી";
+        const work=(document.getElementById("dWork")||{}).value||"";
+        pushMedia({kind:"photo", ts:new Date().toISOString(), work:work, data:reader.result, gps:gps||""});
+      }
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          function(pos){ store(pos.coords.latitude.toFixed(6)+", "+pos.coords.longitude.toFixed(6)); },
+          function(){ store(""); },
+          {enableHighAccuracy:true, timeout:8000}
+        );
+      } else store("");
+    };
+    reader.readAsDataURL(file);
+  }
 
   fetch(API + "/api/log", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({kind:"page_open"}) });
   loadStats();
