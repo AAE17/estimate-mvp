@@ -980,6 +980,19 @@ app.get("/api/db/site", async (_req, res) => {
   catch (e) { console.error(e.message); }
   res.json({ ok: true, items: dbRead(DB_SITE, 200) });
 });
+app.post("/api/db/site/delete", async (req, res) => {
+  const id = String((req.body && req.body.id) || "");
+  if (!id) return res.json({ ok: false });
+  try {
+    if (sbOn()) {
+      await fetch(SB_URL + "/rest/v1/site_measures?id=eq." + encodeURIComponent(id), {
+        method: "DELETE",
+        headers: { apikey: SB_KEY, Authorization: "Bearer " + SB_KEY }
+      });
+    }
+  } catch (e) { console.error(e.message); }
+  res.json({ ok: true });
+});
 app.post("/api/db/media", (req, res) => {
   const b = req.body || {};
   let file = "";
