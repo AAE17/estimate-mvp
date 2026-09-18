@@ -197,11 +197,12 @@
         </div>
         <div class="field full"><label>કામનું નામ</label><input id="work_name" value=""></div>
         <div class="field"><label>Amounting to Rs.</label><input id="amounting" type="number" value="100000"></div>
-        <p id="lenHint" class="hidden">Width 3.00 m · લંબાઈ ઓટો — એડિટ થાય</p>
+        <p id="lenHint" class="hidden">લંબાઈ અને પહોળાઈ બદલી શકાય</p>
         <div class="field"><label>Prepared by</label><input id="prepared_by" value="MR.V.A.THAKOR. A.A.E."></div>
         <div class="field"><label>Sr No</label><input id="sr_no" value="6"></div>
         <div class="field full"><label>SS વિગત</label><input id="ss_details" value=""></div>
         <div class="field full"><label>સાઇટ માપ</label>
+          <div class="seg" style="font-size:12px;font-weight:700;color:#5a6a62;margin-bottom:4px"><span>#</span><span>લંબાઈ</span><span>પહોળાઈ</span><span></span></div>
           <div id="segBox"></div>
           <button type="button" class="btn btn-w" onclick="addSeg()">Add</button>
           <input id="length_m" type="hidden" value="40">
@@ -575,9 +576,15 @@
     let html = "";
     if (type==="paver") {
       const siteBrass = area * 10.7584 / 100;
-      const estL = lengthFromAmount("paver", estAmt || 100000);
-      const estArea = estL * 3;
-      const estBrass = estArea * 10.7584 / 100;
+      let estBrass = diaryEst && Number(diaryEst.brass||0);
+      if (!estBrass && diaryEst && diaryEst.length_m && diaryEst.width_m) {
+        estBrass = Number(diaryEst.length_m) * Number(diaryEst.width_m) * 10.7584 / 100;
+      }
+      if (!estBrass) {
+        const eL = Number(diaryEst && diaryEst.length_m) || 0;
+        const eW = Number(diaryEst && diaryEst.width_m) || 0;
+        estBrass = (eL && eW) ? eL*eW*10.7584/100 : siteBrass;
+      }
       const diff = siteBrass - estBrass;
       const bill = scanF24("paver", L, W);
       html = "<span>Bill</span><b>"+inr(bill)+"</b>"+
@@ -721,7 +728,7 @@ function startScan(camera) {
     const hint = document.getElementById("lenHint");
     if (hint) {
       hint.classList.remove("hidden");
-      hint.textContent = "Width " + Number(wEl.value).toFixed(2) + " m · લંબાઈ ઓટો " + L.toFixed(2) + " m · એડિટ થાય";
+      hint.textContent = "લંબાઈ અને પહોળાઈ બદલી શકાય";
     }
     liveF24();
   }
