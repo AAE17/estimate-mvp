@@ -157,6 +157,8 @@
         <div class="stat"><span>કુલ મંજૂર રકમ</span><b id="dAmt">₹ 0</b></div>
       </div>
       <p class="muted mini" id="dTopTal">તાલુકો: —</p>
+      <h3 style="margin:14px 0 6px;font-size:15px">સહિયારી એસ્ટિમેટ</h3>
+      <div class="mini" id="dRecent"></div>
       <div class="actions">
         <button class="btn btn-g" onclick="goTypes()">Estimate Generate</button>
         <button class="btn btn-s" onclick="show('s-site')">Site Measurement</button>
@@ -503,14 +505,24 @@
     all.unshift(item);
     localStorage.setItem(mediaKey(), JSON.stringify(all.slice(0,40)));
     renderMedia();
+    fetch(API+"/api/db/media",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
+      kind:item.kind, work_name:item.work||"", gps:item.gps||"", data:item.data||""
+    })}).catch(function(){});
   }
   function renderMedia(){
     const el=document.getElementById("mediaList");
     if (!el) return;
-    const all=loadMedia();
-    el.innerHTML = all.length ? all.map(function(m){
-      return "<div><span>"+(m.ts||"").slice(0,16)+" · "+m.kind+" · "+(m.work||"")+"</span><b>"+(m.gps||"")+"</b></div>";
-    }).join("") : "<div>હજુ સ્કેચ/ફોટો નથી</div>";
+    fetch(API+"/api/db/media").then(function(r){return r.json();}).then(function(d){
+      const all=(d&&d.items)||[];
+      el.innerHTML = all.length ? all.map(function(m){
+        return "<div><span>"+(m.ts||"").slice(0,16)+" · "+(m.kind||"")+" · "+(m.work_name||"")+"</span><b>"+(m.gps||"")+"</b></div>";
+      }).join("") : "<div>હજુ સ્કેચ/ફોટો નથી</div>";
+    }).catch(function(){
+      const all=loadMedia();
+      el.innerHTML = all.length ? all.map(function(m){
+        return "<div><span>"+(m.ts||"").slice(0,16)+" · "+m.kind+" · "+(m.work||"")+"</span><b>"+(m.gps||"")+"</b></div>";
+      }).join("") : "<div>હજુ સ્કેચ/ફોટો નથી</div>";
+    });
   }
   function togglePlan(){
     const box=document.getElementById("planBox");
@@ -703,6 +715,27 @@
     const bill=document.getElementById("dBill");
     if (bill) { bill.classList.add("hidden"); bill.innerHTML=""; }
     renderDiaryRows();
+    if (est && (est.work_name || est.id)) {
+      const q = est.id ? ("id="+encodeURIComponent(est.id)) : ("work="+encodeURIComponent(est.work_name||""));
+      fetch(API+"/api/db/bundle?"+q).then(function(r){return r.json();}).then(function(b){
+        if (!b || !b.ok) return;
+        const site=(b.site&&b.site[0]);
+        if (site && site.rows && site.rows.length) {
+          DIARY = site.rows;
+          renderDiaryRows();
+        }
+        const med=b.media||[];
+        const pb=document.getElementById("photoBox");
+        const img=document.getElementById("photoPrev");
+        const gps=document.getElementById("photoGps");
+        const photo=med.filter(function(m){return m.kind==="photo" && m.url;})[0];
+        if (photo && pb && img) {
+          pb.classList.remove("hidden");
+          img.src=photo.url;
+          if (gps) gps.textContent=photo.gps||"";
+        }
+      }).catch(function(){});
+    }
   }
   function workIsDone() {
     const type = diaryType();
@@ -740,14 +773,21 @@
     const box=document.getElementById("dBill");
     box.innerHTML=html;
     box.classList.remove("hidden");
+    fetch(API+"/api/db/site",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
+      type:type, work_name:(document.getElementById("dWork")||{}).value||"",
+      amounting:estAmt, rows:DIARY, area:area,
+      brass: type==="paver" ? area*10.7584/100 : 0,
+      bill: type==="paver" ? scanF24("paver", L, W) : scanF24("cc", L, W, (function(){let v=0;DIARY.forEach(function(r){v+=Number(r.l||0)*Number(r.w||0)*Number(r.d||0.1);}); return area?v/area:0.1;})()),
+      estimate_id: diaryEst && diaryEst.id || ""
+    })}).catch(function(){});
   }
   function renderSiteList() {
     const el=document.getElementById("siteList");
     if (!el) return;
-    fetch(API+"/api/stats").then(r=>r.json()).then((s)=>{
-      const rec=s.recent||[];
+    fetch(API+"/api/db/estimates").then(r=>r.json()).then((d)=>{
+      const rec=(d.items||[]).slice(0,20);
       el.innerHTML = rec.length ? rec.map((r,i)=>
-        '<div><span>'+ (r.ts||"").slice(0,10)+' · '+(r.type||"")+' · '+(r.village||r.taluka||"")+
+        '<div><span>'+ (r.ts||"").slice(0,10)+' · '+(r.type||"")+' · '+(r.work_name||r.village||r.taluka||"")+
         '</span><button type="button" class="btn btn-w" data-pick="'+i+'">પસંદ</button></div>'
       ).join("") : "<div>હજુ એસ્ટિમેટ નથી</div>";
       window._siteRecent=rec;
@@ -788,7 +828,31 @@
     }
   }
   function loadStats() {
-    fetch(API + "/api/stats").then((r) => r.json()).then(fillStats).catch(function () {});
+    fetch(API + "/api/db/estimates").then((r) => r.json()).then(function (d) {
+      const items = d.items || [];
+      const today = new Date().toISOString().slice(0,10);
+      const talMap = {};
+      let cc=0, pv=0, amt=0, tod=0;
+      items.forEach(function (x) {
+        const tp=String(x.type||"").toLowerCase();
+        if (tp.indexOf("paver")>=0) pv++; else cc++;
+        amt += Number(x.amounting||0);
+        if (String(x.ts||"").slice(0,10)===today) tod++;
+        const tk=x.taluka||"—";
+        talMap[tk]=(talMap[tk]||0)+1;
+      });
+      const talukas=Object.keys(talMap).map(function(k){return {name:k,n:talMap[k]};}).sort(function(a,b){return b.n-a.n;});
+      fillStats({ total:items.length, cc:cc, paver:pv, amount:amt, today:tod, talukas:talukas, recent:items.slice(0,8) });
+      const box=document.getElementById("dRecent");
+      if (box) {
+        const inr0=function(x){return "₹ "+Number(x||0).toLocaleString("en-IN",{maximumFractionDigits:0});};
+        box.innerHTML = items.length ? items.slice(0,8).map(function(r){
+          return "<div><span>"+String(r.ts||"").slice(0,10)+" · "+(r.type||"")+" · "+(r.work_name||r.village||"")+"</span><b>"+inr0(r.amounting)+"</b></div>";
+        }).join("") : "<div>હજુ સુપાબેઝમાં એસ્ટિમેટ નથી</div>";
+      }
+    }).catch(function(){
+      fetch(API + "/api/stats").then((r) => r.json()).then(fillStats).catch(function () {});
+    });
   }
 
   function goForm(type) {
