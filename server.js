@@ -1029,6 +1029,29 @@ app.get("/api/db/media", async (_req, res) => {
 app.use("/db/media", express.static(MEDIA_DIR));
 
 
+app.get("/api/db/bundle", async (req, res) => {
+  const work = String(req.query.work || "");
+  const id = String(req.query.id || "");
+  function match(x) {
+    if (id && String(x.id||x.estimate_id||"") === id) return true;
+    if (work && String(x.work_name||"") === work) return true;
+    return false;
+  }
+  try {
+    const ests = sbOn() ? await sbSelect("estimates", 200) : dbRead(DB_EST, 200);
+    const sites = sbOn() ? await sbSelect("site_measures", 200) : dbRead(DB_SITE, 200);
+    const media = sbOn() ? await sbSelect("media", 80) : dbRead(DB_MEDIA, 80);
+    const estimate = ests.find(match) || ests.find((x)=> work && String(x.work_name||"").indexOf(work)>=0) || null;
+    res.json({
+      ok: true,
+      estimate,
+      site: sites.filter(match),
+      media: media.filter(match)
+    });
+  } catch (e) {
+    res.json({ ok: false, error: String(e.message||e) });
+  }
+});
 app.get("/api/db/health", (_req, res) => {
   res.json({ ok: true, supabase: sbOn(), url: SB_URL ? SB_URL.replace(/https:\/\//,"") : "" });
 });
