@@ -264,15 +264,16 @@
               <thead id="dHead"></thead>
               <tbody id="dRows"></tbody>
             </table>
-            <button type="button" class="btn btn-w" style="margin-top:8px" onclick="addDiaryRow()">Add</button>
+            <div class="actions" style="margin-top:8px">
+              <button type="button" class="btn btn-w" onclick="addDiaryRow()">Add</button>
+              <button type="button" class="btn btn-g" onclick="workIsDone()">Work is Done</button>
+            </div>
             <p class="muted" id="dAreaLine">Area: 0 SMT</p>
             <div id="dBill" class="live hidden" style="margin-top:10px"></div>
           </div>
           <div class="brand">Co-Pilot Estimate</div>
         </div>
-        <div class="actions">
-          <button class="btn btn-g" onclick="workIsDone()">Work is Done</button>
-        </div>
+
       </div>
     </section>
 
