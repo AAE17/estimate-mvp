@@ -250,10 +250,22 @@
 
     <section id="s-site" class="card hidden">
       <h2>Site Measurement</h2>
-      <p class="muted">તૈયાર એસ્ટિમેટ પસંદ કરો અથવા નવું કામ.</p>
-      <div id="siteList" class="mini"></div>
-      <div class="actions" style="margin-bottom:12px">
-        <button class="btn btn-g" onclick="openDiary(null)">New work</button>
+      <div class="actions" style="margin-bottom:10px">
+        <button type="button" class="btn btn-s" id="st1" onclick="siteTab('ong')">Ongoing</button>
+        <button type="button" class="btn btn-s" id="st2" onclick="siteTab('new')">New work</button>
+        <button type="button" class="btn btn-s" id="st3" onclick="siteTab('done')">Work Done</button>
+      </div>
+      <div id="ongBox">
+        <div class="head">
+          <div class="field"><label>ગામ</label><input id="fGam" oninput="renderSiteList()"></div>
+          <div class="field"><label>Grant / કામ</label><input id="fGrant" oninput="renderSiteList()"></div>
+          <div class="field"><label>વર્ષ</label><input id="fYear" placeholder="2026" oninput="renderSiteList()"></div>
+        </div>
+        <div id="siteList" class="mini"></div>
+      </div>
+      <div id="doneBox" class="hidden">
+        <p class="muted">તારીખ પ્રમાણે સેવ માપ — ખોલીને એડિટ.</p>
+        <div id="doneList" class="mini"></div>
       </div>
       <div id="diaryWrap" class="hidden">
         <div class="diary">
@@ -278,7 +290,7 @@
             </table>
             <div class="actions" style="margin-top:8px">
               <button type="button" class="btn btn-w" onclick="addDiaryRow()">Add</button>
-              <button type="button" class="btn btn-g" onclick="workIsDone()">Work is Done</button>
+              <button type="button" class="btn btn-g" onclick="workIsDone()">Save / Work is Done</button>
               <button type="button" class="btn btn-s" onclick="togglePlan()">Site Plan</button>
               <button type="button" class="btn btn-s" onclick="takeSitePhoto()">Photo</button>
             </div>
@@ -907,11 +919,54 @@
       estimate_id: diaryEst && diaryEst.id || ""
     })}).catch(function(){});
   }
+  function siteTab(which){
+    const ong=document.getElementById("ongBox");
+    const done=document.getElementById("doneBox");
+    const wrap=document.getElementById("diaryWrap");
+    if (ong) ong.classList.toggle("hidden", which!=="ong");
+    if (done) done.classList.toggle("hidden", which!=="done");
+    if (which==="new") { if (ong) ong.classList.add("hidden"); if (done) done.classList.add("hidden"); openDiary(null); }
+    else if (wrap && which!=="new") { /* keep diary if already open */ }
+    if (which==="ong") renderSiteList();
+    if (which==="done") renderDoneList();
+  }
+  function renderDoneList(){
+    const el=document.getElementById("doneList");
+    if (!el) return;
+    fetch(API+"/api/db/site").then(function(r){return r.json();}).then(function(d){
+      const rec=(d.items||[]).slice().sort(function(a,b){return String(b.ts).localeCompare(String(a.ts));});
+      el.innerHTML = rec.length ? rec.map(function(r,i){
+        return "<div><span>"+String(r.ts||"").slice(0,10)+" · "+(r.type||"")+" · "+(r.work_name||"")+"</span><button type='button' class='btn btn-w' data-done='"+i+"'>એડિટ</button></div>";
+      }).join("") : "<div>હજુ Work Done નથી</div>";
+      window._doneRecent=rec;
+      el.querySelectorAll("[data-done]").forEach(function(b){
+        b.onclick=function(){
+          const s=window._doneRecent[+this.dataset.done];
+          openDiary({
+            id:s.estimate_id||s.id, work_name:s.work_name, amounting:s.amounting, type:s.type,
+            taluka:"", village:""
+          });
+        };
+      });
+    }).catch(function(){ el.textContent="યાદી ન આવી"; });
+  }
   function renderSiteList() {
     const el=document.getElementById("siteList");
     if (!el) return;
+    const gam=((document.getElementById("fGam")||{}).value||"").toLowerCase();
+    const gr=((document.getElementById("fGrant")||{}).value||"").toLowerCase();
+    const yr=((document.getElementById("fYear")||{}).value||"").trim();
     fetch(API+"/api/db/estimates").then(r=>r.json()).then((d)=>{
-      const rec=(d.items||[]).slice(0,20);
+      let rec=(d.items||[]);
+      rec=rec.filter(function(r){
+        const g=String(r.village||"").toLowerCase();
+        const w=String(r.work_name||"").toLowerCase();
+        const y=String(r.ts||"").slice(0,4);
+        if (gam && g.indexOf(gam)<0 && w.indexOf(gam)<0) return false;
+        if (gr && w.indexOf(gr)<0 && String(r.taluka||"").toLowerCase().indexOf(gr)<0) return false;
+        if (yr && y.indexOf(yr)<0) return false;
+        return true;
+      }).slice(0,30);
       el.innerHTML = rec.length ? rec.map((r,i)=>
         '<div><span>'+ (r.ts||"").slice(0,10)+' · '+(r.type||"")+' · '+(r.work_name||r.village||r.taluka||"")+
         '</span><button type="button" class="btn btn-w" data-pick="'+i+'">પસંદ</button></div>'
