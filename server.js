@@ -308,12 +308,19 @@ async function writeAndRespond(req, res, wb, d, prefix, areas, kind) {
     }
   }
 
+  const Lm = Number(d.length_m || 0);
+  const Wm = Number(d.width_m || 0);
+  const areaM = Lm * Wm;
   logEvent(kind, {
     village: d.village,
     taluka: d.taluka,
     jilla: d.jilla,
     amounting: Number(d.amounting || 0),
     work_name: d.work_name || "",
+    length_m: Lm,
+    width_m: Wm,
+    area: areaM,
+    brass: kind === "estimate_paver" ? areaM * 10.7584 / 100 : 0,
     output,
     xlsx: xlsxName,
     pdf: pdfUrl
@@ -558,7 +565,11 @@ app.get("/api/stats", (_req, res) => {
       village: pl.village || "",
       taluka: tk,
       amounting: Number(pl.amounting || 0),
-      work_name: pl.work_name || ""
+      work_name: pl.work_name || "",
+      length_m: Number(pl.length_m || 0),
+      width_m: Number(pl.width_m || 0),
+      area: Number(pl.area || 0),
+      brass: Number(pl.brass || 0)
     });
   }
   const talukas = Object.keys(talMap)
