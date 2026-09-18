@@ -264,13 +264,13 @@
               <thead id="dHead"></thead>
               <tbody id="dRows"></tbody>
             </table>
+            <button type="button" class="btn btn-w" style="margin-top:8px" onclick="addDiaryRow()">Add</button>
             <p class="muted" id="dAreaLine">Area: 0 SMT</p>
             <div id="dBill" class="live hidden" style="margin-top:10px"></div>
           </div>
           <div class="brand">Co-Pilot Estimate</div>
         </div>
         <div class="actions">
-          <button class="btn btn-w" onclick="addDiaryRow()">Add</button>
           <button class="btn btn-g" onclick="workIsDone()">Work is Done</button>
         </div>
       </div>
@@ -575,6 +575,9 @@
     const estAmt = Number(document.getElementById("dAmtIn").value||0);
     const L = DIARY.reduce((s,r)=>s+Number(r.l||0),0);
     const W = L ? area/L : 0;
+    let ccVol=0;
+    DIARY.forEach((r)=>{ ccVol += Number(r.l||0)*Number(r.w||0)*Number(r.d||0.1); });
+    const ccT = area ? (ccVol/area) : 0.1;
     let html = "";
     if (type==="paver") {
       const siteBrass = area * 10.7584 / 100;
@@ -588,14 +591,13 @@
       }
       const diff = siteBrass - estBrass;
       const bill = scanF24("paver", L, W);
-      html = "<span>Bill</span><b>"+inr(bill)+"</b>"+
-        "<span>સાઇટ Brass: "+siteBrass.toFixed(2)+" · એસ્ટિમેટ Brass: "+estBrass.toFixed(2)+"</span>"+
+      html = "<span>Bill "+inr(bill)+"</span><b>Brass "+siteBrass.toFixed(2)+"</b>"+
+        "<span>SMT "+(Math.round(area*100)/100)+" · એસ્ટિમેટ Brass "+estBrass.toFixed(2)+"</span>"+
         "<span>"+(diff>=0?("વધારે +"+diff.toFixed(2)):("ઓછું "+diff.toFixed(2)))+" Brass</span>";
     } else {
-      const d = Number((DIARY[0]&&DIARY[0].d)||0.1);
-      const bill = scanF24("cc", L, W);
+      const bill = scanF24("cc", L, W, ccT);
       const diff = bill - estAmt;
-      html = "<span>Bill</span><b>"+inr(bill)+"</b>"+
+      html = "<span>SMT "+(Math.round(area*100)/100)+" · જાડાઈ "+ccT.toFixed(2)+" m</span><b>"+inr(bill)+"</b>"+
         "<span>એસ્ટિમેટ: "+inr(estAmt)+"</span>"+
         "<span>"+(diff>=0?("વધારે કામ "+inr(diff)):("ઓછું કામ "+inr(Math.abs(diff))))+"</span>";
     }
@@ -689,7 +691,7 @@ function startScan(camera) {
     f.value = "";
     f.click();
   }
-  function scanF24(type, L, W) {
+  function scanF24(type, L, W, ccT) {
     const area = L * W;
     if (type === "paver") {
       const boxQty = area * 0.2;
@@ -698,10 +700,11 @@ function startScan(camera) {
       const f22 = boxQty * 156.56 + murQty * 210.42 + area * 740.51 + vata * 23.68 + 608 + 306.14;
       return f22 + f22 * 0.18;
     }
+    const t = Number(ccT || 0.1);
     const boxQty = area * 0.3;
     const metalTot = area * 0.12 * 1.15;
     const murQty = metalTot * 0.25;
-    const ccQty = area * 0.1;
+    const ccQty = area * t;
     const tot = boxQty * 156.56 + metalTot * 677.83 + murQty * 171.8 + metalTot * 247.28 + murQty * 146.01 + ccQty * 4866.35 + 2656 + 306.14;
     return tot + tot * 0.18;
   }
