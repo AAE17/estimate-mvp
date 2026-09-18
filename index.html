@@ -264,7 +264,7 @@
         <div id="siteList" class="mini"></div>
       </div>
       <div id="doneBox" class="hidden">
-        <p class="muted">તારીખ પ્રમાણે સેવ માપ — ખોલીને એડિટ.</p>
+        <p class="muted">કોન્ટ્રાક્ટરે કેટલું કામ — Brass / ₹ ચેક · એડિટ.</p>
         <div id="doneList" class="mini"></div>
       </div>
       <div id="diaryWrap" class="hidden">
@@ -290,7 +290,8 @@
             </table>
             <div class="actions" style="margin-top:8px">
               <button type="button" class="btn btn-w" onclick="addDiaryRow()">Add</button>
-              <button type="button" class="btn btn-g" onclick="workIsDone()">Save / Work is Done</button>
+              <button type="button" class="btn btn-g" onclick="saveSiteOnly()">Save</button>
+              <button type="button" class="btn btn-g" onclick="workIsDone()">Work is Done</button>
               <button type="button" class="btn btn-s" onclick="togglePlan()">Site Plan</button>
               <button type="button" class="btn btn-s" onclick="takeSitePhoto()">Photo</button>
             </div>
@@ -911,13 +912,28 @@
     const box=document.getElementById("dBill");
     box.innerHTML=html;
     box.classList.remove("hidden");
+    saveSitePayload(type, estAmt, area, L, W, true);
+  }
+  function saveSitePayload(type, estAmt, area, L, W, done){
+    const ccT=(function(){let v=0;DIARY.forEach(function(r){v+=Number(r.l||0)*Number(r.w||0)*Number(r.d||0.1);}); return area?v/area:0.1;})();
     fetch(API+"/api/db/site",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
       type:type, work_name:(document.getElementById("dWork")||{}).value||"",
       amounting:estAmt, rows:DIARY, area:area,
       brass: type==="paver" ? area*10.7584/100 : 0,
-      bill: type==="paver" ? scanF24("paver", L, W) : scanF24("cc", L, W, (function(){let v=0;DIARY.forEach(function(r){v+=Number(r.l||0)*Number(r.w||0)*Number(r.d||0.1);}); return area?v/area:0.1;})()),
-      estimate_id: diaryEst && diaryEst.id || ""
+      bill: type==="paver" ? scanF24("paver", L, W) : scanF24("cc", L, W, ccT),
+      estimate_id: diaryEst && diaryEst.id || "",
+      done: !!done
     })}).catch(function(){});
+  }
+  function saveSiteOnly(){
+    const type=diaryType();
+    const area=diaryArea();
+    if (!area) { alert("પહેલા સાઇટ માપ લખો"); return; }
+    const estAmt=Number(document.getElementById("dAmtIn").value||0);
+    const L=DIARY.reduce(function(s,r){return s+Number(r.l||0);},0);
+    const W=L?area/L:0;
+    saveSitePayload(type, estAmt, area, L, W, false);
+    alert("માપ સેવ થયું");
   }
   function siteTab(which){
     const ong=document.getElementById("ongBox");
