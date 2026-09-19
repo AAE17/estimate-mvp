@@ -863,6 +863,32 @@
     DIARY.push({l:last.l||"",w:"",d:last.d||""});
     renderDiaryRows();
   }
+  function mbPaverTotals(){
+    const area=diaryArea();
+    let excav=0,vata=0;
+    DIARY.forEach(function(s){
+      const L=parseMix(s.l), W=parseMix(s.w);
+      excav += L*W*0.2;
+      if (L||W) vata += 2*L+2*W;
+    });
+    const theory=area*0.12;
+    const boxes=Math.max(0, Math.round(theory/1.5));
+    const collect=boxes*2*1.5*0.5;
+    const testQ=Number((document.getElementById("kTest")||{}).value||1);
+    const plateQ=Number((document.getElementById("kPlate")||{}).value||0);
+    const items=[
+      ["EXCAVATION",excav,156.56],
+      ["COLLECTING",collect,210.42],
+      ["BLOCK",area,740.51],
+      ["VATA",vata,23.68],
+      ["Test",testQ,608],
+      ["તકતી",plateQ,306.14]
+    ];
+    let sub=0;
+    items.forEach(function(it){ it.push(it[1]*it[2]); sub+=it[3]; });
+    const gst=sub*0.18, tot=sub+gst, est=Number((document.getElementById("dAmtIn")||{}).value||0);
+    return {area,excav,vata,theory,boxes,collect,items,sub,gst,tot,est,net:est-tot};
+  }
   function refreshDiaryLive(){
     const a=document.getElementById("dAreaLine");
     const area=diaryArea();
@@ -942,10 +968,10 @@
     const area = diaryArea();
     if (!area) { alert("પહેલા સાઇટ માપ લખો"); return; }
     const estAmt = Number(document.getElementById("dAmtIn").value||0);
-    const L = DIARY.reduce((s,r)=>s+Number(r.l||0),0);
+    const L = DIARY.reduce((s,r)=>s+parseMix(r.l),0);
     const W = L ? area/L : 0;
     let ccVol=0;
-    DIARY.forEach((r)=>{ ccVol += Number(r.l||0)*Number(r.w||0)*Number(r.d||0.1); });
+    DIARY.forEach((r)=>{ ccVol += parseMix(r.l)*parseMix(r.w)*(parseMix(r.d)||0.1); });
     const ccT = area ? (ccVol/area) : 0.1;
     let html = "";
     if (type==="paver") {
@@ -959,7 +985,7 @@
         estBrass = eL * 3 * 10.7584 / 100;
       }
       const diff = siteBrass - estBrass;
-      const bill = scanF24("paver", L, W);
+      const bill = mbPaverTotals().tot;
       html = "<span>Bill "+inr(bill)+"</span><b>Brass "+siteBrass.toFixed(2)+"</b>"+
         "<span>SMT "+(Math.round(area*100)/100)+" · એસ્ટિમેટ Brass "+estBrass.toFixed(2)+"</span>"+
         "<span>"+(diff>=0?("વધારે +"+diff.toFixed(2)):("ઓછું "+diff.toFixed(2)))+" Brass</span>";
