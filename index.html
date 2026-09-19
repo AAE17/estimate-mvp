@@ -300,6 +300,16 @@
             </div>
             <p class="muted" id="dAreaLine">Area: 0 SMT</p>
             <div id="dBill" class="live hidden" style="margin-top:10px"></div>
+            <div id="kachuBox" class="hidden" style="margin-top:10px;text-align:left">
+              <p class="muted">કાચું બિલ — Test / નેમપ્લેટ 0 અથવા 1</p>
+              <div class="field"><label>Test Qty</label><input id="kTest" type="number" value="1" min="0" max="1"></div>
+              <div class="field"><label>નેમપ્લેટ</label><input id="kPlate" type="number" value="0" min="0" max="1"></div>
+              <div id="kachuTable" class="mini"></div>
+              <div class="actions">
+                <button type="button" class="btn btn-g" onclick="saveKachu()">Save</button>
+                <button type="button" class="btn btn-s" onclick="pdfKachu()">PDF</button>
+              </div>
+            </div>
             <input id="sitePhotoFile" type="file" accept="image/*" capture="environment" class="hidden">
             <div id="planBox" class="hidden" style="margin-top:8px">
               <canvas id="planPad" width="794" height="1123"></canvas>
@@ -919,33 +929,48 @@
     const kb=document.getElementById("btnKachu");
     if (kb) kb.classList.remove("hidden");
   }
-  function showKachu(){
-    const box=document.getElementById("dBill");
-    if (box) { box.classList.remove("hidden"); box.scrollIntoView({behavior:"smooth",block:"center"}); }
-    const type=diaryType();
-    if (type!=="paver") { alert("કાચું બિલ હાલ Paver MB"); return; }
-    const body={
+  function kachuBody(output){
+    return {
       work_name:(document.getElementById("dWork")||{}).value||"",
-      village:"",
+      village:(diaryEst&&diaryEst.village)||"",
       grant:(document.getElementById("dGrant")||{}).value||"",
-      taluka:(document.getElementById("dGrant")||{}).value||"",
-      contractor:"",
+      taluka:(diaryEst&&diaryEst.taluka)||"",
       amounting:Number((document.getElementById("dAmtIn")||{}).value||0),
       rows:DIARY,
-      output:"xlsx"
+      test_qty:Number((document.getElementById("kTest")||{}).value||1),
+      name_plate:Number((document.getElementById("kPlate")||{}).value||0),
+      output:output||"xlsx"
     };
-    if (diaryEst) {
-      body.village=diaryEst.village||"";
-      if (diaryEst.taluka) body.taluka=diaryEst.taluka;
-    }
-    fetch(API+"/api/mb/paver",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)})
+  }
+  function fillKachuPreview(p){
+    const el=document.getElementById("kachuTable");
+    if (!el || !p) return;
+    const inr0=function(x){return "₹ "+Number(x||0).toLocaleString("en-IN",{maximumFractionDigits:2});};
+    el.innerHTML=(p.items||[]).map(function(it){
+      return "<div><span>"+it[0]+" · Qty "+(Math.round(it[1]*100)/100)+"</span><b>"+inr0(it[3])+"</b></div>";
+    }).join("")+"<div><span>GST + Total</span><b>"+inr0(p.total)+"</b></div><div><span>Est "+inr0(p.est)+" · Net</span><b>"+inr0(p.net)+"</b></div>";
+  }
+  function showKachu(){
+    const kb=document.getElementById("kachuBox");
+    if (kb) kb.classList.remove("hidden");
+    if (diaryType()!=="paver") { alert("CC MB હજુ બાકી"); return; }
+    fetch(API+"/api/mb/paver",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(kachuBody("xlsx"))})
       .then(function(r){return r.json();})
       .then(function(d){
         if (!d.ok) throw new Error(d.error||"fail");
-        if (d.xlsx) window.open(API+d.xlsx,"_blank");
-        if (box) box.innerHTML=(box.innerHTML||"")+"<span>MB Excel ડાઉનલોડ</span>";
+        fillKachuPreview(d.preview);
+        window._lastKachu=d;
       })
       .catch(function(e){ alert("કાચું બિલ: "+e.message); });
+  }
+  function saveKachu(){ showKachu(); }
+  function pdfKachu(){
+    fetch(API+"/api/mb/paver",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(kachuBody("both"))})
+      .then(function(r){return r.json();})
+      .then(function(d){
+        if (d.xlsx) window.open(API+d.xlsx,"_blank");
+        if (d.pdf) window.open(API+d.pdf,"_blank");
+      });
   }
   function saveSitePayload(type, estAmt, area, L, W, done){
     const ccT=(function(){let v=0;DIARY.forEach(function(r){v+=Number(r.l||0)*Number(r.w||0)*Number(r.d||0.1);}); return area?v/area:0.1;})();
