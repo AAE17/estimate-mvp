@@ -290,9 +290,12 @@
             </table>
             <div class="actions" style="margin-top:8px">
               <button type="button" class="btn btn-w" onclick="addDiaryRow()">Add</button>
+              <button type="button" class="btn btn-g" onclick="workIsDone()">Check</button>
+              <button type="button" class="btn btn-s hidden" id="btnKachu" onclick="showKachu()">કાચું બિલ</button>
+            </div>
+            <div class="actions" style="margin-top:6px">
               <button type="button" class="btn btn-s" onclick="togglePlan()">Site Plan</button>
               <button type="button" class="btn btn-s" onclick="takeSitePhoto()">Photo</button>
-              <button type="button" class="btn btn-g" onclick="workIsDone()">Check, work is done?</button>
               <button type="button" class="btn btn-g" onclick="saveSiteOnly()">Save</button>
             </div>
             <p class="muted" id="dAreaLine">Area: 0 SMT</p>
@@ -913,6 +916,12 @@
     box.innerHTML=html;
     box.classList.remove("hidden");
     saveSitePayload(type, estAmt, area, L, W, true);
+    const kb=document.getElementById("btnKachu");
+    if (kb) kb.classList.remove("hidden");
+  }
+  function showKachu(){
+    const box=document.getElementById("dBill");
+    if (box) { box.classList.remove("hidden"); box.scrollIntoView({behavior:"smooth",block:"center"}); }
   }
   function saveSitePayload(type, estAmt, area, L, W, done){
     const ccT=(function(){let v=0;DIARY.forEach(function(r){v+=Number(r.l||0)*Number(r.w||0)*Number(r.d||0.1);}); return area?v/area:0.1;})();
