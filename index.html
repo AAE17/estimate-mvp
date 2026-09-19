@@ -290,7 +290,7 @@
             </table>
             <div class="actions" style="margin-top:8px">
               <button type="button" class="btn btn-w" onclick="addDiaryRow()">Add</button>
-              <button type="button" class="btn btn-g" onclick="workIsDone()">Check</button>
+              <button type="button" class="btn btn-g" onclick="workIsDone()">Check, કામ ખરેખર પૂરું થયું?</button>
               <button type="button" class="btn btn-s hidden" id="btnKachu" onclick="showKachu()">કાચું બિલ</button>
             </div>
             <div class="actions" style="margin-top:6px">
@@ -922,6 +922,30 @@
   function showKachu(){
     const box=document.getElementById("dBill");
     if (box) { box.classList.remove("hidden"); box.scrollIntoView({behavior:"smooth",block:"center"}); }
+    const type=diaryType();
+    if (type!=="paver") { alert("કાચું બિલ હાલ Paver MB"); return; }
+    const body={
+      work_name:(document.getElementById("dWork")||{}).value||"",
+      village:"",
+      grant:(document.getElementById("dGrant")||{}).value||"",
+      taluka:(document.getElementById("dGrant")||{}).value||"",
+      contractor:"",
+      amounting:Number((document.getElementById("dAmtIn")||{}).value||0),
+      rows:DIARY,
+      output:"xlsx"
+    };
+    if (diaryEst) {
+      body.village=diaryEst.village||"";
+      if (diaryEst.taluka) body.taluka=diaryEst.taluka;
+    }
+    fetch(API+"/api/mb/paver",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)})
+      .then(function(r){return r.json();})
+      .then(function(d){
+        if (!d.ok) throw new Error(d.error||"fail");
+        if (d.xlsx) window.open(API+d.xlsx,"_blank");
+        if (box) box.innerHTML=(box.innerHTML||"")+"<span>MB Excel ડાઉનલોડ</span>";
+      })
+      .catch(function(e){ alert("કાચું બિલ: "+e.message); });
   }
   function saveSitePayload(type, estAmt, area, L, W, done){
     const ccT=(function(){let v=0;DIARY.forEach(function(r){v+=Number(r.l||0)*Number(r.w||0)*Number(r.d||0.1);}); return area?v/area:0.1;})();
