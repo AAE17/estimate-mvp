@@ -205,7 +205,7 @@
         <div class="field"><label>Year</label>
           <select id="fy_year"><option value="">— પસંદ કરો —</option></select>
         </div>
-        <div class="field full hidden" id="grantOtherWrap">
+        <div class="field full hidden" id="grantOtherWrap"><label>અન્ય Grant Head — પોતાનું લખો</label>
           <label>અન્ય Grant Head લખો</label>
           <input id="grant_other" placeholder="Grant Head">
         </div>
@@ -280,6 +280,7 @@
               <div class="field" style="grid-column:1/-1"><label>કામનું નામ</label><input id="dWork"></div>
               <div class="field"><label>Grant / તાલુકો</label><input id="dGrant"></div>
               <div class="field"><label>એસ્ટિમેટ ₹</label><input id="dAmtIn" type="number"></div>
+              <div class="field"><label>કોન્ટ્રાક્ટર</label><input id="dContractor" placeholder="નામ"></div>
             </div>
           </div>
           <div class="work">
@@ -299,6 +300,7 @@
               <button type="button" class="btn btn-g" onclick="saveSiteOnly()">Save</button>
             </div>
             <p class="muted" id="dAreaLine">Area: 0 SMT</p>
+            <div id="mbLive" class="mini" style="margin-top:10px;text-align:left"></div>
             <div id="dBill" class="live hidden" style="margin-top:10px"></div>
             <div id="kachuBox" class="hidden" style="margin-top:10px;text-align:left">
               <p class="muted">કાચું બિલ — Test / નેમપ્લેટ 0 અથવા 1</p>
@@ -844,15 +846,54 @@
       tb.appendChild(tr);
     });
     tb.querySelectorAll("input").forEach((inp)=>{
-      inp.oninput=function(){ DIARY[+this.dataset.i][this.dataset.k]=this.value; const a=document.getElementById("dAreaLine"); if(a) a.textContent="Area: "+(Math.round(diaryArea()*100)/100)+" SMT"; };
+      inp.oninput=function(){ DIARY[+this.dataset.i][this.dataset.k]=this.value; refreshDiaryLive(); };
     });
-    const a=document.getElementById("dAreaLine");
-    if (a) a.textContent="Area: "+(Math.round(diaryArea()*100)/100)+" SMT";
+    refreshDiaryLive();
   }
   function addDiaryRow(){
     if (DIARY.length>=10) return;
-    DIARY.push({l:"",w:"",d:""});
+    const last=DIARY[DIARY.length-1]||{};
+    DIARY.push({l:last.l||"",w:"",d:last.d||""});
     renderDiaryRows();
+  }
+  function refreshDiaryLive(){
+    const a=document.getElementById("dAreaLine");
+    const area=diaryArea();
+    if (a) a.textContent="Area: "+(Math.round(area*100)/100)+" SMT";
+    const box=document.getElementById("mbLive");
+    if (!box) return;
+    if (diaryType()!=="paver") { box.innerHTML="<div>CC MB પ્રિવ્યુ પછી</div>"; return; }
+    let excav=0,vata=0;
+    DIARY.forEach(function(s){
+      const L=Number(s.l||0), W=Number(s.w||0);
+      excav += L*W*0.2;
+      if (L||W) vata += 2*L+2*W;
+    });
+    const theory=area*0.12;
+    const boxes=Math.max(0, Math.round(theory/1.5));
+    const collect=boxes*2*1.5*0.5;
+    const testQ=Number((document.getElementById("kTest")||{}).value||1);
+    const plateQ=Number((document.getElementById("kPlate")||{}).value||0);
+    const items=[
+      ["EXCAVATION",excav,156.56],
+      ["COLLECTING",collect,210.42],
+      ["BLOCK",area,740.51],
+      ["VATA",vata,23.68],
+      ["Test",testQ,608],
+      ["તકતી",plateQ,306.14]
+    ];
+    let sub=0;
+    const inr0=function(x){return "₹ "+Number(x||0).toLocaleString("en-IN",{maximumFractionDigits:2});};
+    let html="<div><b>MB Abstract</b></div>";
+    items.forEach(function(it){
+      const amt=it[1]*it[2]; sub+=amt;
+      html += "<div><span>"+it[0]+" · "+(Math.round(it[1]*100)/100)+"</span><b>"+inr0(amt)+"</b></div>";
+    });
+    const gst=sub*0.18, tot=sub+gst, est=Number((document.getElementById("dAmtIn")||{}).value||0);
+    html += "<div><span>GST 18%</span><b>"+inr0(gst)+"</b></div>";
+    html += "<div><span>Total / Est / Net</span><b>"+inr0(tot)+" · "+inr0(est)+" · "+inr0(est-tot)+"</b></div>";
+    html += "<div><span>બોક્સ "+boxes+" · ડસ્ટ "+(Math.round(theory*100)/100)+"</span><b></b></div>";
+    box.innerHTML=html;
   }
   function openDiary(est) {
     diaryEst = est || null;
@@ -963,7 +1004,29 @@
       })
       .catch(function(e){ alert("કાચું બિલ: "+e.message); });
   }
-  function saveKachu(){ showKachu(); }
+  function saveKachu(){
+    const body=kachuBody("xlsx");
+    fetch(API+"/api/mb/paver",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)})
+      .then(function(r){return r.json();})
+      .then(function(d){
+        if (!d.ok) throw new Error(d.error||"fail");
+        fillKachuPreview(d.preview);
+        return fetch(API+"/api/db/kachu",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
+          type:"paver",
+          work_name:body.work_name,
+          village:body.village,
+          amounting:body.amounting,
+          total:(d.preview&&d.preview.total)||0,
+          net:(d.preview&&d.preview.net)||0,
+          test_qty:body.test_qty,
+          name_plate:body.name_plate,
+          preview:d.preview||{},
+          xlsx:d.xlsx||""
+        })});
+      })
+      .then(function(){ alert("કાચું બિલ ડેટાબેસમાં સેવ"); })
+      .catch(function(e){ alert(e.message); });
+  }
   function pdfKachu(){
     fetch(API+"/api/mb/paver",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(kachuBody("both"))})
       .then(function(r){return r.json();})
@@ -1838,6 +1901,9 @@ function startScan(camera) {
   document.getElementById("taluka").addEventListener("change", onTaluka);
   document.getElementById("village").addEventListener("change", onVillage);
   const _dt=document.getElementById("dType"); if(_dt) _dt.addEventListener("change", renderDiaryRows);
+  ["kTest","kPlate","dAmtIn","dContractor"].forEach(function(id){
+    const e=document.getElementById(id); if(e) e.addEventListener("input", refreshDiaryLive);
+  });
   
 
 
