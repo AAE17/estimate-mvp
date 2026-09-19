@@ -866,6 +866,7 @@ if (!fs.existsSync(DB_DIR)) fs.mkdirSync(DB_DIR);
 const DB_EST = path.join(DB_DIR, "estimates.jsonl");
 const DB_SITE = path.join(DB_DIR, "site.jsonl");
 const DB_MEDIA = path.join(DB_DIR, "media.jsonl");
+const DB_KACHU = path.join(DB_DIR, "kachu.jsonl");
 const MEDIA_DIR = path.join(DB_DIR, "media");
 if (!fs.existsSync(MEDIA_DIR)) fs.mkdirSync(MEDIA_DIR);
 
@@ -892,7 +893,8 @@ function sbPick(table, row) {
   const cols = {
     estimates: ["id","ts","type","village","taluka","jilla","work_name","amounting","length_m","width_m","area","brass","prepared_by"],
     site_measures: ["id","ts","type","work_name","amounting","rows","area","brass","bill","gps","estimate_id"],
-    media: ["id","ts","kind","work_name","gps","url"]
+    media: ["id","ts","kind","work_name","gps","url"],
+    kachu_bills: ["id","ts","type","work_name","village","amounting","total","net","test_qty","name_plate","preview","xlsx"]
   }[table] || Object.keys(row);
   const o = {};
   cols.forEach(function (k) { if (row[k] !== undefined) o[k] = row[k]; });
@@ -993,6 +995,29 @@ app.post("/api/db/site/delete", async (req, res) => {
   } catch (e) { console.error(e.message); }
   res.json({ ok: true });
 });
+
+app.post("/api/db/kachu", (req, res) => {
+  const b = req.body || {};
+  const rec = dbAppend(DB_KACHU, {
+    type: b.type || "paver",
+    work_name: b.work_name || "",
+    village: b.village || "",
+    amounting: Number(b.amounting || 0),
+    total: Number(b.total || 0),
+    net: Number(b.net || 0),
+    test_qty: Number(b.test_qty || 0),
+    name_plate: Number(b.name_plate || 0),
+    preview: b.preview || {},
+    xlsx: b.xlsx || ""
+  });
+  if (sbOn()) sbInsert("kachu_bills", rec).catch(function(e){ console.error(e.message); });
+  res.json({ ok: true, id: rec.id });
+});
+app.get("/api/db/kachu", async (_req, res) => {
+  try { if (sbOn()) return res.json({ ok: true, items: await sbSelect("kachu_bills", 200) }); }
+  catch (e) { console.error(e.message); }
+  res.json({ ok: true, items: dbRead(DB_KACHU, 200) });
+});
 app.post("/api/db/media", (req, res) => {
   const b = req.body || {};
   let file = "";
@@ -1073,23 +1098,30 @@ app.get("/api/db/health", (_req, res) => {
 app.post("/api/mb/paver", async (req, res) => {
   try {
     const d = req.body || {};
+    function mix(v) {
+      const parts = String(v == null ? "" : v).split("+").map(function (x) { return parseFloat(String(x).trim()); }).filter(function (n) { return !isNaN(n); });
+      if (!parts.length) return Number(v) || 0;
+      return parts.reduce(function (a, b) { return a + b; }, 0) / parts.length;
+    }
     const rows = Array.isArray(d.rows) ? d.rows : [];
-    let area = 0, excav = 0, vata = 0;
+    const excD = Number(d.exc_d || 0.2);
+    const dustD = Number(d.dust_d || 0.1);
+    let area = 0, excav = 0, vata = 0, dust = 0;
     const segs = [];
     rows.forEach((r) => {
-      const L = Number(r.l || r.L || 0);
-      const W = Number(r.w || r.W || 0);
-      const dep = Number(r.box_d || 0.2);
+      const L = mix(r.l || r.L);
+      const W = mix(r.w || r.W);
       if (!L && !W) return;
-      segs.push({ L, W, dep, vol: L * W * dep, smt: L * W, dust: L * W * 0.12 });
+      segs.push({ L, W, dep: excD, vol: L * W * excD, smt: L * W, dust: L * W * dustD });
       area += L * W;
-      excav += L * W * dep;
+      excav += L * W * excD;
+      dust += L * W * dustD;
       vata += 2 * L + 2 * W;
     });
-    const theory = area * 0.12;
-    let boxes = Number(d.boxes || 0);
-    if (!boxes) boxes = Math.max(0, Math.round(theory / 1.5));
-    const collect = boxes * 2 * 1.5 * 0.5;
+    const H11 = dust / 1.5;
+    const I11 = Math.floor(H11 + 1e-9);
+    const collect = I11 * 1.5;
+    const boxes = I11;
     const testQ = d.test_qty == null ? 1 : Number(d.test_qty);
     const plateQ = d.name_plate == null ? 0 : Number(d.name_plate);
     const items = [
