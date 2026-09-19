@@ -1069,6 +1069,54 @@ app.get("/api/db/health", (_req, res) => {
   res.json({ ok: true, supabase: sbOn(), url: SB_URL ? SB_URL.replace(/https:\/\//,"") : "" });
 });
 
+
+app.post("/api/mb/paver", async (req, res) => {
+  try {
+    const d = req.body || {};
+    const wb = new ExcelJS.Workbook();
+    const skel = path.join(__dirname, "skeleton-mb-paver.xlsx");
+    if (!fs.existsSync(skel)) return res.status(500).json({ ok: false, error: "skeleton-mb-paver.xlsx GitHub par muko" });
+    await wb.xlsx.readFile(skel);
+    const ws = wb.worksheets[0];
+    if (!ws) return res.status(500).json({ ok: false, error: "MB sheet missing" });
+    setVal(ws, "A1", d.work_name || "");
+    setVal(ws, "A2", d.village || "");
+    setVal(ws, "D2", d.grant || d.taluka || "");
+    setVal(ws, "J2", d.contractor || "");
+    setVal(ws, "C2", "");
+    setVal(ws, "F2", "");
+    setVal(ws, "G2", "");
+    setVal(ws, "H2", "");
+    setVal(ws, "E12", Number(d.amounting || 0));
+    const rows = Array.isArray(d.rows) ? d.rows : [];
+    let area = 0;
+    for (let i = 0; i < 12; i++) {
+      const r = rows[i] || {};
+      const L = Number(r.l || r.L || 0);
+      const W = Number(r.w || r.W || 0);
+      const dep = Number(r.box_d || 0.2);
+      const rr = 4 + i;
+      setVal(ws, "G" + rr, L);
+      setVal(ws, "H" + rr, W);
+      setVal(ws, "I" + rr, L || W ? dep : 0);
+      area += L * W;
+    }
+    const theory = area * 0.12;
+    let boxes = Number(d.boxes || 0);
+    if (!boxes) boxes = Math.max(0, Math.round(theory / 1.5));
+    setVal(ws, "H17", boxes);
+    setVal(ws, "I17", 2);
+    setVal(ws, "J17", 1.5);
+    setVal(ws, "K17", 0.5);
+    setVal(ws, "C8", Number(d.name_plate || 0));
+    d.output = d.output || "xlsx";
+    d.village = d.village || "mb";
+    await writeAndRespond(req, res, wb, d, "MB_PAVER", {}, "mb_paver");
+  } catch (err) {
+    res.status(500).json({ ok: false, error: String(err.message || err) });
+  }
+});
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log("ParaState MVP on " + PORT);
