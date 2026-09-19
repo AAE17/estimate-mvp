@@ -205,8 +205,8 @@
         <div class="field"><label>Year</label>
           <select id="fy_year"><option value="">— પસંદ કરો —</option></select>
         </div>
-        <div class="field full hidden" id="grantOtherWrap"><label>અન્ય Grant Head — પોતાનું લખો</label>
-          <label>અન્ય Grant Head લખો</label>
+        <div class="field full hidden" id="grantOtherWrap">
+          <label>અન્ય Grant Head — પોતાનું લખો</label>
           <input id="grant_other" placeholder="Grant Head">
         </div>
         <div class="field full"><label>કામનું નામ</label><input id="work_name" value=""></div>
@@ -289,6 +289,10 @@
               <thead id="dHead"></thead>
               <tbody id="dRows"></tbody>
             </table>
+            <div class="head" id="kTestRow" style="margin-top:8px">
+              <div class="field"><label>Test</label><input id="kTest" type="number" min="0" max="1" value="1"></div>
+              <div class="field"><label>તકતી</label><input id="kPlate" type="number" min="0" max="1" value="0"></div>
+            </div>
             <div class="actions" style="margin-top:8px">
               <button type="button" class="btn btn-w" onclick="addDiaryRow()">Add</button>
               <button type="button" class="btn btn-g" onclick="workIsDone()">Check, કામ ખરેખર પૂરું થયું?</button>
@@ -303,9 +307,7 @@
             <div id="mbLive" class="mini" style="margin-top:10px;text-align:left"></div>
             <div id="dBill" class="live hidden" style="margin-top:10px"></div>
             <div id="kachuBox" class="hidden" style="margin-top:10px;text-align:left">
-              <p class="muted">કાચું બિલ — Test / નેમપ્લેટ 0 અથવા 1</p>
-              <div class="field"><label>Test Qty</label><input id="kTest" type="number" value="1" min="0" max="1"></div>
-              <div class="field"><label>નેમપ્લેટ</label><input id="kPlate" type="number" value="0" min="0" max="1"></div>
+              <p class="muted">કાચું બિલ</p>
               <div id="kachuTable" class="mini"></div>
               <div class="actions">
                 <button type="button" class="btn btn-g" onclick="saveKachu()">Save</button>
@@ -822,9 +824,14 @@
     const el=document.getElementById("dType");
     return (el && el.value==="paver") ? "paver" : "cc";
   }
+  function parseMix(v){
+    const parts=String(v||"").split("+").map(function(x){return parseFloat(String(x).trim());}).filter(function(n){return !isNaN(n);});
+    if (!parts.length) return 0;
+    return parts.reduce(function(a,b){return a+b;},0)/parts.length;
+  }
   function diaryArea() {
     let area=0;
-    DIARY.forEach((s)=>{ area += Number(s.l||0)*Number(s.w||0); });
+    DIARY.forEach((s)=>{ area += parseMix(s.l)*parseMix(s.w); });
     return area;
   }
   function renderDiaryRows() {
@@ -839,8 +846,8 @@
     DIARY.forEach((s,i)=>{
       const tr=document.createElement("tr");
       let html='<td>'+(i+1)+'</td>'+
-        '<td><input type="number" step="0.01" value="'+(s.l||"")+'" data-k="l" data-i="'+i+'"></td>'+
-        '<td><input type="number" step="0.01" value="'+(s.w||"")+'" data-k="w" data-i="'+i+'"></td>';
+        '<td><input type="text" inputmode="decimal" placeholder="10+15" value="'+(s.l||"")+'" data-k="l" data-i="'+i+'"></td>'+
+        '<td><input type="text" inputmode="decimal" placeholder="3+3.5" value="'+(s.w||"")+'" data-k="w" data-i="'+i+'"></td>';
       if (!paver) html += '<td><input type="number" step="0.01" value="'+(s.d||"")+'" data-k="d" data-i="'+i+'" placeholder="0.10"></td>';
       tr.innerHTML=html;
       tb.appendChild(tr);
@@ -865,7 +872,7 @@
     if (diaryType()!=="paver") { box.innerHTML="<div>CC MB પ્રિવ્યુ પછી</div>"; return; }
     let excav=0,vata=0;
     DIARY.forEach(function(s){
-      const L=Number(s.l||0), W=Number(s.w||0);
+      const L=parseMix(s.l), W=parseMix(s.w);
       excav += L*W*0.2;
       if (L||W) vata += 2*L+2*W;
     });
