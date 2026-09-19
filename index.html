@@ -958,6 +958,10 @@
     DIARY.forEach((r)=>{ ccVol += parseMix(r.l)*parseMix(r.w)*(parseMix(r.d)||0.1); });
     const ccT = area ? (ccVol/area) : 0.1;
     let html = "";
+    const row=function(lab,q,a){
+      return "<div><span>"+lab+"</span><b>"+q+" · "+a+"</b></div>";
+    };
+    html = "<div><span>Qty · Amount</span><b></b></div>";
     if (type==="paver") {
       const siteBrass = area * 10.7584 / 100;
       let estBrass = 0;
@@ -968,17 +972,20 @@
         const eL = lengthFromAmount("paver", estAmt || 100000);
         estBrass = eL * 3 * 10.7584 / 100;
       }
-      const diff = siteBrass - estBrass;
       const bill = mbPaverTotals().tot;
-      html = "<span>Bill "+inr(bill)+"</span><b>Brass "+siteBrass.toFixed(2)+"</b>"+
-        "<span>SMT "+(Math.round(area*100)/100)+" · એસ્ટિમેટ Brass "+estBrass.toFixed(2)+"</span>"+
-        "<span>"+(diff>=0?("વધારે +"+diff.toFixed(2)):("ઓછું "+diff.toFixed(2)))+" Brass</span>";
+      const dq = siteBrass - estBrass;
+      const da = bill - estAmt;
+      html += row("Site =", siteBrass.toFixed(2)+" Brass", inr(bill));
+      html += row("Estimate =", estBrass.toFixed(2)+" Brass", inr(estAmt));
+      html += row((dq>=0&&da>=0)?"વધારે":"ઓછું",
+        (dq>=0?("+"):"")+dq.toFixed(2)+" Brass",
+        (da>=0?("+"):"")+inr(Math.abs(da)));
     } else {
       const bill = scanF24("cc", L, W, ccT);
-      const diff = bill - estAmt;
-      html = "<span>SMT "+(Math.round(area*100)/100)+" · જાડાઈ "+ccT.toFixed(2)+" m</span><b>"+inr(bill)+"</b>"+
-        "<span>એસ્ટિમેટ: "+inr(estAmt)+"</span>"+
-        "<span>"+(diff>=0?("વધારે કામ "+inr(diff)):("ઓછું કામ "+inr(Math.abs(diff))))+"</span>";
+      const da = bill - estAmt;
+      html += row("Site =", (Math.round(area*100)/100)+" SMT", inr(bill));
+      html += row("Estimate =", "", inr(estAmt));
+      html += row(da>=0?"વધારે":"ઓછું", "", (da>=0?"+":"-")+inr(Math.abs(da)));
     }
     const box=document.getElementById("dBill");
     box.innerHTML=html;
