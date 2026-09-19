@@ -304,13 +304,20 @@
               <button type="button" class="btn btn-g" onclick="saveSiteOnly()">Save</button>
             </div>
             <p class="muted" id="dAreaLine">Area: 0 SMT</p>
-            <div id="mbLive" class="mini" style="margin-top:10px;text-align:left"></div>
             <div id="dBill" class="live hidden" style="margin-top:10px"></div>
             <div id="kachuBox" class="hidden" style="margin-top:10px;text-align:left">
-              <p class="muted">કાચું બિલ</p>
-              <div id="kachuTable" class="mini"></div>
+              <div class="head" style="grid-template-columns:1fr 1fr;gap:10px">
+                <div>
+                  <p class="muted">Abstract</p>
+                  <div id="kachuAbs" class="mini"></div>
+                </div>
+                <div>
+                  <p class="muted">Measurement</p>
+                  <div id="kachuMeas" class="mini"></div>
+                </div>
+              </div>
               <div class="actions">
-                <button type="button" class="btn btn-g" onclick="saveKachu()">Save</button>
+                <button type="button" class="btn btn-g" onclick="saveKachu()">Excel</button>
                 <button type="button" class="btn btn-s" onclick="pdfKachu()">PDF</button>
               </div>
             </div>
@@ -893,40 +900,8 @@
     const a=document.getElementById("dAreaLine");
     const area=diaryArea();
     if (a) a.textContent="Area: "+(Math.round(area*100)/100)+" SMT";
-    const box=document.getElementById("mbLive");
-    if (!box) return;
-    if (diaryType()!=="paver") { box.innerHTML="<div>CC MB પ્રિવ્યુ પછી</div>"; return; }
-    let excav=0,vata=0;
-    DIARY.forEach(function(s){
-      const L=parseMix(s.l), W=parseMix(s.w);
-      excav += L*W*0.2;
-      if (L||W) vata += 2*L+2*W;
-    });
-    const theory=area*0.12;
-    const boxes=Math.max(0, Math.round(theory/1.5));
-    const collect=boxes*2*1.5*0.5;
-    const testQ=Number((document.getElementById("kTest")||{}).value||1);
-    const plateQ=Number((document.getElementById("kPlate")||{}).value||0);
-    const items=[
-      ["EXCAVATION",excav,156.56],
-      ["COLLECTING",collect,210.42],
-      ["BLOCK",area,740.51],
-      ["VATA",vata,23.68],
-      ["Test",testQ,608],
-      ["તકતી",plateQ,306.14]
-    ];
-    let sub=0;
-    const inr0=function(x){return "₹ "+Number(x||0).toLocaleString("en-IN",{maximumFractionDigits:2});};
-    let html="<div><b>MB Abstract</b></div>";
-    items.forEach(function(it){
-      const amt=it[1]*it[2]; sub+=amt;
-      html += "<div><span>"+it[0]+" · "+(Math.round(it[1]*100)/100)+"</span><b>"+inr0(amt)+"</b></div>";
-    });
-    const gst=sub*0.18, tot=sub+gst, est=Number((document.getElementById("dAmtIn")||{}).value||0);
-    html += "<div><span>GST 18%</span><b>"+inr0(gst)+"</b></div>";
-    html += "<div><span>Total / Est / Net</span><b>"+inr0(tot)+" · "+inr0(est)+" · "+inr0(est-tot)+"</b></div>";
-    html += "<div><span>બોક્સ "+boxes+" · ડસ્ટ "+(Math.round(theory*100)/100)+"</span><b></b></div>";
-    box.innerHTML=html;
+    const kb=document.getElementById("kachuBox");
+    if (kb && !kb.classList.contains("hidden")) renderKachuSheets();
   }
   function openDiary(est) {
     diaryEst = est || null;
@@ -940,6 +915,8 @@
     DIARY = [{l:"",w:"",d:""}];
     const bill=document.getElementById("dBill");
     if (bill) { bill.classList.add("hidden"); bill.innerHTML=""; }
+    const kb0=document.getElementById("kachuBox");
+    if (kb0) kb0.classList.add("hidden");
     renderDiaryRows();
     if (est && (est.work_name || est.id)) {
       const q = est.id ? ("id="+encodeURIComponent(est.id)) : ("work="+encodeURIComponent(est.work_name||""));
@@ -1016,26 +993,40 @@
       output:output||"xlsx"
     };
   }
-  function fillKachuPreview(p){
-    const el=document.getElementById("kachuTable");
-    if (!el || !p) return;
+  function renderKachuSheets(){
+    const p=mbPaverTotals();
     const inr0=function(x){return "₹ "+Number(x||0).toLocaleString("en-IN",{maximumFractionDigits:2});};
-    el.innerHTML=(p.items||[]).map(function(it){
-      return "<div><span>"+it[0]+" · Qty "+(Math.round(it[1]*100)/100)+"</span><b>"+inr0(it[3])+"</b></div>";
-    }).join("")+"<div><span>GST + Total</span><b>"+inr0(p.total)+"</b></div><div><span>Est "+inr0(p.est)+" · Net</span><b>"+inr0(p.net)+"</b></div>";
+    const abs=document.getElementById("kachuAbs");
+    const meas=document.getElementById("kachuMeas");
+    if (abs) {
+      let h="<div><span>Item · Qty</span><b>Amount</b></div>";
+      (p.items||[]).forEach(function(it){
+        h += "<div><span>"+it[0]+" · "+(Math.round(it[1]*1000)/1000)+"</span><b>"+inr0(it[3])+"</b></div>";
+      });
+      h += "<div><span>GST 18%</span><b>"+inr0(p.gst)+"</b></div>";
+      h += "<div><span>Total</span><b>"+inr0(p.tot)+"</b></div>";
+      h += "<div><span>Est</span><b>"+inr0(p.est)+"</b></div>";
+      h += "<div><span>Net</span><b>"+inr0(p.net)+"</b></div>";
+      abs.innerHTML=h;
+    }
+    if (meas) {
+      let h="<div><span>Sr · L × W × D</span><b>Qty</b></div>";
+      DIARY.forEach(function(s,i){
+        const L=parseMix(s.l), W=parseMix(s.w);
+        if (!L && !W) return;
+        h += "<div><span>"+(i+1)+" · "+L+" × "+W+" × 0.20</span><b>"+(Math.round(L*W*0.2*1000)/1000)+"</b></div>";
+      });
+      h += "<div><span>SMT / બોક્સ / ડસ્ટ</span><b>"+(Math.round(p.area*100)/100)+" / "+p.boxes+" / "+(Math.round(p.collect*100)/100)+"</b></div>";
+      h += "<div><span>વાટા</span><b>"+(Math.round(p.vata*100)/100)+"</b></div>";
+      meas.innerHTML=h;
+    }
   }
+  function fillKachuPreview(p){ renderKachuSheets(); }
   function showKachu(){
+    if (diaryType()!=="paver") { alert("CC MB હજુ બાકી"); return; }
     const kb=document.getElementById("kachuBox");
     if (kb) kb.classList.remove("hidden");
-    if (diaryType()!=="paver") { alert("CC MB હજુ બાકી"); return; }
-    fetch(API+"/api/mb/paver",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(kachuBody("xlsx"))})
-      .then(function(r){return r.json();})
-      .then(function(d){
-        if (!d.ok) throw new Error(d.error||"fail");
-        fillKachuPreview(d.preview);
-        window._lastKachu=d;
-      })
-      .catch(function(e){ alert("કાચું બિલ: "+e.message); });
+    renderKachuSheets();
   }
   function saveKachu(){
     const body=kachuBody("xlsx");
