@@ -389,6 +389,12 @@
       </div>
     </section>
 
+    <section id="s-mb" class="card hidden" style="padding:0;overflow:hidden">
+      <h2 style="padding:16px 16px 8px">Mari-MB</h2>
+      <p class="muted" style="padding:0 16px 8px">તાલુકા પંચાયત સરકારી તિજોરી</p>
+      <img src="tijori.jpg" alt="સરકારી તિજોરી" style="width:100%;display:block;background:#cfcfc8">
+    </section>
+
     <section id="s-an" class="card hidden">
       <h2>Analytics</h2>
       <p class="muted">events.jsonl પરથી — કેટલા એસ્ટિમેટ, કયો તાલુકો.</p>
@@ -414,6 +420,7 @@
     <button type="button" id="tab-dash" class="on" onclick="show('s-hi')"><i>⌂</i>Dashboard</button>
     <button type="button" id="tab-est" onclick="goTypes()"><i>▤</i>Estimate</button>
     <button type="button" id="tab-site" onclick="show('s-site')"><i>▦</i>Site</button>
+    <button type="button" id="tab-mb" onclick="show('s-mb')"><i>■</i>Mari-MB</button>
     <button type="button" id="tab-an" onclick="show('s-an')"><i>▧</i>Analytics</button>
     <button type="button" id="tab-pr" onclick="show('s-pr')"><i>●</i>Profile</button>
   </nav>
@@ -566,13 +573,13 @@
   }
 
   function setTab(which) {
-    ["tab-dash","tab-est","tab-site","tab-an","tab-pr"].forEach((tid) => {
+    ["tab-dash","tab-est","tab-site","tab-mb","tab-an","tab-pr"].forEach((tid) => {
       const el = document.getElementById(tid);
       if (el) el.classList.toggle("on", tid === which);
     });
   }
   function show(id) {
-    ["s-hi","s-type","s-form","s-site","s-tour","s-an","s-pr"].forEach(s => {
+    ["s-hi","s-type","s-form","s-site","s-tour","s-mb","s-an","s-pr"].forEach(s => {
       const el = document.getElementById(s);
       if (el) el.classList.toggle("hidden", s !== id);
     });
@@ -580,6 +587,7 @@
     if (id === "s-hi") { setTab("tab-dash"); loadStats(); }
     if (id === "s-type" || id === "s-form") setTab("tab-est");
     if (id === "s-site") { setTab("tab-site"); loadStats(); renderSiteList(); }
+    if (id === "s-mb") { setTab("tab-mb"); }
     if (id === "s-tour") { setTab("tab-dash"); }
     if (id === "s-an") { setTab("tab-an"); loadStats(); }
     if (id === "s-pr") { setTab("tab-pr"); renderMedia(); }
