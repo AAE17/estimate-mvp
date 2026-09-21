@@ -461,15 +461,22 @@
       <h2>Bill Generate</h2>
       <p class="muted">MB નંબર ઉમેરો — તિજોરીમાં પોથી બનશે.</p>
       <div class="field"><label>ખાનું</label>
-        <select id="billShelf">
+        <select id="billShelf" onchange="toggleBillGam()">
           <option value="gramya">ગ્રામ્ય કક્ષા</option>
           <option value="general">જનરલ</option>
           <option value="atvt">એટીવીટી</option>
           <option value="full">ભરાઈ ગયેલ</option>
         </select>
       </div>
+      <div class="field hidden" id="billFullWrap"><label>ભરાઈ પ્રકાર</label>
+        <select id="billFullKind" onchange="toggleBillGam()">
+          <option value="gramya">નાણાપંચ ગ્રામ્ય</option>
+          <option value="general">જનરલ</option>
+          <option value="atvt">એટીવીટી</option>
+        </select>
+      </div>
       <div class="field"><label>MB નંબર</label><input id="billNo" placeholder="12"></div>
-      <div class="field"><label>ગ્રામ પંચાયત</label><input id="billGam" placeholder="ગામ"></div>
+      <div class="field" id="billGamWrap"><label>ગ્રામ પંચાયત</label><input id="billGam" placeholder="ગામ"></div>
       <div class="field"><label>તાલુકો</label><input id="billTal" placeholder="તાલુકો"></div>
       <button type="button" class="btn btn-g" onclick="addBillMb()">MB ઉમેરો</button>
       <div id="billList" class="mini" style="margin-top:12px"></div>
@@ -655,7 +662,7 @@
     if (id === "s-mb") { setTab("tab-mb"); closeTijori(); setTimeout(centerTijori, 30); }
     if (id === "s-tour") { setTab("tab-dash"); }
     if (id === "s-pr") { setTab("tab-pr"); renderMedia(); }
-    if (id === "s-bill") { setTab("tab-bill"); renderBillList(); }
+    if (id === "s-bill") { setTab("tab-bill"); toggleBillGam(); renderBillList(); }
   }
   function goTypes() {
   
@@ -899,26 +906,40 @@
     cfIdx=Math.max(0,list.length-1);
     renderCoverflow();
   }
-  function upsertBook(shelf,no,gam,taluka){
+  function upsertBook(shelf,no,gam,taluka,kind){
     const all=loadBooks();
     let hit=all.find(function(b){return b.shelf===shelf && String(b.no)===String(no);});
     if(hit){
       if(gam) hit.gam=gam;
       if(taluka) hit.taluka=taluka;
     } else {
-      all.push({id:"mb-"+Date.now(), shelf:shelf, no:String(no), gam:gam||"", taluka:taluka||""});
+      all.push({id:"mb-"+Date.now(), shelf:shelf, kind:kind||shelf, no:String(no), gam:gam||"", taluka:taluka||""});
     }
     saveBooks(all);
     return all;
   }
+  function toggleBillGam(){
+    const s=(document.getElementById("billShelf")||{}).value||"gramya";
+    const fw=document.getElementById("billFullWrap");
+    if(fw) fw.classList.toggle("hidden", s!=="full");
+    const kind=s==="full"?((document.getElementById("billFullKind")||{}).value||"gramya"):s;
+    const w=document.getElementById("billGamWrap");
+    if(w) w.style.display=(kind==="gramya")?"":"none";
+    if(kind!=="gramya"){
+      const g=document.getElementById("billGam"); if(g) g.value="";
+    }
+  }
   function addBillMb(){
     const no=(document.getElementById("billNo")||{}).value||"";
     if(!String(no).trim()){ alert("MB નંબર લખો"); return; }
+    const shelf=(document.getElementById("billShelf")||{}).value||"general";
+    const kind=shelf==="full"?((document.getElementById("billFullKind")||{}).value||"gramya"):shelf;
     upsertBook(
-      (document.getElementById("billShelf")||{}).value||"general",
+      shelf,
       String(no).trim(),
       (document.getElementById("billGam")||{}).value||"",
-      (document.getElementById("billTal")||{}).value||""
+      (document.getElementById("billTal")||{}).value||"",
+      kind
     );
     document.getElementById("billNo").value="";
     renderBillList();
