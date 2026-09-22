@@ -2,7 +2,7 @@
 <html lang="gu">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
   <title>ParaState MVP</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
@@ -251,6 +251,50 @@
     .badge.cc{background:#1e3a8a;color:#bfdbfe}
     .badge.pv{background:#14532d;color:#bbf7d0}
     #s-hi.card{background:transparent;border:0;box-shadow:none;padding:8px 0}
+
+    html,body{max-width:100%;overflow-x:hidden}
+    .wrap{padding:12px 12px 28px;max-width:1180px}
+    @media (max-width:900px){
+      header.topbar{padding:8px 10px calc(8px + env(safe-area-inset-top));}
+      .topbar-row{gap:6px}
+      .brand{font-size:13px}
+      .brand .logo{width:30px;height:30px;font-size:14px;border-radius:8px}
+      .hnav{order:3;flex:1 1 100%;width:100%;padding-bottom:2px}
+      .hnav button{padding:7px 10px;font-size:12px;border-radius:16px}
+      .hacts{gap:4px}
+      .hacts .newest{padding:7px 10px;font-size:12px}
+      .iconbtn{width:32px;height:32px}
+      #btnProfile{height:32px;font-size:11px;padding:0 8px 0 4px}
+      .dash-hero h2{font-size:18px}
+      .kpi-grid{grid-template-columns:1fr 1fr;gap:8px}
+      .kpi{padding:12px}
+      .kpi b{font-size:20px}
+      .est-wrap{padding:10px;margin:0 -2px}
+      .est-table{font-size:12px;min-width:520px}
+      .card{padding:14px}
+      .grid{grid-template-columns:1fr}
+      #authGate .box{margin:12px;max-height:85dvh;overflow:auto}
+    }
+    @media (max-width:420px){
+      .hacts .newest{display:none}
+      .brand small{display:none}
+    }
+
+    .mbtn{display:none;border:0;background:#f1f5f9;color:#0f172a;width:36px;height:36px;border-radius:10px;font-size:18px;cursor:pointer}
+    body.dark .mbtn{background:#1f2937;color:#e5eef7}
+    #mobileMenu{display:none;flex-direction:column;gap:4px;padding:8px 0 10px;border-top:1px solid #e6eaf0}
+    body.dark #mobileMenu{border-top-color:#1f2937}
+    #mobileMenu button{text-align:left;border:0;background:transparent;padding:10px 12px;border-radius:10px;font:inherit;font-weight:700;color:#334155;cursor:pointer}
+    body.dark #mobileMenu button{color:#e5eef7}
+    #mobileMenu button:hover,#mobileMenu button.on{background:#e8eefc;color:#1d4ed8}
+    @media(max-width:900px){
+      .mbtn{display:inline-flex;align-items:center;justify-content:center}
+      .hnav{display:none !important}
+      header.topbar.menu-open #mobileMenu{display:flex}
+    }
+    @media(min-width:901px){
+      #mobileMenu{display:none !important}
+    }
 </style>
 </head>
 <body>
@@ -283,6 +327,7 @@
 
   <header class="topbar">
     <div class="topbar-row">
+      <button type="button" class="mbtn" onclick="toggleMobMenu()" aria-label="Menu">☰</button>
       <div class="brand"><span class="logo">🏗</span><span>Co-Pilot<small>WORKS &amp; ESTIMATES</small></span></div>
       <nav class="hnav">
         <button type="button" id="tab-dash" class="on" onclick="show('s-hi')">Dashboard</button>
@@ -297,6 +342,15 @@
         <button type="button" class="iconbtn" id="btnTheme" onclick="toggleDark()" title="Theme">☀</button>
         <button type="button" class="iconbtn" onclick="alert('નોટિફિકેશન ટૂંક સમયમાં')" title="Notification">🔔<span class="dot"></span></button>
         <button type="button" id="btnProfile" class="iconbtn" onclick="show('s-pr')" title="Profile">👤 SO</button>
+      </div>
+      <div id="mobileMenu">
+        <button type="button" onclick="show('s-hi');toggleMobMenu(false)">Dashboard</button>
+        <button type="button" onclick="goTypes();toggleMobMenu(false)">Estimate</button>
+        <button type="button" onclick="show('s-site');toggleMobMenu(false)">Site</button>
+        <button type="button" onclick="show('s-mb');toggleMobMenu(false)">My MB</button>
+        <button type="button" onclick="show('s-bill');toggleMobMenu(false)">Bill</button>
+        <button type="button" onclick="openTour();toggleMobMenu(false)">Diary</button>
+        <button type="button" onclick="goTypes();toggleMobMenu(false)">+ New Estimate</button>
       </div>
     </div>
   </header>
@@ -907,9 +961,27 @@
     p.email=email; if(meta.name) p.name=meta.name; if(meta.role) p.role=meta.role;
     if(meta.mobile) p.mobile=meta.mobile; if(meta.jilla) p.jilla=meta.jilla;
     if(meta.taluka) p.taluka=meta.taluka;
+    if(admin){
+      if(!p.name) p.name="Vanrajsinh Thakor";
+      if(!p.role) p.role="SO";
+      if(!p.mobile) p.mobile="8734901625";
+      if(!p.jilla) p.jilla="Kheda";
+      if(!p.taluka) p.taluka="Mahemdabad";
+    }
     p.status=admin?"Approved":(approved?"Approved":"Pending");
     p.app_role=admin?"super_admin":"aae";
     localStorage.setItem("copilot_profile", JSON.stringify(p));
+    if(sbClient && session.user){
+      sbClient.auth.updateUser({ data:{
+        name:p.name, role:p.role, mobile:p.mobile, jilla:p.jilla, taluka:p.taluka,
+        app_role:p.app_role, approved:admin||approved
+      }}).catch(function(){});
+      sbClient.from("profiles").upsert({
+        id: session.user.id, email: email, name: p.name, role: p.role,
+        mobile: p.mobile, jilla: p.jilla, taluka: p.taluka,
+        app_role: p.app_role, status: p.status
+      }).then(function(){}).catch(function(){});
+    }
     const btn=document.getElementById("btnProfile");
     if(btn) btn.textContent=admin?"👤 Admin":("👤 "+(email.split("@")[0]||"SO"));
     if(!approved){
@@ -975,6 +1047,13 @@
     document.getElementById("authGate").classList.remove("hidden");
   }
 
+  function toggleMobMenu(force){
+    const h=document.querySelector("header.topbar");
+    if(!h) return;
+    if(force===false) h.classList.remove("menu-open");
+    else if(force===true) h.classList.add("menu-open");
+    else h.classList.toggle("menu-open");
+  }
   function goTypes() {
     fetch(API + "/api/log", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({kind:"open_generate"}) });
     show("s-type");
