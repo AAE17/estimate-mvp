@@ -1096,6 +1096,63 @@ app.get("/api/db/health", (_req, res) => {
 app.get("/api/auth/config", (_req, res) => {
   res.json({ ok: true, url: SB_URL || "", anon: SB_KEY || "" });
 });
+async function sbProfiles(method, path, body) {
+  const r = await fetch(SB_URL + "/rest/v1/" + path, {
+    method: method,
+    headers: {
+      apikey: SB_KEY,
+      Authorization: "Bearer " + SB_KEY,
+      "Content-Type": "application/json",
+      Prefer: "return=representation,resolution=merge-duplicates"
+    },
+    body: body ? JSON.stringify(body) : undefined
+  });
+  const txt = await r.text();
+  let js; try { js = txt ? JSON.parse(txt) : null; } catch(e) { js = { raw: txt }; }
+  if (!r.ok) throw new Error(typeof js==="string"?js:JSON.stringify(js));
+  return js;
+}
+app.post("/api/admin/profile", async (req, res) => {
+  try {
+    if (!sbOn()) return res.json({ ok: false, error: "no supabase" });
+    const d = req.body || {};
+    const row = {
+      email: String(d.email||"").toLowerCase(),
+      name: d.name||"",
+      role: d.role||"AAE",
+      mobile: d.mobile||"",
+      jilla: d.jilla||"",
+      taluka: d.taluka||"",
+      app_role: d.app_role||"aae",
+      status: d.status||"Pending"
+    };
+    if (d.id) row.id = d.id;
+    const js = await sbProfiles("POST", "profiles?on_conflict=email", row);
+    res.json({ ok: true, item: Array.isArray(js)?js[0]:js });
+  } catch (e) {
+    res.json({ ok: false, error: String(e.message||e) });
+  }
+});
+app.get("/api/admin/pending", async (_req, res) => {
+  try {
+    if (!sbOn()) return res.json({ ok: true, items: [] });
+    const js = await sbProfiles("GET", "profiles?select=*&order=email.asc", null);
+    res.json({ ok: true, items: Array.isArray(js)?js:[] });
+  } catch (e) {
+    res.json({ ok: false, items: [], error: String(e.message||e) });
+  }
+});
+app.post("/api/admin/approve", async (req, res) => {
+  try {
+    const email = String((req.body||{}).email||"").toLowerCase();
+    const status = (req.body||{}).status || "Approved";
+    if (!email) return res.json({ ok: false, error: "email" });
+    const js = await sbProfiles("PATCH", "profiles?email=eq." + encodeURIComponent(email), { status: status });
+    res.json({ ok: true, item: Array.isArray(js)?js[0]:js });
+  } catch (e) {
+    res.json({ ok: false, error: String(e.message||e) });
+  }
+});
 
 
 app.post("/api/mb/paver", async (req, res) => {
