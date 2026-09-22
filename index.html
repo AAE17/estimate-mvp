@@ -325,9 +325,6 @@
         <div class="field full"><label>જિલ્લા પંચાયત</label>
           <select id="jilla"><option value="">— જિલ્લો પસંદ કરો —</option></select>
         </div>
-        <div class="field full"><label>R &amp; B Division</label>
-          <input id="rb_div" placeholder="જિલ્લો પસંદ થાય ત્યારે આવશે — એડિટ થાય">
-        </div>
         <div class="field"><label>તાલુકો</label>
           <select id="taluka" disabled><option value="">— પહેલા જિલ્લો —</option></select>
         </div>
@@ -708,8 +705,8 @@
 
   function onJilla() {
     const d = val("jilla");
-    const rb=document.getElementById("rb_div");
-    if(rb) rb.value = d ? (d + " R & B Division") : "";
+    const rb=document.getElementById("division");
+    if(rb) rb.value = d || "";
     const tal = document.getElementById("taluka");
     const vil = document.getElementById("village");
     document.getElementById("villageOtherWrap").classList.add("hidden");
