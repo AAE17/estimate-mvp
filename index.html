@@ -340,7 +340,8 @@
       <div class="hacts">
         <button type="button" class="newest" onclick="goTypes()">+ New Estimate</button>
         <button type="button" class="iconbtn" id="btnTheme" onclick="toggleDark()" title="Theme">☀</button>
-        <button type="button" class="iconbtn" onclick="alert('નોટિફિકેશન ટૂંક સમયમાં')" title="Notification">🔔<span class="dot"></span></button>
+        <button type="button" class="iconbtn" onclick="toggleNotif()" title="Notification">🔔<span class="dot hidden" id="notifDot"></span></button>
+        <div id="notifBox" class="hidden" style="position:absolute;right:12px;top:58px;z-index:60;width:min(360px,92vw);background:#fff;color:#111;border-radius:12px;padding:12px;box-shadow:0 12px 40px rgba(0,0,0,.2)"></div>
         <button type="button" id="btnProfile" class="iconbtn" onclick="show('s-pr')" title="Profile">👤 SO</button>
       </div>
       <div id="mobileMenu">
@@ -952,11 +953,16 @@
     const role=((session.user&&session.user.user_metadata)||{}).app_role||"";
     return em===ADMIN_EMAIL || role==="super_admin";
   }
-  function onAuthed(session){
+  async function onAuthed(session){
     const email=(session.user&&session.user.email)||"";
     const meta=(session.user&&session.user.user_metadata)||{};
     const admin=isAdmin(session);
-    const approved=admin || meta.approved===true || meta.approved==="true";
+    let approved=admin || meta.approved===true || meta.approved==="true";
+    try{
+      const lst=await fetch(API+"/api/admin/pending").then(function(r){return r.json();});
+      const me=(lst.items||[]).find(function(x){return String(x.email||"").toLowerCase()===email.toLowerCase();});
+      if(me && String(me.status)==="Approved") approved=true;
+    }catch(e){}
     const p=prGet();
     p.email=email; if(meta.name) p.name=meta.name; if(meta.role) p.role=meta.role;
     if(meta.mobile) p.mobile=meta.mobile; if(meta.jilla) p.jilla=meta.jilla;
@@ -992,6 +998,7 @@
       return;
     }
     document.getElementById("authGate").classList.add("hidden");
+    if(admin) loadPending();
   }
   function showSignup(on){
     document.getElementById("authExtra").classList.toggle("hidden", !on);
@@ -1030,6 +1037,7 @@
     p.email=email; p.name=name; p.role=role; p.mobile=mobile; p.jilla=jilla; p.taluka=taluka;
     p.app_role=isAd?"super_admin":"aae"; p.status=isAd?"Approved":"Pending";
     localStorage.setItem("copilot_profile", JSON.stringify(p));
+    fetch(API+"/api/admin/profile",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(p)}).catch(function(){});
     const { error: e2 }=await sbClient.auth.signInWithPassword({ email, password });
     if(e2){ if(msg) msg.textContent="અકાઉન્ટ બન્યું. 30 સેકન્ડ પછી Log in દબાવો."; return; }
   }
@@ -1053,6 +1061,34 @@
     if(force===false) h.classList.remove("menu-open");
     else if(force===true) h.classList.add("menu-open");
     else h.classList.toggle("menu-open");
+  }
+  function toggleNotif(){
+    const b=document.getElementById("notifBox");
+    if(!b) return;
+    b.classList.toggle("hidden");
+    if(!b.classList.contains("hidden")) loadPending();
+  }
+  async function loadPending(){
+    const b=document.getElementById("notifBox");
+    const dot=document.getElementById("notifDot");
+    try{
+      const d=await fetch(API+"/api/admin/pending").then(function(r){return r.json();});
+      const items=d.items||[];
+      const pend=items.filter(function(x){return String(x.status||"Pending")!=="Approved";});
+      if(dot) dot.classList.toggle("hidden", !pend.length);
+      if(!b) return;
+      if(!items.length){ b.innerHTML="<b>યુઝર</b><p class='muted'>યાદી ખાલી. સુપાબેઝમાં profiles ટેબલ બનાવો.</p>"; return; }
+      b.innerHTML="<b>Pending / Users</b>"+items.map(function(x){
+        const ok=String(x.status)==="Approved";
+        return "<div class='mini'><span>"+(x.name||"—")+"<br><small>"+(x.email||"")+" · "+(x.taluka||"")+"</small></span><b>"+(ok?"OK":"<button type='button' class='btn btn-g' style='padding:4px 8px;font-size:11px' onclick='approveUser(\""+String(x.email||"").replace(/"/g,"")+"\")'>Approve</button>")+"</b></div>";
+      }).join("");
+    }catch(e){
+      if(b) b.innerHTML="<p class='muted'>યાદી ન ખૂલી</p>";
+    }
+  }
+  async function approveUser(email){
+    await fetch(API+"/api/admin/approve",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email:email,status:"Approved"})});
+    loadPending();
   }
   function goTypes() {
     fetch(API + "/api/log", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({kind:"open_generate"}) });
