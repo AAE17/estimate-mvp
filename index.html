@@ -9,6 +9,23 @@
     * { box-sizing: border-box; }
     body { margin:0; font-family:"Noto Sans Gujarati",system-ui,sans-serif; background:var(--p); color:var(--i); }
     body { background:#f3f6fb; }
+    body.dark { background:#0b1220; color:#e5eef7; }
+    body.dark header.topbar { background:#111827; color:#e5eef7; border-bottom-color:#1f2937; }
+    body.dark .brand { color:#f8fafc; }
+    body.dark .brand small { color:#94a3b8; }
+    body.dark .hnav button { color:#94a3b8; }
+    body.dark .hnav button:hover { background:#1f2937; color:#f8fafc; }
+    body.dark .hnav button.on { background:#1e3a8a; color:#dbeafe; }
+    body.dark .iconbtn, body.dark #btnProfile { background:#1f2937; color:#e5eef7; }
+    body.dark .iconbtn:hover { background:#334155; }
+    body.dark .card { background:#111827; border-color:#1f2937; color:#e5eef7; }
+    body.dark .muted { color:#94a3b8; }
+    body.dark input, body.dark select, body.dark textarea { background:#0b1220; color:#e5eef7; border-color:#334155; }
+    body.dark .btn-w { background:#1f2937; color:#e5eef7; border-color:#334155; }
+    body.dark .choice button { background:#111827; color:#e5eef7; border-color:#334155; }
+    body.dark .stat { background:#0b1220; }
+    body.dark .live { background:#0f172a; border-color:#1e3a8a; }
+    body.dark .mini div { border-bottom-color:#1f2937; }
     header.topbar {
       position:sticky; top:0; z-index:45;
       background:#fff; color:#1e293b;
@@ -30,6 +47,12 @@
     }
     .hnav button:hover { background:#eef2f7; color:#0f172a; }
     .hnav button.on { background:#e8eefc; color:#1d4ed8; }
+    .hnav button .l { }
+    @media (max-width:820px){
+      .brand small { display:none; }
+      .hnav button { padding:7px 9px; font-size:12px; }
+      .hacts .newest { padding:7px 10px; font-size:12px; }
+    }
     .hacts { display:flex; align-items:center; gap:8px; margin-left:auto; }
     .hacts .newest {
       border:0; background:#1d4ed8; color:#fff; font:inherit; font-weight:800;
@@ -206,15 +229,16 @@
     <div class="topbar-row">
       <div class="brand"><span class="logo">🏗</span><span>Co-Pilot<small>WORKS &amp; ESTIMATES</small></span></div>
       <nav class="hnav">
-        <button type="button" id="tab-dash" class="on" onclick="show('s-hi')">▦ Dashboard</button>
-        <button type="button" id="tab-est" onclick="goTypes()">▤ Estimate</button>
-        <button type="button" id="tab-site" onclick="show('s-site')">📍 Site</button>
-        <button type="button" id="tab-mb" onclick="show('s-mb')">▤ My MB</button>
-        <button type="button" id="tab-bill" onclick="show('s-bill')">₹ Bill</button>
+        <button type="button" id="tab-dash" class="on" onclick="show('s-hi')">Dashboard</button>
+        <button type="button" id="tab-est" onclick="goTypes()">Estimate</button>
+        <button type="button" id="tab-site" onclick="show('s-site')">Site</button>
+        <button type="button" id="tab-mb" onclick="show('s-mb')">MB</button>
+        <button type="button" id="tab-bill" onclick="show('s-bill')">Bill</button>
+        <button type="button" id="tab-tour" onclick="openTour()">Diary</button>
       </nav>
       <div class="hacts">
         <button type="button" class="newest" onclick="goTypes()">+ New Estimate</button>
-        <button type="button" class="iconbtn" onclick="alert('Dark mode ટૂંક સમયમાં')" title="Theme">☀</button>
+        <button type="button" class="iconbtn" id="btnTheme" onclick="toggleDark()" title="Theme">☀</button>
         <button type="button" class="iconbtn" onclick="alert('નોટિફિકેશન ટૂંક સમયમાં')" title="Notification">🔔<span class="dot"></span></button>
         <button type="button" id="btnProfile" class="iconbtn" onclick="show('s-pr')" title="Profile">👤 SO</button>
       </div>
@@ -694,7 +718,7 @@
   }
 
   function setTab(which) {
-    ["tab-dash","tab-est","tab-site","tab-mb","tab-bill"].forEach((tid) => {
+    ["tab-dash","tab-est","tab-site","tab-mb","tab-bill","tab-tour"].forEach((tid) => {
       const el = document.getElementById(tid);
       if (el) el.classList.toggle("on", tid === which);
     });
@@ -709,9 +733,20 @@
     if (id === "s-type" || id === "s-form") setTab("tab-est");
     if (id === "s-site") { setTab("tab-site"); loadStats(); renderSiteList(); }
     if (id === "s-mb") { setTab("tab-mb"); closeTijori(); setTimeout(centerTijori, 30); }
-    if (id === "s-tour") { setTab("tab-dash"); }
+    if (id === "s-tour") { setTab("tab-tour"); }
     if (id === "s-pr") { setTab("tab-pr"); renderMedia(); }
     if (id === "s-bill") { setTab("tab-bill"); toggleBillGam(); renderBillList(); }
+  }
+  function applyDark(){
+    const on=localStorage.getItem("copilot_dark")==="1";
+    document.body.classList.toggle("dark", on);
+    const b=document.getElementById("btnTheme");
+    if(b) b.textContent=on?"🌙":"☀";
+  }
+  function toggleDark(){
+    const on=!(localStorage.getItem("copilot_dark")==="1");
+    localStorage.setItem("copilot_dark", on?"1":"0");
+    applyDark();
   }
   function goTypes() {
     fetch(API + "/api/log", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({kind:"open_generate"}) });
@@ -2459,6 +2494,7 @@ function openTijori(){
   }
 
   fetch(API + "/api/log", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({kind:"page_open"}) });
+  applyDark();
   loadStats();
 </script>
 </body>
