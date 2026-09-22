@@ -255,15 +255,28 @@
 </head>
 <body>
   <div id="authGate" class="toast">
-    <div class="box" style="max-width:380px;width:100%">
-      <b>Co-Pilot Login</b>
+    <div class="box" style="max-width:400px;width:100%">
+      <b id="authTitle">Co-Pilot Login</b>
       <p class="muted">ઈમેલ + પાસવર્ડ. OTP નહીં.</p>
       <div class="field"><label>ઈમેલ</label><input id="authEmail" type="email" placeholder="you@gmail.com"></div>
       <div class="field"><label>પાસવર્ડ</label><input id="authPass" type="password" placeholder="ઓછામાં 6 અક્ષર"></div>
+      <div id="authExtra" class="hidden">
+        <div class="field"><label>પૂરું નામ</label><input id="authName" placeholder="Vanrajsinh Thakor"></div>
+        <div class="field"><label>હોદ્દો</label>
+          <select id="authRole"><option>SO</option><option>AAE</option><option>DEE</option></select>
+        </div>
+        <div class="field"><label>મોબાઇલ</label><input id="authMobile" placeholder="94xxxxxxxx"></div>
+        <div class="field"><label>જિલ્લો</label><input id="authJilla" placeholder="Ahmedabad"></div>
+        <div class="field"><label>તાલુકો</label><input id="authTaluka" placeholder="તાલુકો"></div>
+      </div>
       <p class="muted" id="authMsg"></p>
-      <div class="actions">
+      <div class="actions" id="authLoginRow">
         <button type="button" class="btn btn-g" onclick="authLogin()">Log in</button>
-        <button type="button" class="btn btn-s" onclick="authSignup()">Sign up</button>
+        <button type="button" class="btn btn-s" onclick="showSignup(true)">Sign up</button>
+      </div>
+      <div class="actions hidden" id="authSignRow">
+        <button type="button" class="btn btn-g" onclick="authSignup()">અકાઉન્ટ બનાવો</button>
+        <button type="button" class="btn btn-w" onclick="showSignup(false)">પાછા Login</button>
       </div>
     </div>
   </div>
@@ -879,28 +892,83 @@
       document.getElementById("authGate").classList.add("hidden");
     }
   }
+  const ADMIN_EMAIL="vanraj2592@gmail.com";
+  function isAdmin(session){
+    const em=((session.user&&session.user.email)||"").toLowerCase();
+    const role=((session.user&&session.user.user_metadata)||{}).app_role||"";
+    return em===ADMIN_EMAIL || role==="super_admin";
+  }
   function onAuthed(session){
-    document.getElementById("authGate").classList.add("hidden");
     const email=(session.user&&session.user.email)||"";
-    const p=prGet(); p.email=p.email||email; localStorage.setItem("copilot_profile", JSON.stringify(p));
+    const meta=(session.user&&session.user.user_metadata)||{};
+    const admin=isAdmin(session);
+    const approved=admin || meta.approved===true || meta.approved==="true";
+    const p=prGet();
+    p.email=email; if(meta.name) p.name=meta.name; if(meta.role) p.role=meta.role;
+    if(meta.mobile) p.mobile=meta.mobile; if(meta.jilla) p.jilla=meta.jilla;
+    if(meta.taluka) p.taluka=meta.taluka;
+    p.status=admin?"Approved":(approved?"Approved":"Pending");
+    p.app_role=admin?"super_admin":"aae";
+    localStorage.setItem("copilot_profile", JSON.stringify(p));
     const btn=document.getElementById("btnProfile");
-    if(btn) btn.textContent="👤 "+(email.split("@")[0]||"SO");
+    if(btn) btn.textContent=admin?"👤 Admin":("👤 "+(email.split("@")[0]||"SO"));
+    if(!approved){
+      document.getElementById("authGate").classList.remove("hidden");
+      const msg=document.getElementById("authMsg");
+      if(msg) msg.textContent="અકાઉન્ટ બન્યું. Super Admin Approve કરે ત્યાં સુધી રાહ.";
+      showSignup(false);
+      return;
+    }
+    document.getElementById("authGate").classList.add("hidden");
+  }
+  function showSignup(on){
+    document.getElementById("authExtra").classList.toggle("hidden", !on);
+    document.getElementById("authLoginRow").classList.toggle("hidden", on);
+    document.getElementById("authSignRow").classList.toggle("hidden", !on);
+    document.getElementById("authTitle").textContent=on?"નવું અકાઉન્ટ":"Co-Pilot Login";
+    document.getElementById("authMsg").textContent="";
+  }
+  function authErr(s){
+    s=String(s||"");
+    if(/only request this after/i.test(s)) return "થોડી સેકન્ડ રાહ જુઓ, પછી ફરી દબાવો.";
+    if(/already registered/i.test(s)) return "આ ઈમેલ પહેલાંથી છે. Log in કરો.";
+    if(/Invalid login/i.test(s)) return "ઈમેલ કે પાસવર્ડ ખોટો. પહેલાં Sign up કરો.";
+    if(/confirm/i.test(s)) return "સુપાબેઝમાં Confirm email બંધ કરો.";
+    return s;
   }
   async function authSignup(){
     const email=(document.getElementById("authEmail")||{}).value||"";
     const password=(document.getElementById("authPass")||{}).value||"";
     const msg=document.getElementById("authMsg");
+    if(!email||password.length<6){ if(msg) msg.textContent="ઈમેલ અને 6+ પાસવર્ડ લખો"; return; }
     if(!sbClient){ if(msg) msg.textContent="Auth સેટ નથી"; return; }
-    const { error }=await sbClient.auth.signUp({ email, password });
-    if(msg) msg.textContent=error?error.message:"અકાઉન્ટ બન્યું. હવે Log in.";
+    if(msg) msg.textContent="બની રહ્યું છે…";
+    const name=(document.getElementById("authName")||{}).value||"";
+    const role=(document.getElementById("authRole")||{}).value||"AAE";
+    const mobile=(document.getElementById("authMobile")||{}).value||"";
+    const jilla=(document.getElementById("authJilla")||{}).value||"";
+    const taluka=(document.getElementById("authTaluka")||{}).value||"";
+    const isAd=email.trim().toLowerCase()===ADMIN_EMAIL;
+    const { data, error }=await sbClient.auth.signUp({ email, password, options:{ data:{
+      name:name, role:role, mobile:mobile, jilla:jilla, taluka:taluka,
+      app_role:isAd?"super_admin":"aae", approved:isAd
+    }}});
+    if(error){ if(msg) msg.textContent=authErr(error.message); return; }
+    const p=prGet();
+    p.email=email; p.name=name; p.role=role; p.mobile=mobile; p.jilla=jilla; p.taluka=taluka;
+    p.app_role=isAd?"super_admin":"aae"; p.status=isAd?"Approved":"Pending";
+    localStorage.setItem("copilot_profile", JSON.stringify(p));
+    const { error: e2 }=await sbClient.auth.signInWithPassword({ email, password });
+    if(e2){ if(msg) msg.textContent="અકાઉન્ટ બન્યું. 30 સેકન્ડ પછી Log in દબાવો."; return; }
   }
   async function authLogin(){
     const email=(document.getElementById("authEmail")||{}).value||"";
     const password=(document.getElementById("authPass")||{}).value||"";
     const msg=document.getElementById("authMsg");
     if(!sbClient){ if(msg) msg.textContent="Auth સેટ નથી"; return; }
+    if(msg) msg.textContent="ચાલુ…";
     const { error }=await sbClient.auth.signInWithPassword({ email, password });
-    if(error && msg) msg.textContent=error.message;
+    if(error && msg) msg.textContent=authErr(error.message);
   }
   async function authLogout(){
     if(sbClient) await sbClient.auth.signOut();
