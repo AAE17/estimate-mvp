@@ -1093,6 +1093,9 @@ app.get("/api/db/bundle", async (req, res) => {
 app.get("/api/db/health", (_req, res) => {
   res.json({ ok: true, supabase: sbOn(), url: SB_URL ? SB_URL.replace(/https:\/\//,"") : "" });
 });
+app.get("/api/auth/config", (_req, res) => {
+  res.json({ ok: true, url: SB_URL || "", anon: SB_KEY || "" });
+});
 
 
 app.post("/api/mb/paver", async (req, res) => {
