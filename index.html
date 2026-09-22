@@ -585,8 +585,31 @@
 
     <section id="s-pr" class="card hidden">
       <h2>Profile</h2>
-      <p class="muted">સાઇટ પ્લાન / ફોટો — ફોનમાં સેવ.</p>
-      <div id="mediaList" class="mini"></div>
+      <div class="field" style="text-align:center">
+        <img id="prPhoto" alt="" style="width:88px;height:88px;border-radius:50%;object-fit:cover;background:#1f2937;display:inline-block">
+        <div><input id="prPhotoFile" type="file" accept="image/*" onchange="prPhotoPick(this)"></div>
+      </div>
+      <h3>ઓળખ</h3>
+      <div class="field"><label>પૂરું નામ</label><input id="prName" placeholder="S. O. Patel"></div>
+      <div class="field"><label>હોદ્દો</label>
+        <select id="prRole">
+          <option>AAE</option><option>SO</option><option>DEE</option><option>Other</option>
+        </select>
+      </div>
+      <div class="field"><label>મોબાઇલ</label><input id="prMobile" placeholder="94263 00000"></div>
+      <div class="field"><label>ઈમેલ</label><input id="prEmail" placeholder="aae@example.com"></div>
+      <h3>ઓફિસ</h3>
+      <div class="field"><label>જિલ્લો</label><input id="prJilla" placeholder="Ahmedabad"></div>
+      <div class="field"><label>તાલુકો</label><input id="prTaluka" placeholder="Sanand"></div>
+      <div class="field"><label>ઓફિસ સરનામું</label><textarea id="prAddress" rows="2" placeholder="તાલુકા પંચાયત"></textarea></div>
+      <div class="field"><label>R &amp; B Division</label><input id="prDiv" placeholder="Ahmedabad"></div>
+      <div class="field"><label>Sub-div એડ્રેસ</label><input id="prSubdiv" placeholder="DAKOR"></div>
+      <div class="field"><label>નાની સિંચાઈ ઓફિસ</label><input id="prSinchai" placeholder="DAKOR"></div>
+      <h3>એપ</h3>
+      <p class="muted">સ્ટેટસ: <b id="prStatus">Pending</b> · પ્લાન: Free</p>
+      <div class="actions">
+        <button type="button" class="btn btn-g" onclick="saveProfile()">સેવ</button>
+      </div>
     </section>
   </div>
 
@@ -764,7 +787,7 @@
     if (id === "s-site") { setTab("tab-site"); loadStats(); renderSiteList(); }
     if (id === "s-mb") { setTab("tab-mb"); closeTijori(); setTimeout(centerTijori, 30); }
     if (id === "s-tour") { setTab("tab-tour"); }
-    if (id === "s-pr") { setTab("tab-pr"); renderMedia(); }
+    if (id === "s-pr") { loadProfile(); }
     if (id === "s-bill") { setTab("tab-bill"); toggleBillGam(); renderBillList(); }
   }
   function applyDark(){
@@ -778,6 +801,47 @@
     localStorage.setItem("copilot_dark", on?"1":"0");
     applyDark();
   }
+
+  function prGet(){ try{ return JSON.parse(localStorage.getItem("copilot_profile")||"{}"); }catch(e){ return {}; } }
+  function loadProfile(){
+    const p=prGet();
+    const set=function(id,v){ const e=document.getElementById(id); if(e) e.value=v||""; };
+    set("prName", p.name); set("prRole", p.role||"AAE"); set("prMobile", p.mobile); set("prEmail", p.email);
+    set("prJilla", p.jilla); set("prTaluka", p.taluka||p.office); set("prAddress", p.address);
+    set("prDiv", p.division); set("prSubdiv", p.subdiv); set("prSinchai", p.sinchai);
+    const img=document.getElementById("prPhoto");
+    if(img) img.src=p.photo||"";
+    const st=document.getElementById("prStatus"); if(st) st.textContent=p.status||"Pending";
+  }
+  function saveProfile(){
+    const v=function(id){ return (document.getElementById(id)||{}).value||""; };
+    const p=prGet();
+    p.name=v("prName"); p.role=v("prRole"); p.mobile=v("prMobile"); p.email=v("prEmail");
+    p.jilla=v("prJilla"); p.taluka=v("prTaluka"); p.office=v("prTaluka"); p.address=v("prAddress");
+    p.division=v("prDiv"); p.subdiv=v("prSubdiv"); p.sinchai=v("prSinchai");
+    if(!p.status) p.status="Pending";
+    localStorage.setItem("copilot_profile", JSON.stringify(p));
+    applyProfileToForm();
+    alert("પ્રોફાઇલ સેવ");
+  }
+  function prPhotoPick(inp){
+    const f=inp.files&&inp.files[0]; if(!f) return;
+    const r=new FileReader();
+    r.onload=function(){
+      const p=prGet(); p.photo=r.result;
+      localStorage.setItem("copilot_profile", JSON.stringify(p));
+      const img=document.getElementById("prPhoto"); if(img) img.src=r.result;
+    };
+    r.readAsDataURL(f);
+  }
+  function applyProfileToForm(){
+    const p=prGet();
+    const set=function(id,v){ const e=document.getElementById(id); if(e && v) e.value=v; };
+    set("division", p.division||p.jilla);
+    set("subdiv_address", p.subdiv);
+    set("nani_address", p.sinchai);
+  }
+
   function goTypes() {
     fetch(API + "/api/log", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({kind:"open_generate"}) });
     show("s-type");
@@ -1599,6 +1663,7 @@
   }
 
   function goForm(type) {
+    applyProfileToForm();
     currentType = type === "paver" ? "paver" : "cc";
     document.body.classList.toggle("paver-on", currentType==="paver");
   
