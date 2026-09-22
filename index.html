@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>ParaState MVP</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     :root { --g:#1B5D45; --s:#C45C26; --p:#F3EEE4; --i:#14211A; --l:#d7d0c4; }
     * { box-sizing: border-box; }
@@ -253,6 +254,20 @@
 </style>
 </head>
 <body>
+  <div id="authGate" class="toast">
+    <div class="box" style="max-width:380px;width:100%">
+      <b>Co-Pilot Login</b>
+      <p class="muted">ઈમેલ + પાસવર્ડ. OTP નહીં.</p>
+      <div class="field"><label>ઈમેલ</label><input id="authEmail" type="email" placeholder="you@gmail.com"></div>
+      <div class="field"><label>પાસવર્ડ</label><input id="authPass" type="password" placeholder="ઓછામાં 6 અક્ષર"></div>
+      <p class="muted" id="authMsg"></p>
+      <div class="actions">
+        <button type="button" class="btn btn-g" onclick="authLogin()">Log in</button>
+        <button type="button" class="btn btn-s" onclick="authSignup()">Sign up</button>
+      </div>
+    </div>
+  </div>
+
   <header class="topbar">
     <div class="topbar-row">
       <div class="brand"><span class="logo">🏗</span><span>Co-Pilot<small>WORKS &amp; ESTIMATES</small></span></div>
@@ -840,6 +855,56 @@
     set("division", p.division||p.jilla);
     set("subdiv_address", p.subdiv);
     set("nani_address", p.sinchai);
+  }
+
+
+  let sbClient=null;
+  async function authInit(){
+    try{
+      const cfg=await fetch(API+"/api/auth/config").then(function(r){return r.json();});
+      if(!cfg.url||!cfg.anon||!window.supabase){
+        document.getElementById("authGate").classList.add("hidden");
+        return;
+      }
+      sbClient=window.supabase.createClient(cfg.url, cfg.anon);
+      const { data }=await sbClient.auth.getSession();
+      if(data&&data.session){ onAuthed(data.session); }
+      else { document.getElementById("authGate").classList.remove("hidden"); }
+      sbClient.auth.onAuthStateChange(function(_e, session){
+        if(session) onAuthed(session); else {
+          document.getElementById("authGate").classList.remove("hidden");
+        }
+      });
+    }catch(e){
+      document.getElementById("authGate").classList.add("hidden");
+    }
+  }
+  function onAuthed(session){
+    document.getElementById("authGate").classList.add("hidden");
+    const email=(session.user&&session.user.email)||"";
+    const p=prGet(); p.email=p.email||email; localStorage.setItem("copilot_profile", JSON.stringify(p));
+    const btn=document.getElementById("btnProfile");
+    if(btn) btn.textContent="👤 "+(email.split("@")[0]||"SO");
+  }
+  async function authSignup(){
+    const email=(document.getElementById("authEmail")||{}).value||"";
+    const password=(document.getElementById("authPass")||{}).value||"";
+    const msg=document.getElementById("authMsg");
+    if(!sbClient){ if(msg) msg.textContent="Auth સેટ નથી"; return; }
+    const { error }=await sbClient.auth.signUp({ email, password });
+    if(msg) msg.textContent=error?error.message:"અકાઉન્ટ બન્યું. હવે Log in.";
+  }
+  async function authLogin(){
+    const email=(document.getElementById("authEmail")||{}).value||"";
+    const password=(document.getElementById("authPass")||{}).value||"";
+    const msg=document.getElementById("authMsg");
+    if(!sbClient){ if(msg) msg.textContent="Auth સેટ નથી"; return; }
+    const { error }=await sbClient.auth.signInWithPassword({ email, password });
+    if(error && msg) msg.textContent=error.message;
+  }
+  async function authLogout(){
+    if(sbClient) await sbClient.auth.signOut();
+    document.getElementById("authGate").classList.remove("hidden");
   }
 
   function goTypes() {
@@ -2609,6 +2674,7 @@ function openTijori(){
 
   fetch(API + "/api/log", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({kind:"page_open"}) });
   applyDark();
+  authInit();
   loadStats();
 </script>
 </body>
