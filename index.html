@@ -222,6 +222,34 @@
     .mbShot img{height:100dvh;width:auto;max-width:none}
   }
   #btnProfile{position:fixed;top:10px;right:12px;z-index:40;border:0;background:#16302a;color:#fff;border-radius:16px;padding:6px 12px;font-size:12px;font-weight:700}
+
+    .dash-hero{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:flex-start;margin-bottom:16px}
+    .dash-hero h2{margin:0 0 6px;font-size:22px}
+    .pill{display:inline-block;background:#123d2e;color:#86efac;font-size:11px;font-weight:700;padding:3px 8px;border-radius:999px;margin-left:8px}
+    body:not(.dark) .pill{background:#dcfce7;color:#166534}
+    .seg{display:flex;background:#0b1220;border-radius:12px;padding:3px;gap:2px}
+    body:not(.dark) .seg{background:#eef2f7}
+    .seg button{border:0;background:transparent;color:#94a3b8;font:inherit;font-size:12px;font-weight:700;padding:6px 10px;border-radius:10px;cursor:pointer}
+    .seg button.on{background:#1e293b;color:#fff}
+    body:not(.dark) .seg button.on{background:#fff;color:#0f172a;box-shadow:0 1px 2px rgba(0,0,0,.08)}
+    .kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:8px 0 18px}
+    @media(max-width:900px){.kpi-grid{grid-template-columns:1fr 1fr}}
+    .kpi{background:#111827;border:1px solid #1f2937;border-radius:16px;padding:16px}
+    body:not(.dark) .kpi{background:#fff;border-color:#e6eaf0}
+    .kpi .k-top{display:flex;justify-content:space-between;color:#94a3b8;font-size:11px;font-weight:700;letter-spacing:.04em}
+    .kpi .ico{width:28px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center;background:#1e293b}
+    .kpi b{display:block;font-size:26px;margin:10px 0 4px}
+    .kpi .sub{font-size:12px;color:#64748b}
+    .est-wrap{background:#111827;border:1px solid #1f2937;border-radius:16px;padding:16px;overflow:auto}
+    body:not(.dark) .est-wrap{background:#fff;border-color:#e6eaf0}
+    .est-table{width:100%;border-collapse:collapse;font-size:13px}
+    .est-table th{text-align:left;color:#94a3b8;font-size:11px;padding:8px 6px;border-bottom:1px solid #1f2937}
+    .est-table td{padding:10px 6px;border-bottom:1px solid #1f2937;vertical-align:top}
+    body:not(.dark) .est-table th, body:not(.dark) .est-table td{border-bottom-color:#eef2f7}
+    .badge{display:inline-block;font-size:11px;font-weight:800;padding:2px 8px;border-radius:999px}
+    .badge.cc{background:#1e3a8a;color:#bfdbfe}
+    .badge.pv{background:#14532d;color:#bbf7d0}
+    #s-hi.card{background:transparent;border:0;box-shadow:none;padding:8px 0}
 </style>
 </head>
 <body>
@@ -247,34 +275,34 @@
   <div class="wrap">
 
     <section id="s-hi" class="card">
-      <h2>નમસ્તે, Section Officer</h2>
-      <p class="muted">Taluka Panchayat Estimate MVP. <b>CC Road</b> અને <b>Paver Block</b> ચાલુ છે.</p>
-      <div class="stats">
-        <div class="stat"><span>આજે</span><b id="dToday">0</b></div>
-        <div class="stat"><span>કુલ એસ્ટિમેટ</span><b id="dTotal">0</b></div>
-        <div class="stat"><span>CC / Paver</span><b id="dSplit">0 / 0</b></div>
-        <div class="stat"><span>કુલ મંજૂર રકમ</span><b id="dAmt">₹ 0</b></div>
+      <div class="dash-hero">
+        <div>
+          <h2>નમસ્તે, Section Officer <span class="pill">Live</span></h2>
+          <p class="muted">Taluka Panchayat — CC Road અને Paver Block</p>
+        </div>
+        <div class="seg">
+          <button type="button" class="on" onclick="setDashRange('today',this)">Today</button>
+          <button type="button" onclick="setDashRange('week',this)">This Week</button>
+          <button type="button" onclick="setDashRange('month',this)">This Month</button>
+          <button type="button" onclick="setDashRange('all',this)">All</button>
+        </div>
       </div>
-      <p class="muted mini" id="dTopTal">તાલુકો: —</p>
-      <h3 style="margin:14px 0 6px;font-size:15px">સહિયારી એસ્ટિમેટ</h3>
-      <div class="mini" id="dRecent"></div>
-      <h3 style="margin:16px 0 6px;font-size:16px">Analytics</h3>
-      <p class="muted">એસ્ટિમેટ ગણતરી</p>
-      <div class="stats">
-        <div class="stat"><span>આજે</span><b id="aToday">0</b></div>
-        <div class="stat"><span>કુલ</span><b id="aTotal">0</b></div>
-        <div class="stat"><span>CC</span><b id="aCc">0</b></div>
-        <div class="stat"><span>Paver</span><b id="aPv">0</b></div>
+      <div class="kpi-grid">
+        <div class="kpi"><div class="k-top">TODAY'S OUTPUT <span class="ico">⏱</span></div><b id="dToday">0</b><div class="sub">આજના એસ્ટિમેટ</div></div>
+        <div class="kpi"><div class="k-top">TOTAL <span class="ico">▣</span></div><b id="dTotal">0</b><div class="sub">કુલ એસ્ટિમેટ</div></div>
+        <div class="kpi"><div class="k-top">CC / PAVER <span class="ico">⬡</span></div><b id="dSplit">0 / 0</b><div class="sub">પ્રકાર</div></div>
+        <div class="kpi"><div class="k-top">SANCTIONED <span class="ico">₹</span></div><b id="dAmt">₹ 0</b><div class="sub" id="dTopTal">તાલુકો: —</div></div>
       </div>
-      <h3 style="margin:16px 0 6px;font-size:16px">તાલુકો</h3>
-      <div class="mini" id="aTal"></div>
-      <h3 style="margin:16px 0 6px;font-size:16px">છેલ્લા એસ્ટિમેટ</h3>
-      <div class="mini" id="aRecent"></div>
-      <div class="actions">
-        <button class="btn btn-g" onclick="goTypes()">Estimate Generate</button>
-        <button class="btn btn-s" onclick="show('s-site')">Site Measurement</button>
-        <button class="btn btn-s" onclick="openTour()">Tour Diary</button>
+      <div class="est-wrap">
+        <h3 style="margin:0 0 10px">સહિયારી એસ્ટિમેટ</h3>
+        <table class="est-table">
+          <thead><tr><th>DATE</th><th>TYPE</th><th>DESCRIPTION</th><th>AMOUNT</th></tr></thead>
+          <tbody id="dRecent"></tbody>
+        </table>
       </div>
+      <span class="hidden" id="aToday"></span><span class="hidden" id="aTotal"></span>
+      <span class="hidden" id="aCc"></span><span class="hidden" id="aPv"></span>
+      <div class="hidden" id="aTal"></div><div class="hidden" id="aRecent"></div>
     </section>
 
     <section id="s-type" class="card hidden">
@@ -296,6 +324,9 @@
       <div class="grid">
         <div class="field full"><label>જિલ્લા પંચાયત</label>
           <select id="jilla"><option value="">— જિલ્લો પસંદ કરો —</option></select>
+        </div>
+        <div class="field full"><label>R &amp; B Division</label>
+          <input id="rb_div" placeholder="જિલ્લો પસંદ થાય ત્યારે આવશે — એડિટ થાય">
         </div>
         <div class="field"><label>તાલુકો</label>
           <select id="taluka" disabled><option value="">— પહેલા જિલ્લો —</option></select>
@@ -677,6 +708,8 @@
 
   function onJilla() {
     const d = val("jilla");
+    const rb=document.getElementById("rb_div");
+    if(rb) rb.value = d ? (d + " R & B Division") : "";
     const tal = document.getElementById("taluka");
     const vil = document.getElementById("village");
     document.getElementById("villageOtherWrap").classList.add("hidden");
@@ -1521,6 +1554,12 @@
         : "<div><span>હજુ એસ્ટિમેટ નથી</span><b></b></div>";
     }
   }
+  window.DASH_RANGE="all";
+  function setDashRange(r,btn){
+    window.DASH_RANGE=r;
+    document.querySelectorAll(".seg button").forEach(function(b){ b.classList.toggle("on", b===btn); });
+    loadStats();
+  }
   function loadStats() {
     fetch(API + "/api/db/estimates").then((r) => r.json()).then(function (d) {
       const items = d.items || [];
@@ -1540,9 +1579,22 @@
       const box=document.getElementById("dRecent");
       if (box) {
         const inr0=function(x){return "₹ "+Number(x||0).toLocaleString("en-IN",{maximumFractionDigits:0});};
-        box.innerHTML = items.length ? items.slice(0,8).map(function(r){
-          return "<div><span>"+String(r.ts||"").slice(0,10)+" · "+(r.type||"")+" · "+(r.work_name||r.village||"")+"</span><b>"+inr0(r.amounting)+"</b></div>";
-        }).join("") : "<div>હજુ સુપાબેઝમાં એસ્ટિમેટ નથી</div>";
+        const filt=window.DASH_RANGE||"all";
+        const now=new Date();
+        const shown=items.filter(function(r){
+          const ds=String(r.ts||"").slice(0,10);
+          if(filt==="all"||!ds) return true;
+          const d=new Date(ds+"T00:00:00");
+          if(filt==="today") return ds===today;
+          if(filt==="week") return (now-d)<=7*864e5;
+          if(filt==="month") return d.getMonth()===now.getMonth() && d.getFullYear()===now.getFullYear();
+          return true;
+        });
+        box.innerHTML = shown.length ? shown.slice(0,12).map(function(r){
+          const tp=String(r.type||"").toLowerCase().indexOf("paver")>=0?"pv":"cc";
+          const lab=tp==="pv"?"Paver":"CC";
+          return "<tr><td>"+String(r.ts||"").slice(0,10)+"</td><td><span class='badge "+tp+"'>"+lab+"</span></td><td>"+(r.work_name||r.village||"—")+"<div class='sub'>Taluka: "+(r.taluka||"—")+"</div></td><td><b>"+inr0(r.amounting)+"</b></td></tr>";
+        }).join("") : "<tr><td colspan='4'>હજુ એસ્ટિમેટ નથી</td></tr>";
       }
     }).catch(function(){
       fetch(API + "/api/stats").then((r) => r.json()).then(fillStats).catch(function () {});
