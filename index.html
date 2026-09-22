@@ -28,7 +28,7 @@
     body.dark .live { background:#0f172a; border-color:#1e3a8a; }
     body.dark .mini div { border-bottom-color:#1f2937; }
     header.topbar {
-      position:sticky; top:0; z-index:45;
+      position:fixed; top:0; left:0; right:0; z-index:80;
       background:#fff; color:#1e293b;
       border-bottom:1px solid #e6eaf0;
       padding:10px 16px calc(10px + env(safe-area-inset-top));
@@ -308,6 +308,8 @@
       #btnTheme{order:1}
       #btnProfile{order:3}
     }
+    body{padding-top:72px}
+    @media(max-width:900px){body{padding-top:64px}}
 </style>
 </head>
 <body>
