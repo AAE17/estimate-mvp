@@ -728,31 +728,17 @@
       <div class="field"><label>MB નંબર</label><input id="billNo" oninput="liveBill()"></div>
       <div class="field"><label>પેજ થી</label><input id="billPg1"></div>
       <div class="field"><label>પેજ સુધી</label><input id="billPg2"></div>
-      <div class="field"><label>L (m) — qty માટે</label><input id="billL" type="number" step="0.01" oninput="liveBill()"></div>
-      <div class="field"><label>W (m)</label><input id="billW" type="number" step="0.01" oninput="liveBill()"></div>
       <div class="field"><label>Qty1 Box</label><input id="billQ1" type="number" step="0.01" oninput="liveBill()"></div>
       <div class="field"><label>Qty2 Murum</label><input id="billQ2" type="number" step="0.01" oninput="liveBill()"></div>
       <div class="field"><label>Qty3 Paver SMT</label><input id="billQ3" type="number" step="0.01" oninput="liveBill()"></div>
       <div class="field"><label>Qty4 Vata</label><input id="billQ4" type="number" step="0.01" oninput="liveBill()"></div>
       <div class="field"><label>Qty5 Test</label><input id="billQ5" type="number" step="1" value="1" oninput="liveBill()"></div>
       <div class="field"><label>Qty6 Plate</label><input id="billQ6" type="number" step="1" value="0" oninput="liveBill()"></div>
-      <div class="field"><label>ખાનું (પોથી)</label>
-        <select id="billShelf" onchange="toggleBillGam()">
-          <option value="gramya">ગ્રામ્ય કક્ષા</option>
-          <option value="general">જનરલ</option>
-          <option value="atvt">એટીવીટી</option>
-          <option value="full">ભરાઈ ગયેલ</option>
-        </select>
+      <div class="choice" style="margin:8px 0">
+        <button type="button" onclick="genBillPaver('xlsx')">Excel</button>
+        <button type="button" onclick="genBillPaver('pdf')">PDF</button>
+        <button type="button" class="on" onclick="genBillPaver('both')">બંને</button>
       </div>
-      <div class="field hidden" id="billFullWrap"><label>ભરાઈ પ્રકાર</label>
-        <select id="billFullKind" onchange="toggleBillGam()">
-          <option value="gramya">નાણાપંચ ગ્રામ્ય</option>
-          <option value="general">જનરલ</option>
-          <option value="atvt">એટીવીટી</option>
-        </select>
-      </div>
-      <button type="button" class="btn btn-g" onclick="addBillMb()">MB ઉમેરો</button>
-      <button type="button" class="btn btn-s" onclick="genBillPaver()">બિલ Excel / PDF</button>
       <div id="billList" class="mini" style="margin-top:12px"></div>
       </div>
       <div><div id="liveBillBox" class="card" style="background:#fff;color:#111;min-height:280px"></div></div>
@@ -1479,36 +1465,26 @@
     if(!it) return;
     const set=function(id,v){ const e=document.getElementById(id); if(e && v!=null && v!=="") e.value=v; };
     set("billWork", it.work_name||it.work||"");
-    set("billGrant", it.fund_head||it.grant||"");
+    set("billGrant", it.fund_head||it.grant||it.fund||it.grant_head||"");
     set("billGam", it.village||it.gam||"");
     set("billTal", it.taluka||"");
     set("billAmt", it.amounting||it.amount||it.ts_amount||"");
-    set("billL", it.length_m||it.L||"");
-    set("billW", it.width_m||it.W||"");
-    if(window.__billMode===2){
-      const L=Number(it.length_m||it.L||0), W=Number(it.width_m||it.W||0), area=L*W;
-      set("billQ1", it.box_qty || (area*0.2));
-      set("billQ2", it.mur_qty || Math.floor((area*0.1)/1.5)*1.5);
-      set("billQ3", it.area || area);
-      set("billQ4", it.vata || (2*L+2*W));
+    const L=Number(it.length_m||it.L||0), W=Number(it.width_m||it.W||0), area=Number(it.area||0)|| (L*W);
+    if(window.__billMode===2 || !((document.getElementById("billQ3")||{}).value)){
+      set("billQ1", it.box_qty || (area?area*0.2:""));
+      set("billQ2", it.mur_qty || (area?Math.floor((area*0.1)/1.5)*1.5:""));
+      set("billQ3", it.area || area || "");
+      set("billQ4", it.vata || ((L&&W)?(2*L+2*W):""));
       set("billQ5", it.test_qty==null?1:it.test_qty);
       set("billQ6", it.plate||0);
     }
     liveBill();
   }
   function billQtyFromLW(){
-    const L=parseFloat((document.getElementById("billL")||{}).value)||0;
-    const W=parseFloat((document.getElementById("billW")||{}).value)||0;
-    const area=L*W;
     const g=function(id,fb){ const v=parseFloat((document.getElementById(id)||{}).value); return isNaN(v)?fb:v; };
     return {
-      L,W,area,
-      box:g("billQ1", area*0.2),
-      murum:g("billQ2", Math.floor((area*0.1)/1.5+1e-9)*1.5),
-      paver:g("billQ3", area),
-      vata:g("billQ4", 2*L+2*W),
-      test:g("billQ5", 1),
-      plate:g("billQ6", 0)
+      box:g("billQ1",0), murum:g("billQ2",0), paver:g("billQ3",0),
+      vata:g("billQ4",0), test:g("billQ5",1), plate:g("billQ6",0)
     };
   }
   function liveBill(){
@@ -1527,11 +1503,11 @@
     h+="<div class='mini'><span>ચોખ્ખી</span><b>₹ "+tot.toLocaleString("en-IN")+"</b></div>";
     box.innerHTML=h;
   }
-  async function genBillPaver(){
+  async function genBillPaver(fmt){
     const q=billQtyFromLW();
     const val=function(id){return (document.getElementById(id)||{}).value||"";};
     const body={
-      output:"both",
+      output: fmt||'both',
       work_name:val("billWork"), fund_head:val("billGrant"), grant:val("billGrant"),
       village:val("billGam"), gam:val("billGam"), taluka:val("billTal"),
       subdiv:val("billSub"), subdiv_address:val("billSub"),
