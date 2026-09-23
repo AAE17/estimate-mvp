@@ -339,6 +339,13 @@
       #s-bill .bill-win{grid-template-columns:1fr}
       #liveBillBox{position:relative;top:0;max-height:none}
     }
+
+    #s-bill .choice{display:flex;flex-wrap:wrap;gap:8px}
+    #s-bill .choice button{
+      flex:1;min-width:120px;padding:10px 12px;border-radius:10px;
+      border:1px solid #cbd5e1;background:#f1f5f9;color:#0f172a;cursor:pointer;font-weight:600
+    }
+    #s-bill .choice button.on{background:#1d4ed8;color:#fff;border-color:#1d4ed8}
 </style>
 </head>
 <body>
@@ -1127,7 +1134,104 @@
     loadPending();
   }
   function goTypes() {
-    fetch(API + "/api/log", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({kind:"open_generate"}) });
+  
+  window.__billMode = 3;
+  function billMode(n){
+    window.__billMode = n;
+    ["bm1","bm2","bm3"].forEach(function(id,i){
+      const b=document.getElementById(id); if(b) b.classList.toggle("on", i+1===n);
+    });
+    const hint={1:"એસ્ટિમેટ પસંદ — qty તમે. બધું એડિટ.",2:"સાઇટ પસંદ — qty તૈયાર. બધું એડિટ.",3:"બધું લખો."};
+    const h=document.getElementById("billModeHint"); if(h) h.textContent=hint[n]||"";
+    document.querySelectorAll(".billFull").forEach(function(el){ el.style.display = n===3 ? "" : "none"; });
+    const pw=document.getElementById("billPickWrap");
+    if(pw) pw.style.display = n===3 ? "none" : "";
+    fillBillPick();
+    liveBill();
+  }
+  function fillBillPick(){
+    const sel=document.getElementById("billPick");
+    if(!sel) return;
+    sel.innerHTML='<option value="">— પસંદ —</option>';
+    const mode=window.__billMode;
+    const url = mode===2 ? "/api/db/site" : "/api/db/estimates";
+    fetch((typeof API!=="undefined"?API:"")+url).then(function(r){return r.json();}).then(function(d){
+      sel._rows=d.items||[];
+      (sel._rows).slice(0,80).forEach(function(it,idx){
+        const o=document.createElement("option");
+        o.value=String(idx);
+        o.textContent=(it.work_name||it.work||it.village||it.gam||"કામ")+" · "+(it.village||it.gam||"");
+        sel.appendChild(o);
+      });
+    }).catch(function(){});
+  }
+  function billApplyPick(){
+    const sel=document.getElementById("billPick");
+    const rows=sel && sel._rows || [];
+    const it=rows[Number(sel.value)];
+    if(!it) return;
+    const set=function(id,v){ const e=document.getElementById(id); if(e && v!=null && v!=="") e.value=v; };
+    set("billWork", it.work_name||it.work||"");
+    set("billGrant", it.fund_head||it.grant||it.fund||it.grant_head||"");
+    set("billGam", it.village||it.gam||"");
+    set("billTal", it.taluka||"");
+    set("billAmt", it.amounting||it.amount||it.ts_amount||"");
+    const L=Number(it.length_m||it.L||0), W=Number(it.width_m||it.W||0), area=Number(it.area||0)||(L*W);
+    if(window.__billMode===2){
+      set("billQ1", it.box_qty || (area?area*0.2:""));
+      set("billQ2", it.mur_qty || (area?Math.floor((area*0.1)/1.5)*1.5:""));
+      set("billQ3", it.area || area || "");
+      set("billQ4", it.vata || ((L&&W)?(2*L+2*W):""));
+      set("billQ5", it.test_qty==null?1:it.test_qty);
+      set("billQ6", it.plate||0);
+    }
+    liveBill();
+  }
+  function billQtyFromLW(){
+    const g=function(id,fb){ const v=parseFloat((document.getElementById(id)||{}).value); return isNaN(v)?fb:v; };
+    return {box:g("billQ1",0),murum:g("billQ2",0),paver:g("billQ3",0),vata:g("billQ4",0),test:g("billQ5",1),plate:g("billQ6",0)};
+  }
+  function liveBill(){
+    const box=document.getElementById("liveBillBox");
+    if(!box) return;
+    const work=(document.getElementById("billWork")||{}).value||"—";
+    const gam=(document.getElementById("billGam")||{}).value||"—";
+    const tal=(document.getElementById("billTal")||{}).value||"—";
+    const no=(document.getElementById("billNo")||{}).value||"—";
+    const q=billQtyFromLW();
+    const rows=[["1 Box",q.box,156.56],["2 Murum",q.murum,210.42],["3 Paver",q.paver,740.51],["4 Vata",q.vata,23.68],["5 Test",q.test,608],["6 Plate",q.plate,306.14]];
+    let sub=0,h="<b>બિલ — લાઈવ</b><p class='muted'>"+work+" · "+gam+" / "+tal+" · MB "+no+"</p>";
+    rows.forEach(function(r){ const amt=Number(r[1])*r[2]; sub+=amt; h+="<div class='mini'><span>"+r[0]+"</span><b>"+Number(r[1]).toFixed(2)+" → ₹ "+Math.round(amt)+"</b></div>"; });
+    const gst=sub*0.18, tot=Math.floor(sub+gst);
+    h+="<div class='mini'><span>+18% GST</span><b>₹ "+Math.round(gst)+"</b></div>";
+    h+="<div class='mini'><span>ચોખ્ખી</span><b>₹ "+tot.toLocaleString("en-IN")+"</b></div>";
+    box.innerHTML=h;
+  }
+  async function genBillPaver(fmt){
+    const q=billQtyFromLW();
+    const val=function(id){return (document.getElementById(id)||{}).value||"";};
+    const body={
+      output: fmt||"both",
+      work_name:val("billWork"), fund_head:val("billGrant"), grant:val("billGrant"),
+      village:val("billGam"), gam:val("billGam"), taluka:val("billTal"),
+      subdiv:val("billSub"), subdiv_address:val("billSub"),
+      work_order:val("billWO"), as_details:val("billWO"),
+      ts_details:val("billTS"), amounting:Number(val("billAmt")||0), ts_amount:Number(val("billAmt")||0),
+      start_date:val("billStart"), meas_date:val("billDate"), date:val("billDate"),
+      mb_no:val("billNo"), page_from:val("billPg1"), page_to:val("billPg2"),
+      qty:q, area:q.paver, box_qty:q.box, mur_qty:q.murum
+    };
+    try{
+      const base=(typeof API!=="undefined"?API:"");
+      const res=await fetch(base+"/api/bill/paver",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+      const data=await res.json();
+      if(!data.ok) throw new Error(data.error||"fail");
+      if(data.xlsx) window.open(base+data.xlsx,"_blank");
+      if(data.pdf) window.open(base+data.pdf,"_blank");
+    }catch(e){ alert("બિલ ભૂલ: "+e.message); }
+  }
+
+  fetch(API + "/api/log", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({kind:"open_generate"}) });
     show("s-type");
   }
   function mediaKey(){ return "copilot_site_media"; }
@@ -1992,6 +2096,103 @@ function openTijori(){
     alert("નોંધ સેવ");
   }
 
+
+  window.__billMode = 3;
+  function billMode(n){
+    window.__billMode = n;
+    ["bm1","bm2","bm3"].forEach(function(id,i){
+      const b=document.getElementById(id); if(b) b.classList.toggle("on", i+1===n);
+    });
+    const hint={1:"એસ્ટિમેટ પસંદ — qty તમે. બધું એડિટ.",2:"સાઇટ પસંદ — qty તૈયાર. બધું એડિટ.",3:"બધું લખો."};
+    const h=document.getElementById("billModeHint"); if(h) h.textContent=hint[n]||"";
+    document.querySelectorAll(".billFull").forEach(function(el){ el.style.display = n===3 ? "" : "none"; });
+    const pw=document.getElementById("billPickWrap");
+    if(pw) pw.style.display = n===3 ? "none" : "";
+    fillBillPick();
+    liveBill();
+  }
+  function fillBillPick(){
+    const sel=document.getElementById("billPick");
+    if(!sel) return;
+    sel.innerHTML='<option value="">— પસંદ —</option>';
+    const mode=window.__billMode;
+    const url = mode===2 ? "/api/db/site" : "/api/db/estimates";
+    fetch((typeof API!=="undefined"?API:"")+url).then(function(r){return r.json();}).then(function(d){
+      sel._rows=d.items||[];
+      (sel._rows).slice(0,80).forEach(function(it,idx){
+        const o=document.createElement("option");
+        o.value=String(idx);
+        o.textContent=(it.work_name||it.work||it.village||it.gam||"કામ")+" · "+(it.village||it.gam||"");
+        sel.appendChild(o);
+      });
+    }).catch(function(){});
+  }
+  function billApplyPick(){
+    const sel=document.getElementById("billPick");
+    const rows=sel && sel._rows || [];
+    const it=rows[Number(sel.value)];
+    if(!it) return;
+    const set=function(id,v){ const e=document.getElementById(id); if(e && v!=null && v!=="") e.value=v; };
+    set("billWork", it.work_name||it.work||"");
+    set("billGrant", it.fund_head||it.grant||it.fund||it.grant_head||"");
+    set("billGam", it.village||it.gam||"");
+    set("billTal", it.taluka||"");
+    set("billAmt", it.amounting||it.amount||it.ts_amount||"");
+    const L=Number(it.length_m||it.L||0), W=Number(it.width_m||it.W||0), area=Number(it.area||0)||(L*W);
+    if(window.__billMode===2){
+      set("billQ1", it.box_qty || (area?area*0.2:""));
+      set("billQ2", it.mur_qty || (area?Math.floor((area*0.1)/1.5)*1.5:""));
+      set("billQ3", it.area || area || "");
+      set("billQ4", it.vata || ((L&&W)?(2*L+2*W):""));
+      set("billQ5", it.test_qty==null?1:it.test_qty);
+      set("billQ6", it.plate||0);
+    }
+    liveBill();
+  }
+  function billQtyFromLW(){
+    const g=function(id,fb){ const v=parseFloat((document.getElementById(id)||{}).value); return isNaN(v)?fb:v; };
+    return {box:g("billQ1",0),murum:g("billQ2",0),paver:g("billQ3",0),vata:g("billQ4",0),test:g("billQ5",1),plate:g("billQ6",0)};
+  }
+  function liveBill(){
+    const box=document.getElementById("liveBillBox");
+    if(!box) return;
+    const work=(document.getElementById("billWork")||{}).value||"—";
+    const gam=(document.getElementById("billGam")||{}).value||"—";
+    const tal=(document.getElementById("billTal")||{}).value||"—";
+    const no=(document.getElementById("billNo")||{}).value||"—";
+    const q=billQtyFromLW();
+    const rows=[["1 Box",q.box,156.56],["2 Murum",q.murum,210.42],["3 Paver",q.paver,740.51],["4 Vata",q.vata,23.68],["5 Test",q.test,608],["6 Plate",q.plate,306.14]];
+    let sub=0,h="<b>બિલ — લાઈવ</b><p class='muted'>"+work+" · "+gam+" / "+tal+" · MB "+no+"</p>";
+    rows.forEach(function(r){ const amt=Number(r[1])*r[2]; sub+=amt; h+="<div class='mini'><span>"+r[0]+"</span><b>"+Number(r[1]).toFixed(2)+" → ₹ "+Math.round(amt)+"</b></div>"; });
+    const gst=sub*0.18, tot=Math.floor(sub+gst);
+    h+="<div class='mini'><span>+18% GST</span><b>₹ "+Math.round(gst)+"</b></div>";
+    h+="<div class='mini'><span>ચોખ્ખી</span><b>₹ "+tot.toLocaleString("en-IN")+"</b></div>";
+    box.innerHTML=h;
+  }
+  async function genBillPaver(fmt){
+    const q=billQtyFromLW();
+    const val=function(id){return (document.getElementById(id)||{}).value||"";};
+    const body={
+      output: fmt||"both",
+      work_name:val("billWork"), fund_head:val("billGrant"), grant:val("billGrant"),
+      village:val("billGam"), gam:val("billGam"), taluka:val("billTal"),
+      subdiv:val("billSub"), subdiv_address:val("billSub"),
+      work_order:val("billWO"), as_details:val("billWO"),
+      ts_details:val("billTS"), amounting:Number(val("billAmt")||0), ts_amount:Number(val("billAmt")||0),
+      start_date:val("billStart"), meas_date:val("billDate"), date:val("billDate"),
+      mb_no:val("billNo"), page_from:val("billPg1"), page_to:val("billPg2"),
+      qty:q, area:q.paver, box_qty:q.box, mur_qty:q.murum
+    };
+    try{
+      const base=(typeof API!=="undefined"?API:"");
+      const res=await fetch(base+"/api/bill/paver",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+      const data=await res.json();
+      if(!data.ok) throw new Error(data.error||"fail");
+      if(data.xlsx) window.open(base+data.xlsx,"_blank");
+      if(data.pdf) window.open(base+data.pdf,"_blank");
+    }catch(e){ alert("બિલ ભૂલ: "+e.message); }
+  }
+
   fetch(API + "/api/log", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({kind:"select_" + currentType}) });
     document.getElementById("formTitle").textContent = currentType === "paver" ? "Paver Block — ફોર્મ" : "CC Road — ફોર્મ";
     document.querySelectorAll(".cc-only").forEach((el) => el.classList.toggle("hidden", currentType !== "cc"));
@@ -2208,6 +2409,103 @@ function openTijori(){
     notes[ds]=(document.getElementById("tdNote")||{}).value||"";
     localStorage.setItem("copilot_tour_notes", JSON.stringify(notes));
     alert("નોંધ સેવ");
+  }
+
+
+  window.__billMode = 3;
+  function billMode(n){
+    window.__billMode = n;
+    ["bm1","bm2","bm3"].forEach(function(id,i){
+      const b=document.getElementById(id); if(b) b.classList.toggle("on", i+1===n);
+    });
+    const hint={1:"એસ્ટિમેટ પસંદ — qty તમે. બધું એડિટ.",2:"સાઇટ પસંદ — qty તૈયાર. બધું એડિટ.",3:"બધું લખો."};
+    const h=document.getElementById("billModeHint"); if(h) h.textContent=hint[n]||"";
+    document.querySelectorAll(".billFull").forEach(function(el){ el.style.display = n===3 ? "" : "none"; });
+    const pw=document.getElementById("billPickWrap");
+    if(pw) pw.style.display = n===3 ? "none" : "";
+    fillBillPick();
+    liveBill();
+  }
+  function fillBillPick(){
+    const sel=document.getElementById("billPick");
+    if(!sel) return;
+    sel.innerHTML='<option value="">— પસંદ —</option>';
+    const mode=window.__billMode;
+    const url = mode===2 ? "/api/db/site" : "/api/db/estimates";
+    fetch((typeof API!=="undefined"?API:"")+url).then(function(r){return r.json();}).then(function(d){
+      sel._rows=d.items||[];
+      (sel._rows).slice(0,80).forEach(function(it,idx){
+        const o=document.createElement("option");
+        o.value=String(idx);
+        o.textContent=(it.work_name||it.work||it.village||it.gam||"કામ")+" · "+(it.village||it.gam||"");
+        sel.appendChild(o);
+      });
+    }).catch(function(){});
+  }
+  function billApplyPick(){
+    const sel=document.getElementById("billPick");
+    const rows=sel && sel._rows || [];
+    const it=rows[Number(sel.value)];
+    if(!it) return;
+    const set=function(id,v){ const e=document.getElementById(id); if(e && v!=null && v!=="") e.value=v; };
+    set("billWork", it.work_name||it.work||"");
+    set("billGrant", it.fund_head||it.grant||it.fund||it.grant_head||"");
+    set("billGam", it.village||it.gam||"");
+    set("billTal", it.taluka||"");
+    set("billAmt", it.amounting||it.amount||it.ts_amount||"");
+    const L=Number(it.length_m||it.L||0), W=Number(it.width_m||it.W||0), area=Number(it.area||0)||(L*W);
+    if(window.__billMode===2){
+      set("billQ1", it.box_qty || (area?area*0.2:""));
+      set("billQ2", it.mur_qty || (area?Math.floor((area*0.1)/1.5)*1.5:""));
+      set("billQ3", it.area || area || "");
+      set("billQ4", it.vata || ((L&&W)?(2*L+2*W):""));
+      set("billQ5", it.test_qty==null?1:it.test_qty);
+      set("billQ6", it.plate||0);
+    }
+    liveBill();
+  }
+  function billQtyFromLW(){
+    const g=function(id,fb){ const v=parseFloat((document.getElementById(id)||{}).value); return isNaN(v)?fb:v; };
+    return {box:g("billQ1",0),murum:g("billQ2",0),paver:g("billQ3",0),vata:g("billQ4",0),test:g("billQ5",1),plate:g("billQ6",0)};
+  }
+  function liveBill(){
+    const box=document.getElementById("liveBillBox");
+    if(!box) return;
+    const work=(document.getElementById("billWork")||{}).value||"—";
+    const gam=(document.getElementById("billGam")||{}).value||"—";
+    const tal=(document.getElementById("billTal")||{}).value||"—";
+    const no=(document.getElementById("billNo")||{}).value||"—";
+    const q=billQtyFromLW();
+    const rows=[["1 Box",q.box,156.56],["2 Murum",q.murum,210.42],["3 Paver",q.paver,740.51],["4 Vata",q.vata,23.68],["5 Test",q.test,608],["6 Plate",q.plate,306.14]];
+    let sub=0,h="<b>બિલ — લાઈવ</b><p class='muted'>"+work+" · "+gam+" / "+tal+" · MB "+no+"</p>";
+    rows.forEach(function(r){ const amt=Number(r[1])*r[2]; sub+=amt; h+="<div class='mini'><span>"+r[0]+"</span><b>"+Number(r[1]).toFixed(2)+" → ₹ "+Math.round(amt)+"</b></div>"; });
+    const gst=sub*0.18, tot=Math.floor(sub+gst);
+    h+="<div class='mini'><span>+18% GST</span><b>₹ "+Math.round(gst)+"</b></div>";
+    h+="<div class='mini'><span>ચોખ્ખી</span><b>₹ "+tot.toLocaleString("en-IN")+"</b></div>";
+    box.innerHTML=h;
+  }
+  async function genBillPaver(fmt){
+    const q=billQtyFromLW();
+    const val=function(id){return (document.getElementById(id)||{}).value||"";};
+    const body={
+      output: fmt||"both",
+      work_name:val("billWork"), fund_head:val("billGrant"), grant:val("billGrant"),
+      village:val("billGam"), gam:val("billGam"), taluka:val("billTal"),
+      subdiv:val("billSub"), subdiv_address:val("billSub"),
+      work_order:val("billWO"), as_details:val("billWO"),
+      ts_details:val("billTS"), amounting:Number(val("billAmt")||0), ts_amount:Number(val("billAmt")||0),
+      start_date:val("billStart"), meas_date:val("billDate"), date:val("billDate"),
+      mb_no:val("billNo"), page_from:val("billPg1"), page_to:val("billPg2"),
+      qty:q, area:q.paver, box_qty:q.box, mur_qty:q.murum
+    };
+    try{
+      const base=(typeof API!=="undefined"?API:"");
+      const res=await fetch(base+"/api/bill/paver",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+      const data=await res.json();
+      if(!data.ok) throw new Error(data.error||"fail");
+      if(data.xlsx) window.open(base+data.xlsx,"_blank");
+      if(data.pdf) window.open(base+data.pdf,"_blank");
+    }catch(e){ alert("બિલ ભૂલ: "+e.message); }
   }
 
   fetch(API + "/api/log", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({kind:"blocked_type", type:name}) });
@@ -2718,6 +3016,103 @@ function openTijori(){
     notes[ds]=(document.getElementById("tdNote")||{}).value||"";
     localStorage.setItem("copilot_tour_notes", JSON.stringify(notes));
     alert("નોંધ સેવ");
+  }
+
+
+  window.__billMode = 3;
+  function billMode(n){
+    window.__billMode = n;
+    ["bm1","bm2","bm3"].forEach(function(id,i){
+      const b=document.getElementById(id); if(b) b.classList.toggle("on", i+1===n);
+    });
+    const hint={1:"એસ્ટિમેટ પસંદ — qty તમે. બધું એડિટ.",2:"સાઇટ પસંદ — qty તૈયાર. બધું એડિટ.",3:"બધું લખો."};
+    const h=document.getElementById("billModeHint"); if(h) h.textContent=hint[n]||"";
+    document.querySelectorAll(".billFull").forEach(function(el){ el.style.display = n===3 ? "" : "none"; });
+    const pw=document.getElementById("billPickWrap");
+    if(pw) pw.style.display = n===3 ? "none" : "";
+    fillBillPick();
+    liveBill();
+  }
+  function fillBillPick(){
+    const sel=document.getElementById("billPick");
+    if(!sel) return;
+    sel.innerHTML='<option value="">— પસંદ —</option>';
+    const mode=window.__billMode;
+    const url = mode===2 ? "/api/db/site" : "/api/db/estimates";
+    fetch((typeof API!=="undefined"?API:"")+url).then(function(r){return r.json();}).then(function(d){
+      sel._rows=d.items||[];
+      (sel._rows).slice(0,80).forEach(function(it,idx){
+        const o=document.createElement("option");
+        o.value=String(idx);
+        o.textContent=(it.work_name||it.work||it.village||it.gam||"કામ")+" · "+(it.village||it.gam||"");
+        sel.appendChild(o);
+      });
+    }).catch(function(){});
+  }
+  function billApplyPick(){
+    const sel=document.getElementById("billPick");
+    const rows=sel && sel._rows || [];
+    const it=rows[Number(sel.value)];
+    if(!it) return;
+    const set=function(id,v){ const e=document.getElementById(id); if(e && v!=null && v!=="") e.value=v; };
+    set("billWork", it.work_name||it.work||"");
+    set("billGrant", it.fund_head||it.grant||it.fund||it.grant_head||"");
+    set("billGam", it.village||it.gam||"");
+    set("billTal", it.taluka||"");
+    set("billAmt", it.amounting||it.amount||it.ts_amount||"");
+    const L=Number(it.length_m||it.L||0), W=Number(it.width_m||it.W||0), area=Number(it.area||0)||(L*W);
+    if(window.__billMode===2){
+      set("billQ1", it.box_qty || (area?area*0.2:""));
+      set("billQ2", it.mur_qty || (area?Math.floor((area*0.1)/1.5)*1.5:""));
+      set("billQ3", it.area || area || "");
+      set("billQ4", it.vata || ((L&&W)?(2*L+2*W):""));
+      set("billQ5", it.test_qty==null?1:it.test_qty);
+      set("billQ6", it.plate||0);
+    }
+    liveBill();
+  }
+  function billQtyFromLW(){
+    const g=function(id,fb){ const v=parseFloat((document.getElementById(id)||{}).value); return isNaN(v)?fb:v; };
+    return {box:g("billQ1",0),murum:g("billQ2",0),paver:g("billQ3",0),vata:g("billQ4",0),test:g("billQ5",1),plate:g("billQ6",0)};
+  }
+  function liveBill(){
+    const box=document.getElementById("liveBillBox");
+    if(!box) return;
+    const work=(document.getElementById("billWork")||{}).value||"—";
+    const gam=(document.getElementById("billGam")||{}).value||"—";
+    const tal=(document.getElementById("billTal")||{}).value||"—";
+    const no=(document.getElementById("billNo")||{}).value||"—";
+    const q=billQtyFromLW();
+    const rows=[["1 Box",q.box,156.56],["2 Murum",q.murum,210.42],["3 Paver",q.paver,740.51],["4 Vata",q.vata,23.68],["5 Test",q.test,608],["6 Plate",q.plate,306.14]];
+    let sub=0,h="<b>બિલ — લાઈવ</b><p class='muted'>"+work+" · "+gam+" / "+tal+" · MB "+no+"</p>";
+    rows.forEach(function(r){ const amt=Number(r[1])*r[2]; sub+=amt; h+="<div class='mini'><span>"+r[0]+"</span><b>"+Number(r[1]).toFixed(2)+" → ₹ "+Math.round(amt)+"</b></div>"; });
+    const gst=sub*0.18, tot=Math.floor(sub+gst);
+    h+="<div class='mini'><span>+18% GST</span><b>₹ "+Math.round(gst)+"</b></div>";
+    h+="<div class='mini'><span>ચોખ્ખી</span><b>₹ "+tot.toLocaleString("en-IN")+"</b></div>";
+    box.innerHTML=h;
+  }
+  async function genBillPaver(fmt){
+    const q=billQtyFromLW();
+    const val=function(id){return (document.getElementById(id)||{}).value||"";};
+    const body={
+      output: fmt||"both",
+      work_name:val("billWork"), fund_head:val("billGrant"), grant:val("billGrant"),
+      village:val("billGam"), gam:val("billGam"), taluka:val("billTal"),
+      subdiv:val("billSub"), subdiv_address:val("billSub"),
+      work_order:val("billWO"), as_details:val("billWO"),
+      ts_details:val("billTS"), amounting:Number(val("billAmt")||0), ts_amount:Number(val("billAmt")||0),
+      start_date:val("billStart"), meas_date:val("billDate"), date:val("billDate"),
+      mb_no:val("billNo"), page_from:val("billPg1"), page_to:val("billPg2"),
+      qty:q, area:q.paver, box_qty:q.box, mur_qty:q.murum
+    };
+    try{
+      const base=(typeof API!=="undefined"?API:"");
+      const res=await fetch(base+"/api/bill/paver",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+      const data=await res.json();
+      if(!data.ok) throw new Error(data.error||"fail");
+      if(data.xlsx) window.open(base+data.xlsx,"_blank");
+      if(data.pdf) window.open(base+data.pdf,"_blank");
+    }catch(e){ alert("બિલ ભૂલ: "+e.message); }
   }
 
   fetch(API + "/api/log", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({kind:"page_open"}) });
