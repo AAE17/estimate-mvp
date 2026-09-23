@@ -693,7 +693,6 @@
       <div class="field"><label>DEE પેટા વિભાગ</label><input id="billSub" value="ડાકોર" placeholder="ડાકોર"></div>
       <div class="field"><label>AAE નામ</label><input id="billAAE" placeholder="શ્રી- "></div>
       <div class="field span2"><label>વર્ક ઓર્ડર</label><input id="billWO" placeholder="જા.નં. / તા."></div>
-      <div class="field billFull"><label>એજન્સી</label><input id="billAgency" value="સરપંચ શ્રી ગ્રામ પંચાયત"></div>
       <div class="field"><label>TS Details</label><input id="billTS" placeholder="1629,03-26."></div>
       <div class="field"><label>TS Amount</label><input id="billTSAmt" type="number" oninput="liveBill()"></div>
       <div class="field"><label>મંજૂર રકમ</label><input id="billAmt" type="number" oninput="liveBill()"></div>
@@ -1198,8 +1197,18 @@
     const mode=window.__billMode;
     const url = mode===2 ? "/api/db/site" : "/api/db/estimates";
     fetch((typeof API!=="undefined"?API:"")+url).then(function(r){return r.json();}).then(function(d){
-      sel._rows=d.items||[];
-      (sel._rows).slice(0,80).forEach(function(it,idx){
+      const raw=d.items||[];
+      const seen={};
+      const uniq=[];
+      raw.slice().sort(function(a,b){return String(b.ts||"").localeCompare(String(a.ts||""));}).forEach(function(it){
+        const k=String(it.work_name||it.work||"")+"|"+String(it.village||it.gam||"");
+        if(!k||k==="|") return;
+        if(seen[k]) return;
+        seen[k]=1;
+        uniq.push(it);
+      });
+      sel._rows=uniq;
+      uniq.slice(0,80).forEach(function(it,idx){
         const o=document.createElement("option");
         o.value=String(idx);
         o.textContent=(it.work_name||it.work||it.village||it.gam||"કામ")+" · "+(it.village||it.gam||"");
@@ -1275,7 +1284,7 @@
       ts_details:val("billTS"), amounting:Number(val("billAmt")||0), ts_amount:Number(val("billTSAmt")||val("billAmt")||0),
       start_date:val("billStart"), meas_date:val("billDate"), date:val("billDate"),
       mb_no:val("billNo"), page_from:val("billPg1"), page_to:val("billPg2"),
-      agency:val("billAgency"), prepared_by:val("billAAE")||((typeof prGet==="function"&&prGet().name)||""),
+      agency:"સરપંચ શ્રી ગ્રામ પંચાયત", prepared_by:val("billAAE")||((typeof prGet==="function"&&prGet().name)||""),
       qty:q, area:q.paver, box_qty:q.box, mur_qty:q.murum
     };
     try{
