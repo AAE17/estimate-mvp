@@ -1143,7 +1143,9 @@
     loadPending();
   }
   function goTypes() {
-  
+    show("s-type");
+  }
+
   function fillBillGrantSelects(){
     const g=document.getElementById("billGrant");
     const y=document.getElementById("billYear");
@@ -1279,9 +1281,7 @@
     }catch(e){ alert("બિલ ભૂલ: "+e.message); }
   }
 
-  fetch(API + "/api/log", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({kind:"open_generate"}) });
-    show("s-type");
-  }
+
   function mediaKey(){ return "copilot_site_media"; }
   function loadMedia(){ try { return JSON.parse(localStorage.getItem(mediaKey())||"[]"); } catch(e){ return []; } }
   function pushMedia(item){
