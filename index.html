@@ -699,7 +699,20 @@
     </section>
     <section id="s-bill" class="card hidden">
       <h2>Bill Generate</h2>
-      <p class="muted">MB નંબર ઉમેરો — તિજોરીમાં પોથી બનશે.</p>
+      <p class="muted">ફોર્મ ભરો — જમણે બિલ લાઈવ બને. પછી MB પોથી સેવ.</p>
+      <div class="grid" style="grid-template-columns:1fr 1fr">
+      <div>
+      <div class="field"><label>પ્રકાર</label>
+        <select id="billType" onchange="liveBill()">
+          <option value="paver">Paver Block</option>
+          <option value="cc">CC Road</option>
+        </select>
+      </div>
+      <div class="field"><label>કામનું નામ</label><input id="billWork" oninput="liveBill()" placeholder="કામ"></div>
+      <div class="field"><label>મંજૂર રકમ</label><input id="billAmt" type="number" value="100000" oninput="liveBill()"></div>
+      <div class="field"><label>લંબાઈ (m)</label><input id="billL" type="number" step="0.01" value="50" oninput="liveBill()"></div>
+      <div class="field"><label>પહોળાઈ (m)</label><input id="billW" type="number" step="0.01" value="3" oninput="liveBill()"></div>
+
       <div class="field"><label>ખાનું</label>
         <select id="billShelf" onchange="toggleBillGam()">
           <option value="gramya">ગ્રામ્ય કક્ષા</option>
@@ -715,11 +728,16 @@
           <option value="atvt">એટીવીટી</option>
         </select>
       </div>
-      <div class="field"><label>MB નંબર</label><input id="billNo" placeholder="12"></div>
-      <div class="field" id="billGamWrap"><label>ગ્રામ પંચાયત</label><input id="billGam" placeholder="ગામ"></div>
-      <div class="field"><label>તાલુકો</label><input id="billTal" placeholder="તાલુકો"></div>
+      <div class="field"><label>MB નંબર</label><input id="billNo" placeholder="12" oninput="liveBill()"></div>
+      <div class="field" id="billGamWrap"><label>ગ્રામ પંચાયત</label><input id="billGam" placeholder="ગામ" oninput="liveBill()"></div>
+      <div class="field"><label>તાલુકો</label><input id="billTal" placeholder="તાલુકો" oninput="liveBill()"></div>
       <button type="button" class="btn btn-g" onclick="addBillMb()">MB ઉમેરો</button>
       <div id="billList" class="mini" style="margin-top:12px"></div>
+      </div>
+      <div>
+        <div id="liveBillBox" class="card" style="background:#fff;color:#111;min-height:280px"></div>
+      </div>
+      </div>
     </section>
 
     <section id="s-pr" class="card hidden">
@@ -929,7 +947,7 @@
     if (id === "s-mb") { setTab("tab-mb"); closeTijori(); setTimeout(centerTijori, 30); }
     if (id === "s-tour") { setTab("tab-tour"); }
     if (id === "s-pr") { loadProfile(); }
-    if (id === "s-bill") { setTab("tab-bill"); toggleBillGam(); renderBillList(); }
+    if (id === "s-bill") { try{ liveBill(); }catch(e){} setTab("tab-bill"); toggleBillGam(); renderBillList(); }
   }
   function applyDark(){
     const on=localStorage.getItem("copilot_dark")==="1";
@@ -1403,6 +1421,31 @@
       const g=document.getElementById("billGam"); if(g) g.value="";
     }
   }
+
+  function liveBill(){
+    const box=document.getElementById("liveBillBox");
+    if(!box) return;
+    const typ=(document.getElementById("billType")||{}).value||"paver";
+    const work=(document.getElementById("billWork")||{}).value||"—";
+    const gam=(document.getElementById("billGam")||{}).value||"—";
+    const tal=(document.getElementById("billTal")||{}).value||"—";
+    const no=(document.getElementById("billNo")||{}).value||"—";
+    const L=parseFloat((document.getElementById("billL")||{}).value)||0;
+    const W=parseFloat((document.getElementById("billW")||{}).value)||0;
+    const amt=parseFloat((document.getElementById("billAmt")||{}).value)||0;
+    const area=L*W;
+    const brass=area*10.7584/100;
+    const qty=typ==="paver"?brass:area;
+    const unit=typ==="paver"?"brass":"sqm";
+    box.innerHTML="<b>કાચું બિલ — લાઈવ</b><p class='muted'>"+(typ==="paver"?"Paver":"CC Road")+"</p>"+
+      "<div class='mini'><span>MB</span><b>"+no+"</b></div>"+
+      "<div class='mini'><span>ગામ / તાલુકો</span><b>"+gam+" / "+tal+"</b></div>"+
+      "<div class='mini'><span>કામ</span><b>"+work+"</b></div>"+
+      "<div class='mini'><span>L × W</span><b>"+L.toFixed(2)+" × "+W.toFixed(2)+"</b></div>"+
+      "<div class='mini'><span>Qty</span><b>"+qty.toFixed(2)+" "+unit+"</b></div>"+
+      "<div class='mini'><span>મંજૂર</span><b>₹ "+amt.toLocaleString("en-IN")+"</b></div>";
+  }
+
   function addBillMb(){
     const no=(document.getElementById("billNo")||{}).value||"";
     if(!String(no).trim()){ alert("MB નંબર લખો"); return; }
