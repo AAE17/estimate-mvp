@@ -690,12 +690,14 @@
       </div>
       <div class="field"><label>ગામ</label><input id="billGam" oninput="liveBill()"></div>
       <div class="field"><label>તાલુકો</label><input id="billTal" oninput="liveBill()"></div>
-      <div class="field billFull"><label>પેટા વિભાગ</label><input id="billSub" placeholder="ડાકોર"></div>
+      <div class="field"><label>DEE પેટા વિભાગ</label><input id="billSub" value="ડાકોર" placeholder="ડાકોર"></div>
+      <div class="field"><label>AAE નામ</label><input id="billAAE" placeholder="શ્રી- "></div>
       <div class="field span2"><label>વર્ક ઓર્ડર</label><input id="billWO" placeholder="જા.નં. / તા."></div>
       <div class="field billFull"><label>એજન્સી</label><input id="billAgency" value="સરપંચ શ્રી ગ્રામ પંચાયત"></div>
-      <div class="field billFull"><label>TS વિગત</label><input id="billTS"></div>
-      <div class="field"><label>મંજૂર / TS રકમ</label><input id="billAmt" type="number" oninput="liveBill()"></div>
-      <div class="field billFull"><label>શરૂ તારીખ</label><input id="billStart"></div>
+      <div class="field"><label>TS Details</label><input id="billTS" placeholder="1629,03-26."></div>
+      <div class="field"><label>TS Amount</label><input id="billTSAmt" type="number" oninput="liveBill()"></div>
+      <div class="field"><label>મંજૂર રકમ</label><input id="billAmt" type="number" oninput="liveBill()"></div>
+      <div class="field"><label>કામ શરૂ તારીખ</label><input id="billStart" placeholder="29-01-2026"></div>
       <div class="field"><label>માપ તારીખ</label><input id="billDate" oninput="liveBill()"></div>
       <div class="field"><label>MB નંબર</label><input id="billNo" oninput="liveBill()"></div>
       <div class="field"><label>પેજ થી</label><input id="billPg1"></div>
@@ -1182,6 +1184,11 @@
     if(pw) pw.style.display = n===3 ? "none" : "";
     fillBillGrantSelects();
     fillBillPick();
+    try{
+      const p=(typeof prGet==="function")?prGet():{};
+      const aae=document.getElementById("billAAE");
+      if(aae && !aae.value && p.name) aae.value=p.name;
+    }catch(e){}
     liveBill();
   }
   function fillBillPick(){
@@ -1265,10 +1272,10 @@
       village:val("billGam"), gam:val("billGam"), taluka:val("billTal"),
       subdiv:val("billSub"), subdiv_address:val("billSub"),
       work_order:val("billWO"), as_details:val("billWO"),
-      ts_details:val("billTS"), amounting:Number(val("billAmt")||0), ts_amount:Number(val("billAmt")||0),
+      ts_details:val("billTS"), amounting:Number(val("billAmt")||0), ts_amount:Number(val("billTSAmt")||val("billAmt")||0),
       start_date:val("billStart"), meas_date:val("billDate"), date:val("billDate"),
       mb_no:val("billNo"), page_from:val("billPg1"), page_to:val("billPg2"),
-      agency:val("billAgency"), prepared_by:(window.prGet&&prGet().name)||val("billAgency"),
+      agency:val("billAgency"), prepared_by:val("billAAE")||((typeof prGet==="function"&&prGet().name)||""),
       qty:q, area:q.paver, box_qty:q.box, mur_qty:q.murum
     };
     try{
