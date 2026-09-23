@@ -1116,17 +1116,20 @@ app.post("/api/admin/profile", async (req, res) => {
   try {
     if (!sbOn()) return res.json({ ok: false, error: "no supabase" });
     const d = req.body || {};
+    const isAd = String(d.email||"").toLowerCase()==="vanraj2592@gmail.com" || d.app_role==="super_admin" || d.role==="admin";
     const row = {
       email: String(d.email||"").toLowerCase(),
-      name: d.name||"",
-      role: d.role||"AAE",
-      mobile: d.mobile||"",
-      jilla: d.jilla||"",
-      taluka: d.taluka||"",
-      app_role: d.app_role||"aae",
-      status: d.status||"Pending"
+      full_name: d.full_name||d.name||"",
+      mobile_number: d.mobile_number||d.mobile||"",
+      designation: d.designation||d.role||"AAE",
+      department: d.department||"Panchayat",
+      office_location: d.office_location||d.taluka||"",
+      sub_division: d.sub_division||d.subdiv||"",
+      subscription_status: d.subscription_status||d.status||(isAd?"Active":"Trial"),
+      role: isAd?"admin":"user"
     };
     if (d.id) row.id = d.id;
+    if (d.subscription_end_date) row.subscription_end_date = d.subscription_end_date;
     const js = await sbProfiles("POST", "profiles?on_conflict=email", row);
     res.json({ ok: true, item: Array.isArray(js)?js[0]:js });
   } catch (e) {
@@ -1145,15 +1148,58 @@ app.get("/api/admin/pending", async (_req, res) => {
 app.post("/api/admin/approve", async (req, res) => {
   try {
     const email = String((req.body||{}).email||"").toLowerCase();
-    const status = (req.body||{}).status || "Approved";
+    const status = (req.body||{}).status || "Active";
     if (!email) return res.json({ ok: false, error: "email" });
-    const js = await sbProfiles("PATCH", "profiles?email=eq." + encodeURIComponent(email), { status: status });
+    const js = await sbProfiles("PATCH", "profiles?email=eq." + encodeURIComponent(email), { subscription_status: status==="Approved"?"Active":status });
     res.json({ ok: true, item: Array.isArray(js)?js[0]:js });
   } catch (e) {
     res.json({ ok: false, error: String(e.message||e) });
   }
 });
 
+
+
+app.post("/api/bill/paver", async (req, res) => {
+  try {
+    const d = req.body || {};
+    const wb = new ExcelJS.Workbook();
+    await wb.xlsx.readFile(path.join(__dirname, "skeleton-paver-bill.xlsx"));
+    const pa = wb.getWorksheet("21 No. P.A. Form");
+    const bill = wb.getWorksheet("Bill");
+    const comp = wb.getWorksheet("COMP-14MU NAN");
+    if (!pa || !bill || !comp) throw new Error("bill skeleton sheets missing");
+    setVal(pa, "H2", d.fund_head || d.grant || "");
+    setVal(pa, "G6", d.subdiv || d.subdiv_address || "");
+    setVal(pa, "C7", d.work_name || "");
+    const tal = String(d.taluka || "").replace(/^તા\.\s*/, "");
+    setVal(pa, "J7", tal ? ("તા. " + tal) : "");
+    setVal(pa, "J8", d.village || d.gam || "");
+    setVal(pa, "I9", d.work_order || d.as_details || "");
+    const q = d.qty || {};
+    setVal(bill, "B4", Number(q.box ?? d.box_qty ?? 0));
+    setVal(bill, "B5", Number(q.murum ?? d.mur_qty ?? 0));
+    setVal(bill, "B6", Number(q.paver ?? d.area ?? 0));
+    setVal(bill, "B7", Number(q.vata ?? 0));
+    setVal(bill, "B8", Number(q.test ?? 1));
+    setVal(bill, "B9", Number(q.plate ?? 0));
+    setVal(bill, "B15", d.meas_date || d.date || "");
+    setVal(bill, "B16", d.mb_no || "");
+    setVal(bill, "D16", d.page_from || "");
+    setVal(bill, "F16", d.page_to || "");
+    setVal(comp, "C4", d.ts_details || "");
+    setVal(comp, "C5", Number(d.ts_amount || d.amounting || 0));
+    setVal(comp, "C6", d.as_details || d.work_order || "");
+    setVal(comp, "C9", d.start_date || "");
+    const areas = {
+      "21 No. P.A. Form": "A1:J36",
+      "Bill": "A1:G19",
+      "COMP-14MU NAN": "A1:H21"
+    };
+    await writeAndRespond(req, res, wb, d, "BILL_PAVER", areas, "bill_paver");
+  } catch (err) {
+    res.status(500).json({ ok: false, error: String(err.message || err) });
+  }
+});
 
 app.post("/api/mb/paver", async (req, res) => {
   try {
