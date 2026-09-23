@@ -351,6 +351,16 @@
       .mbShot{width:100%;height:auto !important}
       .field input,.field select,.field textarea{font-size:16px}
     }
+
+    #s-bill .bill-win{display:grid;grid-template-columns:minmax(280px,1fr) minmax(260px,1fr);gap:14px;align-items:start}
+    #s-bill .bill-fields{display:grid;grid-template-columns:1fr 1fr;gap:8px 10px}
+    #s-bill .bill-fields .field{margin:0}
+    #s-bill .bill-fields .span2{grid-column:1/-1}
+    #liveBillBox{position:sticky;top:76px;max-height:calc(100dvh - 100px);overflow:auto}
+    @media(max-width:800px){
+      #s-bill .bill-win{grid-template-columns:1fr}
+      #liveBillBox{position:relative;top:0;max-height:none}
+    }
 </style>
 </head>
 <body>
@@ -705,21 +715,21 @@
         <button type="button" id="bm3" onclick="billMode(3)">3 નવું</button>
       </div>
       <p class="muted" id="billModeHint">રસ્તો પસંદ કરો.</p>
-      <div class="grid" style="grid-template-columns:1fr 1fr">
-      <div>
-      <div class="field" id="billPickWrap">
+      <div class="bill-win">
+      <div class="bill-fields">
+      <div class="field span2" id="billPickWrap">
         <label>કામ પસંદ</label>
         <select id="billPick" onchange="billApplyPick()"><option value="">— પસંદ —</option></select>
       </div>
       <div class="field"><label>પ્રકાર</label>
         <select id="billType" onchange="liveBill()"><option value="paver">Paver Block</option><option value="cc">CC Road</option></select>
       </div>
-      <div class="field"><label>કામનું નામ</label><input id="billWork" oninput="liveBill()"></div>
-      <div class="field"><label>ગ્રાન્ટ</label><input id="billGrant" oninput="liveBill()"></div>
+      <div class="field span2"><label>કામનું નામ</label><input id="billWork" oninput="liveBill()"></div>
+      <div class="field span2"><label>ગ્રાન્ટ</label><input id="billGrant" oninput="liveBill()"></div>
       <div class="field"><label>ગામ</label><input id="billGam" oninput="liveBill()"></div>
       <div class="field"><label>તાલુકો</label><input id="billTal" oninput="liveBill()"></div>
       <div class="field billFull"><label>પેટા વિભાગ</label><input id="billSub" placeholder="ડાકોર"></div>
-      <div class="field"><label>વર્ક ઓર્ડર</label><input id="billWO" placeholder="જા.નં. / તા."></div>
+      <div class="field span2"><label>વર્ક ઓર્ડર</label><input id="billWO" placeholder="જા.નં. / તા."></div>
       <div class="field billFull"><label>એજન્સી</label><input id="billAgency" value="સરપંચ શ્રી ગ્રામ પંચાયત"></div>
       <div class="field billFull"><label>TS વિગત</label><input id="billTS"></div>
       <div class="field"><label>મંજૂર / TS રકમ</label><input id="billAmt" type="number" oninput="liveBill()"></div>
