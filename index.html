@@ -699,21 +699,44 @@
     </section>
     <section id="s-bill" class="card hidden">
       <h2>Bill Generate</h2>
-      <p class="muted">ફોર્મ ભરો — જમણે બિલ લાઈવ બને. પછી MB પોથી સેવ.</p>
+      <div class="choice" style="margin:8px 0">
+        <button type="button" id="bm1" onclick="billMode(1)">1 એસ્ટિમેટથી</button>
+        <button type="button" id="bm2" onclick="billMode(2)">2 સાઇટથી</button>
+        <button type="button" id="bm3" onclick="billMode(3)">3 નવું</button>
+      </div>
+      <p class="muted" id="billModeHint">રસ્તો પસંદ કરો.</p>
       <div class="grid" style="grid-template-columns:1fr 1fr">
       <div>
-      <div class="field"><label>પ્રકાર</label>
-        <select id="billType" onchange="liveBill()">
-          <option value="paver">Paver Block</option>
-          <option value="cc">CC Road</option>
-        </select>
+      <div class="field" id="billPickWrap">
+        <label>કામ પસંદ</label>
+        <select id="billPick" onchange="billApplyPick()"><option value="">— પસંદ —</option></select>
       </div>
-      <div class="field"><label>કામનું નામ</label><input id="billWork" oninput="liveBill()" placeholder="કામ"></div>
-      <div class="field"><label>મંજૂર રકમ</label><input id="billAmt" type="number" value="100000" oninput="liveBill()"></div>
-      <div class="field"><label>લંબાઈ (m)</label><input id="billL" type="number" step="0.01" value="50" oninput="liveBill()"></div>
-      <div class="field"><label>પહોળાઈ (m)</label><input id="billW" type="number" step="0.01" value="3" oninput="liveBill()"></div>
-
-      <div class="field"><label>ખાનું</label>
+      <div class="field"><label>પ્રકાર</label>
+        <select id="billType" onchange="liveBill()"><option value="paver">Paver Block</option><option value="cc">CC Road</option></select>
+      </div>
+      <div class="field"><label>કામનું નામ</label><input id="billWork" oninput="liveBill()"></div>
+      <div class="field"><label>ગ્રાન્ટ</label><input id="billGrant" oninput="liveBill()"></div>
+      <div class="field"><label>ગામ</label><input id="billGam" oninput="liveBill()"></div>
+      <div class="field"><label>તાલુકો</label><input id="billTal" oninput="liveBill()"></div>
+      <div class="field billFull"><label>પેટા વિભાગ</label><input id="billSub" placeholder="ડાકોર"></div>
+      <div class="field"><label>વર્ક ઓર્ડર</label><input id="billWO" placeholder="જા.નં. / તા."></div>
+      <div class="field billFull"><label>એજન્સી</label><input id="billAgency" value="સરપંચ શ્રી ગ્રામ પંચાયત"></div>
+      <div class="field billFull"><label>TS વિગત</label><input id="billTS"></div>
+      <div class="field"><label>મંજૂર / TS રકમ</label><input id="billAmt" type="number" oninput="liveBill()"></div>
+      <div class="field billFull"><label>શરૂ તારીખ</label><input id="billStart"></div>
+      <div class="field"><label>માપ તારીખ</label><input id="billDate" oninput="liveBill()"></div>
+      <div class="field"><label>MB નંબર</label><input id="billNo" oninput="liveBill()"></div>
+      <div class="field"><label>પેજ થી</label><input id="billPg1"></div>
+      <div class="field"><label>પેજ સુધી</label><input id="billPg2"></div>
+      <div class="field"><label>L (m) — qty માટે</label><input id="billL" type="number" step="0.01" oninput="liveBill()"></div>
+      <div class="field"><label>W (m)</label><input id="billW" type="number" step="0.01" oninput="liveBill()"></div>
+      <div class="field"><label>Qty1 Box</label><input id="billQ1" type="number" step="0.01" oninput="liveBill()"></div>
+      <div class="field"><label>Qty2 Murum</label><input id="billQ2" type="number" step="0.01" oninput="liveBill()"></div>
+      <div class="field"><label>Qty3 Paver SMT</label><input id="billQ3" type="number" step="0.01" oninput="liveBill()"></div>
+      <div class="field"><label>Qty4 Vata</label><input id="billQ4" type="number" step="0.01" oninput="liveBill()"></div>
+      <div class="field"><label>Qty5 Test</label><input id="billQ5" type="number" step="1" value="1" oninput="liveBill()"></div>
+      <div class="field"><label>Qty6 Plate</label><input id="billQ6" type="number" step="1" value="0" oninput="liveBill()"></div>
+      <div class="field"><label>ખાનું (પોથી)</label>
         <select id="billShelf" onchange="toggleBillGam()">
           <option value="gramya">ગ્રામ્ય કક્ષા</option>
           <option value="general">જનરલ</option>
@@ -728,15 +751,11 @@
           <option value="atvt">એટીવીટી</option>
         </select>
       </div>
-      <div class="field"><label>MB નંબર</label><input id="billNo" placeholder="12" oninput="liveBill()"></div>
-      <div class="field" id="billGamWrap"><label>ગ્રામ પંચાયત</label><input id="billGam" placeholder="ગામ" oninput="liveBill()"></div>
-      <div class="field"><label>તાલુકો</label><input id="billTal" placeholder="તાલુકો" oninput="liveBill()"></div>
       <button type="button" class="btn btn-g" onclick="addBillMb()">MB ઉમેરો</button>
+      <button type="button" class="btn btn-s" onclick="genBillPaver()">બિલ Excel / PDF</button>
       <div id="billList" class="mini" style="margin-top:12px"></div>
       </div>
-      <div>
-        <div id="liveBillBox" class="card" style="background:#fff;color:#111;min-height:280px"></div>
-      </div>
+      <div><div id="liveBillBox" class="card" style="background:#fff;color:#111;min-height:280px"></div></div>
       </div>
     </section>
 
@@ -947,7 +966,7 @@
     if (id === "s-mb") { setTab("tab-mb"); closeTijori(); setTimeout(centerTijori, 30); }
     if (id === "s-tour") { setTab("tab-tour"); }
     if (id === "s-pr") { loadProfile(); }
-    if (id === "s-bill") { try{ liveBill(); }catch(e){} setTab("tab-bill"); toggleBillGam(); renderBillList(); }
+    if (id === "s-bill") { try{ billMode(window.__billMode||3); liveBill(); }catch(e){} setTab("tab-bill"); toggleBillGam(); renderBillList(); }
   }
   function applyDark(){
     const on=localStorage.getItem("copilot_dark")==="1";
@@ -1422,28 +1441,113 @@
     }
   }
 
+  window.__billMode = 3;
+  function billMode(n){
+    window.__billMode = n;
+    ["bm1","bm2","bm3"].forEach(function(id,i){
+      const b=document.getElementById(id); if(b) b.classList.toggle("on", i+1===n);
+    });
+    const hint={1:"એસ્ટિમેટ પસંદ — qty તમે. બધું એડિટ.",2:"સાઇટ પસંદ — qty તૈયાર. બધું એડિટ.",3:"બધું લખો."};
+    const h=document.getElementById("billModeHint"); if(h) h.textContent=hint[n]||"";
+    document.querySelectorAll(".billFull").forEach(function(el){ el.style.display = n===3 ? "" : "none"; });
+    const pw=document.getElementById("billPickWrap");
+    if(pw) pw.style.display = n===3 ? "none" : "";
+    fillBillPick();
+    liveBill();
+  }
+  function fillBillPick(){
+    const sel=document.getElementById("billPick");
+    if(!sel) return;
+    sel.innerHTML='<option value="">— પસંદ —</option>';
+    const mode=window.__billMode;
+    const url = mode===2 ? "/api/db/site" : "/api/db/estimates";
+    fetch((window.API||"")+url).then(function(r){return r.json();}).then(function(d){
+      (d.items||[]).slice(0,80).forEach(function(it,idx){
+        const o=document.createElement("option");
+        o.value=String(idx);
+        o.textContent=(it.work_name||it.work||it.gam||it.village||"કામ")+" · "+(it.village||it.gam||"");
+        o._row=it;
+        sel.appendChild(o);
+      });
+      sel._rows=d.items||[];
+    }).catch(function(){});
+  }
+  function billApplyPick(){
+    const sel=document.getElementById("billPick");
+    const rows=sel && sel._rows || [];
+    const it=rows[Number(sel.value)];
+    if(!it) return;
+    const set=function(id,v){ const e=document.getElementById(id); if(e && v!=null && v!=="") e.value=v; };
+    set("billWork", it.work_name||it.work||"");
+    set("billGrant", it.fund_head||it.grant||"");
+    set("billGam", it.village||it.gam||"");
+    set("billTal", it.taluka||"");
+    set("billAmt", it.amounting||it.amount||it.ts_amount||"");
+    set("billL", it.length_m||it.L||"");
+    set("billW", it.width_m||it.W||"");
+    if(window.__billMode===2){
+      const L=Number(it.length_m||it.L||0), W=Number(it.width_m||it.W||0), area=L*W;
+      set("billQ1", it.box_qty || (area*0.2));
+      set("billQ2", it.mur_qty || Math.floor((area*0.1)/1.5)*1.5);
+      set("billQ3", it.area || area);
+      set("billQ4", it.vata || (2*L+2*W));
+      set("billQ5", it.test_qty==null?1:it.test_qty);
+      set("billQ6", it.plate||0);
+    }
+    liveBill();
+  }
+  function billQtyFromLW(){
+    const L=parseFloat((document.getElementById("billL")||{}).value)||0;
+    const W=parseFloat((document.getElementById("billW")||{}).value)||0;
+    const area=L*W;
+    const g=function(id,fb){ const v=parseFloat((document.getElementById(id)||{}).value); return isNaN(v)?fb:v; };
+    return {
+      L,W,area,
+      box:g("billQ1", area*0.2),
+      murum:g("billQ2", Math.floor((area*0.1)/1.5+1e-9)*1.5),
+      paver:g("billQ3", area),
+      vata:g("billQ4", 2*L+2*W),
+      test:g("billQ5", 1),
+      plate:g("billQ6", 0)
+    };
+  }
   function liveBill(){
     const box=document.getElementById("liveBillBox");
     if(!box) return;
-    const typ=(document.getElementById("billType")||{}).value||"paver";
     const work=(document.getElementById("billWork")||{}).value||"—";
     const gam=(document.getElementById("billGam")||{}).value||"—";
     const tal=(document.getElementById("billTal")||{}).value||"—";
     const no=(document.getElementById("billNo")||{}).value||"—";
-    const L=parseFloat((document.getElementById("billL")||{}).value)||0;
-    const W=parseFloat((document.getElementById("billW")||{}).value)||0;
-    const amt=parseFloat((document.getElementById("billAmt")||{}).value)||0;
-    const area=L*W;
-    const brass=area*10.7584/100;
-    const qty=typ==="paver"?brass:area;
-    const unit=typ==="paver"?"brass":"sqm";
-    box.innerHTML="<b>કાચું બિલ — લાઈવ</b><p class='muted'>"+(typ==="paver"?"Paver":"CC Road")+"</p>"+
-      "<div class='mini'><span>MB</span><b>"+no+"</b></div>"+
-      "<div class='mini'><span>ગામ / તાલુકો</span><b>"+gam+" / "+tal+"</b></div>"+
-      "<div class='mini'><span>કામ</span><b>"+work+"</b></div>"+
-      "<div class='mini'><span>L × W</span><b>"+L.toFixed(2)+" × "+W.toFixed(2)+"</b></div>"+
-      "<div class='mini'><span>Qty</span><b>"+qty.toFixed(2)+" "+unit+"</b></div>"+
-      "<div class='mini'><span>મંજૂર</span><b>₹ "+amt.toLocaleString("en-IN")+"</b></div>";
+    const q=billQtyFromLW();
+    const rows=[["1 Box",q.box,156.56],["2 Murum",q.murum,210.42],["3 Paver",q.paver,740.51],["4 Vata",q.vata,23.68],["5 Test",q.test,608],["6 Plate",q.plate,306.14]];
+    let sub=0,h="<b>બિલ — લાઈવ</b><p class='muted'>"+work+" · "+gam+" / "+tal+" · MB "+no+"</p>";
+    rows.forEach(function(r){ const amt=r[1]*r[2]; sub+=amt; h+="<div class='mini'><span>"+r[0]+"</span><b>"+Number(r[1]).toFixed(2)+" → ₹ "+Math.round(amt)+"</b></div>"; });
+    const gst=sub*0.18, tot=Math.floor(sub+gst);
+    h+="<div class='mini'><span>+18% GST</span><b>₹ "+Math.round(gst)+"</b></div>";
+    h+="<div class='mini'><span>ચોખ્ખી</span><b>₹ "+tot.toLocaleString("en-IN")+"</b></div>";
+    box.innerHTML=h;
+  }
+  async function genBillPaver(){
+    const q=billQtyFromLW();
+    const val=function(id){return (document.getElementById(id)||{}).value||"";};
+    const body={
+      output:"both",
+      work_name:val("billWork"), fund_head:val("billGrant"), grant:val("billGrant"),
+      village:val("billGam"), gam:val("billGam"), taluka:val("billTal"),
+      subdiv:val("billSub"), subdiv_address:val("billSub"),
+      work_order:val("billWO"), as_details:val("billWO"),
+      ts_details:val("billTS"), amounting:Number(val("billAmt")||0), ts_amount:Number(val("billAmt")||0),
+      start_date:val("billStart"), meas_date:val("billDate"), date:val("billDate"),
+      mb_no:val("billNo"), page_from:val("billPg1"), page_to:val("billPg2"),
+      qty:q, area:q.paver, box_qty:q.box, mur_qty:q.murum
+    };
+    try{
+      const res=await fetch((window.API||"")+"/api/bill/paver",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+      const data=await res.json();
+      if(!data.ok) throw new Error(data.error||"fail");
+      if(data.xlsx) window.open((window.API||"")+data.xlsx,"_blank");
+      if(data.pdf) window.open((window.API||"")+data.pdf,"_blank");
+    }catch(e){ alert("બિલ ભૂલ: "+e.message); }
   }
 
   function addBillMb(){
