@@ -760,18 +760,6 @@
         <button type="button" id="bm2" onclick="billMode(2)">સેવ કરેલ માપ પરથી</button>
         <button type="button" id="bm3" onclick="billMode(3)">નવી સાઇટ</button>
       </div>
-<div id="letterBox" class="card" style="margin:8px 0 12px;padding:12px">
-        <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between">
-          <b>ફોરવર્ડિંગ લેટર</b>
-          <span class="muted">આ તારીખના બિલ</span>
-        </div>
-        <div class="field" style="max-width:200px;margin:8px 0">
-          <label>તારીખ</label>
-          <input type="date" id="letterDate" onchange="renderLetterBills()">
-        </div>
-        <div id="letterList" class="muted">આજે બિલ નથી</div>
-        <button type="button" class="btn btn-s" style="margin-top:8px" onclick="makeFwdLetter()">પત્ર બનાવો</button>
-      </div>
       <div class="pill-space"></div>
       <div class="bill-win">
       <div class="bill-fields">
@@ -1041,7 +1029,7 @@
     });
   }
   function show(id) {
-    ["s-hi","s-type","s-form","s-site","s-tour","s-pr","s-bill"].forEach(s => {
+    ["s-hi","s-type","s-form","s-site","s-tour","s-pr","s-bill","s-letter"].forEach(s => {
       const el = document.getElementById(s);
       if (el) el.classList.toggle("hidden", s !== id);
     });
