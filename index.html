@@ -508,10 +508,9 @@
         <span id="liveBrass" class="paver-only hidden">Brass: 0.00</span>
       </div>
       <div class="actions">
-        <button class="btn btn-w" onclick="show('s-type')">પાછા</button>
-        <button class="btn btn-g dl" onclick="submitForm('xlsx')">Excel</button>
-        <button class="btn btn-s dl" onclick="submitForm('pdf')">PDF</button>
-        <button class="btn btn-w dl" onclick="submitForm('both')" style="border-color:var(--g);color:var(--g)">Excel + PDF</button>
+        <button class="btn btn-g dl" onclick="submitForm('xlsx')">📄 Excel</button>
+        <button class="btn btn-s dl" onclick="submitForm('pdf')">📑 PDF</button>
+        <button class="btn btn-w dl" onclick="submitForm('both')" style="border-color:var(--g);color:var(--g)">📁 Excel + PDF</button>
       </div>
       <p class="muted" id="msg"></p>
       <p class="muted" id="batchBar"></p>
@@ -549,7 +548,8 @@
                 <select id="dType"><option value="cc">CC Road</option><option value="paver">Paver Block</option></select>
               </div>
               <div class="field" style="grid-column:1/-1"><label>કામનું નામ</label><input id="dWork"></div>
-              <div class="field"><label>Grant / તાલુકો</label><input id="dGrant"></div>
+              <div class="field"><label>તાલુકો</label><input id="dTaluka"></div>
+              <div class="field"><label>Grant Head</label><input id="dGrant"></div>
               <div class="field"><label>એસ્ટિમેટ ₹</label><input id="dAmtIn" type="number"></div>
               <div class="field"><label>કોન્ટ્રાક્ટર</label><input id="dContractor" placeholder="નામ"></div>
             </div>
@@ -1227,14 +1227,15 @@
     fillBillGrantSelects();
     const gsel=document.getElementById("billGrant");
     let hit="";
-    if(gsel && raw){
+    const headOnly=raw.split(" વર્ષ ")[0].trim();
+    if(gsel && headOnly){
       for(let i=0;i<gsel.options.length;i++){
         const v=gsel.options[i].value;
-        if(v && raw.indexOf(v)>=0){ hit=v; break; }
+        if(v && (headOnly===v || headOnly.indexOf(v)>=0 || v.indexOf(headOnly)>=0)){ hit=v; break; }
       }
     }
     if(hit){ set("billGrant", hit); }
-    else if(raw){ set("billGrant","અન્ય"); set("billGrantOther", raw); }
+    else if(headOnly){ set("billGrant","અન્ય"); set("billGrantOther", headOnly); }
     onBillGrant();
     function fromGu(s){
       const g="૦૧૨૩૪૫૬૭૮૯";
@@ -1642,7 +1643,8 @@
     document.getElementById("diaryWrap").classList.remove("hidden");
     document.getElementById("dDate").value = new Date().toISOString().slice(0,10);
     document.getElementById("dWork").value = est && est.work_name ? est.work_name : "";
-    document.getElementById("dGrant").value = est && est.taluka ? est.taluka : "";
+    document.getElementById("dTaluka").value = (est && (est.taluka||"")) || "";
+    document.getElementById("dGrant").value = (est && (est.fund_head||est.grant||"")) || "";
     document.getElementById("dAmtIn").value = est && est.amounting ? est.amounting : "";
     const typ = (est && String(est.type||"").toLowerCase().indexOf("paver")>=0) ? "paver" : "cc";
     document.getElementById("dType").value = typ;
@@ -1726,7 +1728,7 @@
       work_name:(document.getElementById("dWork")||{}).value||"",
       village:(diaryEst&&diaryEst.village)||"",
       grant:(document.getElementById("dGrant")||{}).value||"",
-      taluka:(diaryEst&&diaryEst.taluka)||"",
+      taluka:(document.getElementById("dTaluka")||{}).value||(diaryEst&&diaryEst.taluka)||"",
       amounting:Number((document.getElementById("dAmtIn")||{}).value||0),
       rows:DIARY,
       test_qty:Number((document.getElementById("kTest")||{}).value||1),
@@ -1851,8 +1853,8 @@
       const inr0=function(x){return "₹ "+Number(x||0).toLocaleString("en-IN",{maximumFractionDigits:0});};
       el.innerHTML = rec.length ? rec.map(function(r,i){
         return "<div><span>"+String(r.ts||"").slice(0,10)+" · "+(r.work_name||"")+"<br>એસ્ટિમેટ "+inr0(r.amounting)+" · બિલ "+inr0(r.bill)+
-          "</span><span><button type='button' class='btn btn-w' data-done='"+i+"'>એડિટ</button> "+
-          "<button type='button' class='btn btn-w' data-del='"+i+"'>ડિલીટ</button></span></div>";
+          "</span><span><button type='button' class='btn btn-w' data-done='"+i+"' title='જોવું / એડિટ'>👁</button> "+
+          "<button type='button' class='btn btn-w' data-del='"+i+"' title='ડિલીટ'>🗑</button></span></div>";
       }).join("") : "<div>હજુ Work Done નથી</div>";
       window._doneRecent=rec;
       el.querySelectorAll("[data-done]").forEach(function(b){
