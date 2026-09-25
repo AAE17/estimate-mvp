@@ -424,6 +424,13 @@
     #liveBillBox .live-side div{margin:0 0 6px}
     #liveBillBox .live-side small{display:block;color:#64748b;font-size:10px}
     #liveBillBox .mini{padding:2px 0}
+
+    #letterList{display:flex;flex-direction:column;gap:8px;margin:10px 0}
+    .letter-item{display:flex;align-items:flex-start;gap:10px;padding:10px 12px;border:1px solid #e6eaf0;border-radius:12px;background:#fff;cursor:pointer;text-align:left}
+    .letter-item span{display:flex;flex-direction:column;gap:2px}
+    .letter-item small{color:#64748b;font-size:12px}
+    .letter-item input{margin-top:3px;flex:0 0 auto}
+    body.dark .letter-item{background:#111827;border-color:#1f2937}
 </style>
 </head>
 <body>
@@ -1429,7 +1436,7 @@
     if(!rows.length){ el.innerHTML="<div class='work-row'>આ તારીખે બિલ નથી</div>"; return; }
     el.classList.remove("muted");
     el.innerHTML=rows.map(function(b,i){
-      return "<label class='work-row'><input type='checkbox' class='letterPick' data-i='"+i+"' checked> <span>"+(b.work_name||"કામ")+"<br><small>"+String(b.day||b.ts||"").slice(0,10)+" · "+(b.village||"")+" · MB "+(b.mb_no||"—")+" · ₹ "+Number(b.amounting||0).toLocaleString("en-IN")+"</small></span></label>";
+      return "<label class='letter-item'><input type='checkbox' class='letterPick' data-i='"+i+"' checked><span><b>"+(b.work_name||"કામ")+"</b><small>"+(b.village||"—")+" · MB "+(b.mb_no||"—")+" · ₹ "+Number(b.amounting||0).toLocaleString("en-IN")+"</small></span></label>";
     }).join("");
     el._rows=rows;
   }
