@@ -463,6 +463,7 @@
         <button type="button" id="tab-est" onclick="goTypes()"><span class="ic">▤</span>Estimate</button>
         <button type="button" id="tab-site" onclick="show('s-site')"><span class="ic">📍</span>Site</button>
         <button type="button" id="tab-bill" onclick="show('s-bill')"><span class="ic">₹</span>Bill</button>
+        <button type="button" id="tab-letter" onclick="show('s-letter')"><span class="ic">✉</span>ફોરવર્ડિંગ લેટર</button>
         <button type="button" id="tab-tour" onclick="openTour()"><span class="ic">📅</span>Diary</button>
       </nav>
       <div class="hacts">
@@ -477,6 +478,7 @@
         <button type="button" onclick="goTypes();toggleMobMenu(false)">Estimate</button>
         <button type="button" onclick="show('s-site');toggleMobMenu(false)">Site</button>
         <button type="button" onclick="show('s-bill');toggleMobMenu(false)">Bill</button>
+        <button type="button" onclick="show('s-letter');toggleMobMenu(false)">ફોરવર્ડિંગ લેટર</button>
         <button type="button" onclick="openTour();toggleMobMenu(false)">Diary</button>
         <button type="button" onclick="goTypes();toggleMobMenu(false)">+ New Estimate</button>
       </div>
@@ -604,6 +606,9 @@
         <button type="button" id="st3" onclick="siteTab('done')">સેવ થયેલું</button>
       </div>
       <div class="pill-space"></div>
+
+      
+
       <div id="ongBox">
         <div class="head">
           <div class="field"><label>ગામ</label><input id="fGam" oninput="renderSiteList()"></div>
@@ -755,6 +760,18 @@
         <button type="button" id="bm2" onclick="billMode(2)">સેવ કરેલ માપ પરથી</button>
         <button type="button" id="bm3" onclick="billMode(3)">નવી સાઇટ</button>
       </div>
+<div id="letterBox" class="card" style="margin:8px 0 12px;padding:12px">
+        <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between">
+          <b>ફોરવર્ડિંગ લેટર</b>
+          <span class="muted">આ તારીખના બિલ</span>
+        </div>
+        <div class="field" style="max-width:200px;margin:8px 0">
+          <label>તારીખ</label>
+          <input type="date" id="letterDate" onchange="renderLetterBills()">
+        </div>
+        <div id="letterList" class="muted">આજે બિલ નથી</div>
+        <button type="button" class="btn btn-s" style="margin-top:8px" onclick="makeFwdLetter()">પત્ર બનાવો</button>
+      </div>
       <div class="pill-space"></div>
       <div class="bill-win">
       <div class="bill-fields">
@@ -814,6 +831,20 @@
       </div>
     </section>
 
+    
+    <section id="s-letter" class="card hidden">
+      <h2>ફોરવર્ડિંગ લેટર</h2>
+      <p class="muted">આ તારીખે જે બિલ બન્યા એ પસંદ કરો. એક પત્ર.</p>
+      <div class="field" style="max-width:220px">
+        <label>તારીખ</label>
+        <input type="date" id="letterDate" onchange="renderLetterBills()">
+      </div>
+      <div id="letterList" class="muted">આજે બિલ નથી</div>
+      <div class="actions">
+        <button type="button" class="btn btn-s" onclick="makeFwdLetter()">📄 પત્ર બનાવો</button>
+      </div>
+    </section>
+
     <section id="s-pr" class="card hidden">
       <h2>Profile</h2>
       <div class="field" style="text-align:center">
@@ -851,6 +882,7 @@
     <button type="button" id="tab-est" onclick="goTypes()"><i>▤</i>Estimate</button>
     <button type="button" id="tab-site" onclick="show('s-site')"><i>▦</i>Site</button>
     <button type="button" id="tab-bill" onclick="show('s-bill')"><i>₹</i>Bill</button>
+    <button type="button" id="tab-letter-m" onclick="show('s-letter')"><i>✉</i>ફોરવર્ડિંગ લેટર</button>
   </nav>
 
   
@@ -1020,6 +1052,7 @@
     if (id === "s-tour") { setTab("tab-tour"); }
     if (id === "s-pr") { loadProfile(); }
     if (id === "s-bill") { try{ billMode(window.__billMode||1); liveBill(); }catch(e){} setTab("tab-bill"); }
+    if (id === "s-letter") { try{ renderLetterBills(); }catch(e){} setTab("tab-letter"); }
   }
   function applyDark(){
     const on=localStorage.getItem("copilot_dark")==="1";
@@ -1383,6 +1416,36 @@
     const g=function(id,fb){ const v=parseFloat((document.getElementById(id)||{}).value); return isNaN(v)?fb:v; };
     return {box:g("billQ1",0),murum:g("billQ2",0),paver:g("billQ3",0),vata:g("billQ4",0),test:g("billQ5",1),plate:g("billQ6",0)};
   }
+
+  function localBillKey(){ return "copilot_local_bills"; }
+  function loadLocalBills(){ try{ return JSON.parse(localStorage.getItem(localBillKey())||"[]"); }catch(e){ return []; } }
+  function pushLocalBill(rec){
+    const all=loadLocalBills();
+    all.unshift(rec);
+    localStorage.setItem(localBillKey(), JSON.stringify(all.slice(0,100)));
+    renderLetterBills();
+  }
+  function renderLetterBills(){
+    const el=document.getElementById("letterList");
+    const di=document.getElementById("letterDate");
+    if(di && !di.value) di.value=new Date().toISOString().slice(0,10);
+    const ds=(di && di.value) || new Date().toISOString().slice(0,10);
+    if(!el) return;
+    const rows=loadLocalBills().filter(function(b){ return String(b.ts||"").slice(0,10)===ds; });
+    if(!rows.length){ el.innerHTML="<span class='muted'>આ તારીખે બિલ નથી</span>"; return; }
+    el.innerHTML=rows.map(function(b,i){
+      return "<label style='display:flex;gap:8px;align-items:flex-start;margin:6px 0'><input type='checkbox' class='letterPick' data-i='"+i+"' checked> <span>"+(b.work_name||"કામ")+" · "+(b.village||"")+" · MB "+(b.mb_no||"—")+" · ₹ "+Number(b.amounting||0).toLocaleString("en-IN")+"</span></label>";
+    }).join("");
+    el._rows=rows;
+  }
+  function makeFwdLetter(){
+    const el=document.getElementById("letterList");
+    const rows=(el && el._rows)||[];
+    const picks=[];
+    (el?el.querySelectorAll(".letterPick:checked"):[]).forEach(function(c){ picks.push(rows[+c.dataset.i]); });
+    if(!picks.length){ alert("કામ પસંદ કરો"); return; }
+    alert("પત્ર: "+picks.length+" કામ — એક્સેલ જલ્દી જોડાશે.");
+  }
   function liveBill(){
     const box=document.getElementById("liveBillBox");
     if(!box) return;
@@ -1421,6 +1484,17 @@
       const res=await fetch(base+"/api/bill/paver",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
       const data=await res.json();
       if(!data.ok) throw new Error(data.error||"fail");
+      try{
+        pushLocalBill({
+          ts:new Date().toISOString(),
+          work_name:val("billWork"),
+          village:val("billGam"),
+          taluka:val("billTal"),
+          mb_no:val("billNo"),
+          amounting:Number(val("billAmt")||0),
+          fund_head: (typeof billFundHead==="function"?billFundHead():"")
+        });
+      }catch(e){}
       if(data.xlsx) window.open(base+data.xlsx,"_blank");
       if(data.pdf) window.open(base+data.pdf,"_blank");
     }catch(e){ alert("બિલ ભૂલ: "+e.message); }
