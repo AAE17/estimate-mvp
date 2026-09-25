@@ -346,6 +346,26 @@
       border:1px solid #cbd5e1;background:#f1f5f9;color:#0f172a;cursor:pointer;font-weight:600
     }
     #s-bill .choice button.on{background:#1d4ed8;color:#fff;border-color:#1d4ed8}
+
+    .pillbar{
+      position:sticky; top:64px; z-index:40;
+      display:flex; gap:6px; flex-wrap:wrap;
+      padding:8px 0 10px;
+      background:var(--bg,#f6f7fb);
+      border-bottom:1px solid #e6eaf0;
+    }
+    .pillbar button{
+      flex:1; min-width:110px; border:0; cursor:pointer; font:inherit; font-weight:650;
+      font-size:13px; padding:8px 14px; border-radius:20px;
+      background:transparent; color:#64748b;
+    }
+    .pillbar button:hover{ background:#eef2f7; color:#0f172a; }
+    .pillbar button.on{ background:#e8eefc; color:#1d4ed8; }
+    body.dark .pillbar{ background:#0b1220; border-bottom-color:#1f2937; }
+    body.dark .pillbar button{ color:#94a3b8; }
+    body.dark .pillbar button:hover{ background:#1f2937; color:#f8fafc; }
+    body.dark .pillbar button.on{ background:#1e3a8a; color:#dbeafe; }
+    @media(max-width:900px){ .pillbar{ top:56px; } }
 </style>
 </head>
 <body>
@@ -520,10 +540,10 @@
 
     <section id="s-site" class="card hidden">
       <h2>Site Measurement</h2>
-      <div class="actions" style="margin-bottom:10px">
-        <button type="button" class="btn btn-s" id="st1" onclick="siteTab('ong')">Ongoing</button>
-        <button type="button" class="btn btn-s" id="st2" onclick="siteTab('new')">New work</button>
-        <button type="button" class="btn btn-s" id="st3" onclick="siteTab('done')">Work Done</button>
+      <div class="pillbar" id="sitePills">
+        <button type="button" class="on" id="st1" onclick="siteTab('ong')">Ongoing</button>
+        <button type="button" id="st2" onclick="siteTab('new')">New work</button>
+        <button type="button" id="st3" onclick="siteTab('done')">Work Done</button>
       </div>
       <div id="ongBox">
         <div class="head">
@@ -662,7 +682,7 @@
 
                         <section id="s-bill" class="card hidden">
       <h2>Bill Generate</h2>
-      <div class="choice" style="margin:8px 0">
+      <div class="pillbar" id="billPills">
         <button type="button" id="bm1" onclick="billMode(1)">1 એસ્ટિમેટથી</button>
         <button type="button" id="bm2" onclick="billMode(2)">2 સાઇટથી</button>
         <button type="button" id="bm3" onclick="billMode(3)">3 નવું</button>
@@ -1871,6 +1891,10 @@
     alert("માપ સેવ થયું");
   }
   function siteTab(which){
+    ["st1","st2","st3"].forEach(function(id){
+      const b=document.getElementById(id);
+      if(b) b.classList.toggle("on", (id==="st1"&&which==="ong")||(id==="st2"&&which==="new")||(id==="st3"&&which==="done"));
+    });
     const ong=document.getElementById("ongBox");
     const done=document.getElementById("doneBox");
     const wrap=document.getElementById("diaryWrap");
