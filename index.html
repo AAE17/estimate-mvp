@@ -848,7 +848,11 @@
           <h2 style="margin:0">ફોરવર્ડિંગ લેટર</h2>
           <p class="muted" style="margin:4px 0 0">એક દિવસના બિલ → એક પત્ર</p>
         </div>
-        <input type="date" id="letterDate" onchange="renderLetterBills()">
+      </div>
+      <div class="bill-fields" style="margin-bottom:12px">
+        <div class="field"><label>પત્ર નંબર</label><input id="letterNo" placeholder="1512"></div>
+        <div class="field"><label>તારીખ</label><input type="date" id="letterDate" onchange="renderLetterBills()"></div>
+        <div class="field"><label>ઓડિટ A8 — જિલ્લા પંચાયત</label><input id="letterAudit" placeholder="ખેડા જિલ્લા પંચાયત, નડિયાદ"></div>
       </div>
       <div id="letterList">યાદી લોડ થાય…</div>
       <div class="letter-foot">
@@ -1459,13 +1463,33 @@
     const c=document.getElementById("letterCount");
     if(c) c.textContent=rows.length+" બિલ પસંદ";
   }
-  function makeFwdLetter(){
+  async function makeFwdLetter(){
     const el=document.getElementById("letterList");
     const rows=(el && el._rows)||[];
     const picks=[];
     (el?el.querySelectorAll(".letterPick:checked"):[]).forEach(function(c){ picks.push(rows[+c.dataset.i]); });
     if(!picks.length){ alert("કામ પસંદ કરો"); return; }
-    alert("પત્ર: "+picks.length+" કામ — એક્સેલ જલ્દી જોડાશે.");
+    const ds=(document.getElementById("letterDate")||{}).value||todayStr();
+    const parts=ds.split("-");
+    const dateTxt=parts.length===3?(parts[2]+"-"+parts[1]+"-"+parts[0]+"."):ds;
+    try{
+      if(typeof setBusy==="function") setBusy(true);
+      const base=(typeof API!=="undefined"?API:"");
+      const res=await fetch(base+"/api/letter/fwd",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
+        output:"both",
+        letter_no:(document.getElementById("letterNo")||{}).value||"",
+        date:dateTxt,
+        taluka:picks[0].taluka||"",
+        subdiv:picks[0].subdiv||"",
+        audit_office:(document.getElementById("letterAudit")||{}).value||"",
+        items:picks
+      })});
+      const data=await res.json();
+      if(!data.ok) throw new Error(data.error||"fail");
+      if(data.xlsx) window.open(base+data.xlsx,"_blank");
+      if(data.pdf) window.open(base+data.pdf,"_blank");
+    }catch(e){ alert("પત્ર ભૂલ: "+e.message); }
+    finally{ if(typeof setBusy==="function") setBusy(false); }
   }
   function liveBill(){
     const box=document.getElementById("liveBillBox");
@@ -1515,6 +1539,7 @@
           village:val("billGam"),
           taluka:val("billTal"),
           mb_no:val("billNo"),
+          subdiv:val("billSub"),
           amounting:Number(val("billAmt")||0),
           fund_head: (typeof billFundHead==="function"?billFundHead():"")
         });
