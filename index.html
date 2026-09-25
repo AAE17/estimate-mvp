@@ -388,6 +388,10 @@
     body.dark .work-row{background:#111827;border-color:#1f2937}
     body.dark .work-row:hover{background:#1f2937}
     body.dark .work-row.on{background:#1e3a8a;border-color:#60a5fa}
+
+    .bill-qty-live{display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:start}
+    .bill-qty{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+    @media(max-width:800px){ .bill-qty-live{grid-template-columns:1fr} }
 </style>
 </head>
 <body>
@@ -592,7 +596,16 @@
               </div>
               <div class="field" style="grid-column:1/-1"><label>કામનું નામ</label><input id="dWork"></div>
               <div class="field"><label>તાલુકો</label><input id="dTaluka"></div>
-              <div class="field"><label>Grant Head</label><input id="dGrant"></div>
+              <div class="field"><label>Grant Head</label>
+                <select id="dGrant" onchange="onSiteGrant()"><option value="">— પસંદ —</option></select>
+              </div>
+              <div class="field"><label>વર્ષ</label>
+                <select id="dYear"><option value="">— Year —</option></select>
+              </div>
+              <div class="field hidden" id="dGrantOtherWrap" style="grid-column:1/-1">
+                <label>અન્ય Grant Head — પોતાનું લખો</label>
+                <input id="dGrantOther">
+              </div>
               <div class="field"><label>એસ્ટિમેટ ₹</label><input id="dAmtIn" type="number"></div>
               <div class="field"><label>કોન્ટ્રાક્ટર</label><input id="dContractor" placeholder="નામ"></div>
             </div>
@@ -734,7 +747,7 @@
       </div>
       <div class="field"><label>ગામ</label><input id="billGam" oninput="liveBill()"></div>
       <div class="field"><label>તાલુકો</label><input id="billTal" oninput="liveBill()"></div>
-      <div class="field"><label>DEE પેટા વિભાગ</label><input id="billSub" value="ડાકોર" placeholder="ડાકોર"></div>
+      <div class="field"><label>DEE પેટા વિભાગ</label><input id="billSub"></div>
       <div class="field"><label>AAE નામ</label><input id="billAAE" placeholder="શ્રી- "></div>
       <div class="field span2"><label>વર્ક ઓર્ડર</label><input id="billWO" placeholder="જા.નં. / તા."></div>
       <div class="field"><label>TS Details</label><input id="billTS" placeholder="1629,03-26."></div>
@@ -745,12 +758,17 @@
       <div class="field"><label>MB નંબર</label><input id="billNo" oninput="liveBill()"></div>
       <div class="field"><label>પેજ થી</label><input id="billPg1"></div>
       <div class="field"><label>પેજ સુધી</label><input id="billPg2"></div>
-      <div class="field"><label>Qty1 Box</label><input id="billQ1" type="number" step="0.01" oninput="liveBill()"></div>
-      <div class="field"><label>Qty2 Murum</label><input id="billQ2" type="number" step="0.01" oninput="liveBill()"></div>
-      <div class="field"><label>Qty3 Paver SMT</label><input id="billQ3" type="number" step="0.01" oninput="liveBill()"></div>
-      <div class="field"><label>Qty4 Vata</label><input id="billQ4" type="number" step="0.01" oninput="liveBill()"></div>
-      <div class="field"><label>Qty5 Test</label><input id="billQ5" type="number" step="1" value="1" oninput="liveBill()"></div>
-      <div class="field"><label>Qty6 Plate</label><input id="billQ6" type="number" step="1" value="0" oninput="liveBill()"></div>
+      <div class="span2 bill-qty-live">
+        <div class="bill-qty">
+          <div class="field"><label>Qty1 Box</label><input id="billQ1" type="number" step="0.01" oninput="liveBill()"></div>
+          <div class="field"><label>Qty2 Murum</label><input id="billQ2" type="number" step="0.01" oninput="liveBill()"></div>
+          <div class="field"><label>Qty3 Paver SMT</label><input id="billQ3" type="number" step="0.01" oninput="liveBill()"></div>
+          <div class="field"><label>Qty4 Vata</label><input id="billQ4" type="number" step="0.01" oninput="liveBill()"></div>
+          <div class="field"><label>Qty5 Test</label><input id="billQ5" type="number" step="1" oninput="liveBill()"></div>
+          <div class="field"><label>Qty6 Plate</label><input id="billQ6" type="number" step="1" oninput="liveBill()"></div>
+        </div>
+        <div id="liveBillBox" class="card" style="background:#fff;color:#111;min-height:220px"></div>
+      </div>
       <div class="actions span2">
         <button class="btn btn-g dl" onclick="genBillPaver('xlsx')">📄 Excel</button>
         <button class="btn btn-s dl" onclick="genBillPaver('pdf')">📑 PDF</button>
@@ -758,7 +776,6 @@
       </div>
       <div id="billList" class="mini" style="margin-top:12px"></div>
       </div>
-      <div><div id="liveBillBox" class="card" style="background:#fff;color:#111;min-height:280px"></div></div>
       </div>
     </section>
 
@@ -1227,11 +1244,11 @@
     if(pw) pw.style.display = n===3 ? "none" : "";
     fillBillGrantSelects();
     fillBillPick();
-    try{
-      const p=(typeof prGet==="function")?prGet():{};
-      const aae=document.getElementById("billAAE");
-      if(aae && !aae.value && p.name) aae.value=p.name;
-    }catch(e){}
+    if(n===3){
+      ["billWork","billGrant","billYear","billGrantOther","billGam","billTal","billSub","billAAE","billWO","billTS","billTSAmt","billAmt","billStart","billDate","billNo","billPg1","billPg2","billQ1","billQ2","billQ3","billQ4","billQ5","billQ6"].forEach(function(id){
+        const e=document.getElementById(id); if(e) e.value="";
+      });
+    }
     liveBill();
   }
   function fillBillPick(){
@@ -1241,7 +1258,16 @@
     const mode=window.__billMode;
     const url = mode===2 ? "/api/db/site" : "/api/db/estimates";
     fetch((typeof API!=="undefined"?API:"")+url).then(function(r){return r.json();}).then(function(d){
-      const raw=(url.indexOf("estimates")>=0?mergeEstLists(d.items||[]):(d.items||[]));
+      let raw=(url.indexOf("estimates")>=0?mergeEstLists(d.items||[]):(d.items||[]));
+      if(mode===2){
+        const meta=loadSiteMeta();
+        Object.keys(meta).forEach(function(w){
+          const m=meta[w]||{};
+          if(m.rows && m.rows.length){
+            raw.unshift({work_name:w, taluka:m.taluka, fund_head:m.grant, contractor:m.contractor, rows:m.rows, amounting:m.amounting||0});
+          }
+        });
+      }
       const seen={};
       const uniq=[];
       raw.slice().sort(function(a,b){return String(b.ts||"").localeCompare(String(a.ts||""));}).forEach(function(it){
@@ -1300,12 +1326,19 @@
     set("billAmt", it.amounting||it.amount||it.ts_amount||"");
     const L=Number(it.length_m||it.L||0), W=Number(it.width_m||it.W||0), area=Number(it.area||0)||(L*W);
     if(window.__billMode===2){
-      set("billQ1", it.box_qty || (area?area*0.2:""));
-      set("billQ2", it.mur_qty || (area?Math.floor((area*0.1)/1.5)*1.5:""));
-      set("billQ3", it.area || area || "");
-      set("billQ4", it.vata || ((L&&W)?(2*L+2*W):""));
-      set("billQ5", it.test_qty==null?1:it.test_qty);
-      set("billQ6", it.plate||0);
+      const rows=it.rows||(metaFor(it.work_name||"").rows)||[];
+      let areaR=0,Lsum=0,Wavg=0;
+      rows.forEach(function(r){ const l=parseFloat(r.l)||0,w=parseFloat(r.w)||0; areaR+=l*w; Lsum+=l; });
+      if(areaR){ set("billQ1",(areaR*0.2).toFixed(2)); set("billQ2",(Math.floor((areaR*0.1)/1.5)*1.5).toFixed(2)); set("billQ3",areaR.toFixed(2)); set("billQ4",(2*Lsum+2*(Lsum?areaR/Lsum:0)).toFixed(2)); }
+      else {
+        set("billQ1", it.box_qty || (area?area*0.2:""));
+        set("billQ2", it.mur_qty || (area?Math.floor((area*0.1)/1.5)*1.5:""));
+        set("billQ3", it.area || area || "");
+        set("billQ4", it.vata || ((L&&W)?(2*L+2*W):""));
+      }
+      set("billQ5", it.test_qty==null?"":it.test_qty);
+      set("billQ6", it.plate||"");
+      set("billTal", it.taluka || metaFor(it.work_name||"").taluka || "");
     }
     liveBill();
   }
@@ -1712,7 +1745,33 @@
     localStorage.setItem(siteMetaKey(), JSON.stringify(all));
   }
   function metaFor(work){ return loadSiteMeta()[work]||{}; }
+
+  function onSiteGrant(){
+    const other=(document.getElementById("dGrant")||{}).value==="અન્ય";
+    const w=document.getElementById("dGrantOtherWrap");
+    if(w) w.classList.toggle("hidden", !other);
+  }
+  function fillSiteGrantSelects(){
+    const g=document.getElementById("dGrant");
+    const y=document.getElementById("dYear");
+    if(g && g.options.length<3 && typeof GRANTS!=="undefined" && typeof fillSelect==="function"){
+      fillSelect(g, GRANTS, "— Grant Head —");
+    }
+    if(y && y.options.length<3 && typeof fyYears==="function"){
+      fillSelect(y, fyYears(), "— Year —");
+    }
+  }
+  function siteFundHead(){
+    let g=(document.getElementById("dGrant")||{}).value||"";
+    if(g==="અન્ય") g=(document.getElementById("dGrantOther")||{}).value||"";
+    const y=(document.getElementById("dYear")||{}).value||"";
+    if(!g) return "";
+    if(!y) return g;
+    return g + " વર્ષ " + (typeof toGuNum==="function"?toGuNum(y):y) + ".";
+  }
   function openDiary(est) {
+    try{ fillSiteGrantSelects(); }catch(e){}
+
     const key=est ? String(est.id||est.estimate_id||est.work_name||"") : "new";
     const wrap=document.getElementById("diaryWrap");
     if (wrap && !wrap.classList.contains("hidden") && window._diaryOpenKey===key && key!=="new") {
@@ -1823,7 +1882,7 @@
     return {
       work_name:(document.getElementById("dWork")||{}).value||"",
       village:(diaryEst&&diaryEst.village)||"",
-      grant:(document.getElementById("dGrant")||{}).value||"",
+      grant:(typeof siteFundHead==="function"?siteFundHead():(document.getElementById("dGrant")||{}).value||""),
       taluka:(document.getElementById("dTaluka")||{}).value||(diaryEst&&diaryEst.taluka)||"",
       amounting:Number((document.getElementById("dAmtIn")||{}).value||0),
       rows:DIARY,
@@ -1908,7 +1967,7 @@
     const workNm=(document.getElementById("dWork")||{}).value||"";
     saveSiteMeta(workNm,{
       taluka:(document.getElementById("dTaluka")||{}).value||"",
-      grant:(document.getElementById("dGrant")||{}).value||"",
+      grant:(typeof siteFundHead==="function"?siteFundHead():(document.getElementById("dGrant")||{}).value||""),
       contractor:(document.getElementById("dContractor")||{}).value||"",
       rows:DIARY
     });
@@ -1921,7 +1980,7 @@
       done: !!done,
       taluka:(document.getElementById("dTaluka")||{}).value||"",
       fund_head:(document.getElementById("dGrant")||{}).value||"",
-      grant:(document.getElementById("dGrant")||{}).value||"",
+      grant:(typeof siteFundHead==="function"?siteFundHead():(document.getElementById("dGrant")||{}).value||""),
       contractor:(document.getElementById("dContractor")||{}).value||"",
       village:(diaryEst&&(diaryEst.village||diaryEst.gam))||""
     })}).catch(function(){});
