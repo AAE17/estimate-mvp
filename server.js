@@ -1446,6 +1446,60 @@ app.post("/api/mb/paver", async (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
+
+app.post("/api/letter/fwd", async (req, res) => {
+  try {
+    const d = req.body || {};
+    const items = Array.isArray(d.items) ? d.items : [];
+    if (!items.length) return res.status(400).json({ ok: false, error: "no items" });
+    const wb = new ExcelJS.Workbook();
+    await wb.xlsx.readFile(path.join(__dirname, "skeleton-paver-frwd-letter.xlsx"));
+    const dee = wb.getWorksheet("BILL APRROV nana") || wb.worksheets[0];
+    const aud = wb.getWorksheet("AANTRIK ODIT nana") || wb.worksheets[1];
+    const taluka = d.taluka || items[0].taluka || "";
+    const date = d.date || "";
+    const no = d.letter_no || String(Date.now()).slice(-4);
+    function set(ws, addr, v) {
+      if (!ws) return;
+      const c = ws.getCell(addr);
+      c.value = v;
+    }
+    set(dee, "I1", no);
+    set(dee, "I2", taluka);
+    set(dee, "H3", date);
+    set(dee, "A8", d.subdiv || items[0].subdiv || "");
+    set(aud, "A8", d.audit_office || "");
+    let total = 0;
+    items.slice(0, 8).forEach(function (it, i) {
+      const r = 19 + i;
+      set(dee, "A" + r, i + 1);
+      set(dee, "B" + r, (it.work_name || "") + (it.mb_no ? ("  (MB "+it.mb_no+")") : ""));
+      const amt = Number(it.amounting || 0);
+      set(dee, "G" + r, amt);
+      total += amt;
+    });
+    const tr = 19 + Math.min(items.length, 8);
+    set(dee, "B" + tr, "TOTAL");
+    set(dee, "G" + tr, total);
+    if (aud) {
+      set(aud, "I1", (Number(no) || 0) + 1);
+      set(aud, "I2", taluka);
+      set(aud, "H3", date);
+      items.slice(0, 8).forEach(function (it, i) {
+        const r = 20 + i;
+        set(aud, "A" + r, i + 1);
+        set(aud, "B" + r, (it.work_name || "") + (it.mb_no ? ("  (MB "+it.mb_no+")") : ""));
+        set(aud, "G" + r, Number(it.amounting || 0));
+      });
+      set(aud, "B" + (20 + Math.min(items.length, 8)), "TOTAL");
+      set(aud, "G" + (20 + Math.min(items.length, 8)), total);
+    }
+    return writeAndRespond(req, res, wb, Object.assign({}, d, { output: d.output || "both", village: taluka || "letter" }), "LETTER", ["A1:I34", "A1:I34"], "letter_fwd");
+  } catch (e) {
+    res.status(500).json({ ok: false, error: String(e.message || e) });
+  }
+});
+
 app.listen(PORT, () => {
   console.log("ParaState MVP on " + PORT);
 });
