@@ -975,7 +975,12 @@ app.post("/api/db/site", (req, res) => {
     brass: Number(b.brass || 0),
     bill: Number(b.bill || 0),
     gps: b.gps || "",
-    estimate_id: b.estimate_id || ""
+    estimate_id: b.estimate_id || "",
+    taluka: b.taluka || "",
+    village: b.village || "",
+    fund_head: b.fund_head || b.grant || "",
+    grant: b.grant || b.fund_head || "",
+    contractor: b.contractor || ""
   });
   if (sbOn()) sbInsert("site_measures", rec).catch(function(e){ console.error(e.message); });
   res.json({ ok: true, id: rec.id });
