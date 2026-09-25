@@ -764,9 +764,10 @@ app.post("/api/estimate/paver", async (req, res) => {
     }
 
     setVal(face, "F2", d.jilla);
+    setVal(face, "I2", d.jilla);
     setVal(face, "F4", d.subdiv_address);
     setVal(face, "I4", d.nani_address);
-    setVal(face, "F5", d.taluka);
+    setVal(face, "F5", d.subdiv_address);
     setVal(face, "D8", d.fund_head);
     setVal(face, "C20", d.work_name);
     setVal(face, "G21", Number(d.amounting || 0));
