@@ -1638,6 +1638,16 @@
     const kb=document.getElementById("kachuBox");
     if (kb && !kb.classList.contains("hidden")) renderKachuSheets();
   }
+
+  function siteMetaKey(){ return "copilot_site_meta"; }
+  function loadSiteMeta(){ try{ return JSON.parse(localStorage.getItem(siteMetaKey())||"{}"); }catch(e){ return {}; } }
+  function saveSiteMeta(work, data){
+    if(!work) return;
+    const all=loadSiteMeta();
+    all[work]=Object.assign(all[work]||{}, data||{}, {ts:Date.now()});
+    localStorage.setItem(siteMetaKey(), JSON.stringify(all));
+  }
+  function metaFor(work){ return loadSiteMeta()[work]||{}; }
   function openDiary(est) {
     const key=est ? String(est.id||est.estimate_id||est.work_name||"") : "new";
     const wrap=document.getElementById("diaryWrap");
@@ -1654,6 +1664,14 @@
     document.getElementById("dTaluka").value = (est && (est.taluka||"")) || "";
     document.getElementById("dGrant").value = (est && (est.fund_head||est.grant||"")) || "";
     document.getElementById("dContractor").value = (est && (est.contractor||"")) || "";
+    (function(){
+      const work=(est && est.work_name)||"";
+      const m=metaFor(work);
+      const set=function(id,v){ const e=document.getElementById(id); if(e && v && !e.value) e.value=v; };
+      set("dTaluka", (est&&est.taluka)||m.taluka);
+      set("dGrant", (est&&(est.fund_head||est.grant))||m.grant);
+      set("dContractor", (est&&est.contractor)||m.contractor);
+    })();
     document.getElementById("dAmtIn").value = est && est.amounting ? est.amounting : "";
     const typ = (est && String(est.type||"").toLowerCase().indexOf("paver")>=0) ? "paver" : "cc";
     document.getElementById("dType").value = typ;
@@ -1822,6 +1840,12 @@
   }
   function saveSitePayload(type, estAmt, area, L, W, done){
     const ccT=(function(){let v=0;DIARY.forEach(function(r){v+=Number(r.l||0)*Number(r.w||0)*Number(r.d||0.1);}); return area?v/area:0.1;})();
+    const workNm=(document.getElementById("dWork")||{}).value||"";
+    saveSiteMeta(workNm,{
+      taluka:(document.getElementById("dTaluka")||{}).value||"",
+      grant:(document.getElementById("dGrant")||{}).value||"",
+      contractor:(document.getElementById("dContractor")||{}).value||""
+    });
     fetch(API+"/api/db/site",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
       type:type, work_name:(document.getElementById("dWork")||{}).value||"",
       amounting:estAmt, rows:DIARY, area:area,
