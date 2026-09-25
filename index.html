@@ -707,10 +707,10 @@
       <div class="field"><label>Qty4 Vata</label><input id="billQ4" type="number" step="0.01" oninput="liveBill()"></div>
       <div class="field"><label>Qty5 Test</label><input id="billQ5" type="number" step="1" value="1" oninput="liveBill()"></div>
       <div class="field"><label>Qty6 Plate</label><input id="billQ6" type="number" step="1" value="0" oninput="liveBill()"></div>
-      <div class="choice" style="margin:8px 0">
-        <button type="button" onclick="genBillPaver('xlsx')">Excel</button>
-        <button type="button" onclick="genBillPaver('pdf')">PDF</button>
-        <button type="button" class="on" onclick="genBillPaver('both')">બંને</button>
+      <div class="actions span2">
+        <button class="btn btn-g dl" onclick="genBillPaver('xlsx')">📄 Excel</button>
+        <button class="btn btn-s dl" onclick="genBillPaver('pdf')">📑 PDF</button>
+        <button class="btn btn-w dl" onclick="genBillPaver('both')" style="border-color:var(--g);color:var(--g)">📁 Excel + PDF</button>
       </div>
       <div id="billList" class="mini" style="margin-top:12px"></div>
       </div>
@@ -1236,8 +1236,20 @@
     if(hit){ set("billGrant", hit); }
     else if(raw){ set("billGrant","અન્ય"); set("billGrantOther", raw); }
     onBillGrant();
-    const ym=raw.match(/(૨[૦-૯]{3}-[૦-૯]{2}|20\d{2}-\d{2})/);
-    if(ym) set("billYear", ym[1]);
+    function fromGu(s){
+      const g="૦૧૨૩૪૫૬૭૮૯";
+      return String(s).replace(/[૦-૯]/g,function(ch){return String(g.indexOf(ch));});
+    }
+    const rawEn=fromGu(raw);
+    let yearHit="";
+    const ym=rawEn.match(/(20\d{2}-\d{2})/);
+    if(ym) yearHit=ym[1];
+    const ysel=document.getElementById("billYear");
+    if(ysel && yearHit){
+      for(let i=0;i<ysel.options.length;i++){
+        if(ysel.options[i].value===yearHit){ set("billYear", yearHit); break; }
+      }
+    }
     set("billGam", it.village||it.gam||"");
     set("billTal", it.taluka||"");
     set("billAmt", it.amounting||it.amount||it.ts_amount||"");
@@ -1288,6 +1300,8 @@
       qty:q, area:q.paver, box_qty:q.box, mur_qty:q.murum
     };
     try{
+      if(typeof setBusy==="function") setBusy(true);
+      document.querySelectorAll("#s-bill .dl").forEach(function(b){ b.disabled=true; });
       const base=(typeof API!=="undefined"?API:"");
       const res=await fetch(base+"/api/bill/paver",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
       const data=await res.json();
@@ -1295,6 +1309,10 @@
       if(data.xlsx) window.open(base+data.xlsx,"_blank");
       if(data.pdf) window.open(base+data.pdf,"_blank");
     }catch(e){ alert("બિલ ભૂલ: "+e.message); }
+    finally{
+      document.querySelectorAll("#s-bill .dl").forEach(function(b){ b.disabled=false; });
+      if(typeof setBusy==="function") setBusy(false);
+    }
   }
 
 
@@ -2442,7 +2460,7 @@ function startScan(camera) {
   function setBusy(on) {
     const b = document.getElementById("busy");
     if (b) b.classList.toggle("hidden", !on);
-    document.querySelectorAll("#s-form input, #s-form select, #s-form textarea, #s-form button").forEach((el) => {
+    document.querySelectorAll("#s-form input, #s-form select, #s-form textarea, #s-form button, #s-bill input, #s-bill select, #s-bill textarea, #s-bill button").forEach((el) => {
       el.disabled = !!on;
     });
   }
