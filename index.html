@@ -431,6 +431,21 @@
     .letter-item small{color:#64748b;font-size:12px}
     .letter-item input{margin-top:3px;flex:0 0 auto}
     body.dark .letter-item{background:#111827;border-color:#1f2937}
+
+    .letter-head{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;margin-bottom:14px}
+    .letter-head input[type=date]{border:1px solid #e6eaf0;border-radius:10px;padding:8px 10px;background:#fff}
+    #letterList{border:1px solid #e6eaf0;border-radius:14px;overflow:hidden;background:#fff}
+    .ltr-row{display:grid;grid-template-columns:24px 1fr auto;gap:12px;align-items:center;padding:12px 14px;border-bottom:1px solid #eef2f7;margin:0;cursor:pointer}
+    .ltr-row:last-child{border-bottom:0}
+    .ltr-row:hover{background:#f8fafc}
+    .ltr-title{font-weight:650;color:#0f172a;line-height:1.3}
+    .ltr-sub{font-size:12px;color:#64748b;margin-top:2px}
+    .ltr-amt{font-weight:700;color:#1d4ed8;white-space:nowrap}
+    .letter-foot{display:flex;justify-content:space-between;align-items:center;margin-top:12px}
+    body.dark #letterList,.letter-head input[type=date]{background:#111827;border-color:#1f2937;color:inherit}
+    body.dark .ltr-row{border-bottom-color:#1f2937}
+    body.dark .ltr-row:hover{background:#1f2937}
+    body.dark .ltr-title{color:#f8fafc}
 </style>
 </head>
 <body>
@@ -828,15 +843,17 @@
 
     
     <section id="s-letter" class="card hidden">
-      <h2>ફોરવર્ડિંગ લેટર</h2>
-      <p class="muted">આ તારીખે જે બિલ બન્યા એ પસંદ કરો. એક પત્ર.</p>
-      <div class="field" style="max-width:220px">
-        <label>તારીખ</label>
+      <div class="letter-head">
+        <div>
+          <h2 style="margin:0">ફોરવર્ડિંગ લેટર</h2>
+          <p class="muted" style="margin:4px 0 0">એક દિવસના બિલ → એક પત્ર</p>
+        </div>
         <input type="date" id="letterDate" onchange="renderLetterBills()">
       </div>
       <div id="letterList">યાદી લોડ થાય…</div>
-      <div class="actions">
-        <button type="button" class="btn btn-s" onclick="makeFwdLetter()">📄 પત્ર બનાવો</button>
+      <div class="letter-foot">
+        <span class="muted" id="letterCount"></span>
+        <button type="button" class="btn btn-g" onclick="makeFwdLetter()">પત્ર બનાવો</button>
       </div>
     </section>
 
@@ -1436,9 +1453,11 @@
     if(!rows.length){ el.innerHTML="<div class='work-row'>આ તારીખે બિલ નથી</div>"; return; }
     el.classList.remove("muted");
     el.innerHTML=rows.map(function(b,i){
-      return "<label class='letter-item'><input type='checkbox' class='letterPick' data-i='"+i+"' checked><span><b>"+(b.work_name||"કામ")+"</b><small>"+(b.village||"—")+" · MB "+(b.mb_no||"—")+" · ₹ "+Number(b.amounting||0).toLocaleString("en-IN")+"</small></span></label>";
+      return "<label class='ltr-row'><input type='checkbox' class='letterPick' data-i='"+i+"' checked><div class='ltr-main'><div class='ltr-title'>"+(b.work_name||"કામ")+"</div><div class='ltr-sub'>"+(b.village||"ગામ નથી")+(b.taluka?(" · "+b.taluka):"")+" · MB "+(b.mb_no||"—")+"</div></div><div class='ltr-amt'>₹ "+Number(b.amounting||0).toLocaleString("en-IN")+"</div></label>";
     }).join("");
     el._rows=rows;
+    const c=document.getElementById("letterCount");
+    if(c) c.textContent=rows.length+" બિલ પસંદ";
   }
   function makeFwdLetter(){
     const el=document.getElementById("letterList");
