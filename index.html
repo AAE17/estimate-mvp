@@ -827,7 +827,7 @@
         <label>તારીખ</label>
         <input type="date" id="letterDate" onchange="renderLetterBills()">
       </div>
-      <div id="letterList" class="muted">આજે બિલ નથી</div>
+      <div id="letterList">યાદી લોડ થાય…</div>
       <div class="actions">
         <button type="button" class="btn btn-s" onclick="makeFwdLetter()">📄 પત્ર બનાવો</button>
       </div>
@@ -1413,16 +1413,23 @@
     localStorage.setItem(localBillKey(), JSON.stringify(all.slice(0,100)));
     renderLetterBills();
   }
+  function todayStr(){
+    const n=new Date();
+    return n.getFullYear()+"-"+String(n.getMonth()+1).padStart(2,"0")+"-"+String(n.getDate()).padStart(2,"0");
+  }
   function renderLetterBills(){
     const el=document.getElementById("letterList");
     const di=document.getElementById("letterDate");
-    if(di && !di.value) di.value=new Date().toISOString().slice(0,10);
-    const ds=(di && di.value) || new Date().toISOString().slice(0,10);
+    if(di && !di.value) di.value=todayStr();
+    const ds=(di && di.value) || todayStr();
     if(!el) return;
-    const rows=loadLocalBills().filter(function(b){ return String(b.ts||"").slice(0,10)===ds; });
-    if(!rows.length){ el.innerHTML="<span class='muted'>આ તારીખે બિલ નથી</span>"; return; }
+    const all=loadLocalBills();
+    let rows=all.filter(function(b){ return String(b.day||b.ts||"").slice(0,10)===ds; });
+    if(!rows.length) rows=all.slice(0,20);
+    if(!rows.length){ el.innerHTML="<div class='work-row'>આ તારીખે બિલ નથી</div>"; return; }
+    el.classList.remove("muted");
     el.innerHTML=rows.map(function(b,i){
-      return "<label style='display:flex;gap:8px;align-items:flex-start;margin:6px 0'><input type='checkbox' class='letterPick' data-i='"+i+"' checked> <span>"+(b.work_name||"કામ")+" · "+(b.village||"")+" · MB "+(b.mb_no||"—")+" · ₹ "+Number(b.amounting||0).toLocaleString("en-IN")+"</span></label>";
+      return "<label class='work-row'><input type='checkbox' class='letterPick' data-i='"+i+"' checked> <span>"+(b.work_name||"કામ")+"<br><small>"+String(b.day||b.ts||"").slice(0,10)+" · "+(b.village||"")+" · MB "+(b.mb_no||"—")+" · ₹ "+Number(b.amounting||0).toLocaleString("en-IN")+"</small></span></label>";
     }).join("");
     el._rows=rows;
   }
@@ -1473,9 +1480,12 @@
       const data=await res.json();
       if(!data.ok) throw new Error(data.error||"fail");
       try{
+        const pick=document.getElementById("billPick");
+        const pickName=pick && pick.options[pick.selectedIndex] ? pick.options[pick.selectedIndex].textContent : "";
         pushLocalBill({
           ts:new Date().toISOString(),
-          work_name:val("billWork"),
+          day:todayStr(),
+          work_name:val("billWork")||pickName.split(" · ")[0],
           village:val("billGam"),
           taluka:val("billTal"),
           mb_no:val("billNo"),
