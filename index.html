@@ -1639,12 +1639,21 @@
     if (kb && !kb.classList.contains("hidden")) renderKachuSheets();
   }
   function openDiary(est) {
+    const key=est ? String(est.id||est.estimate_id||est.work_name||"") : "new";
+    const wrap=document.getElementById("diaryWrap");
+    if (wrap && !wrap.classList.contains("hidden") && window._diaryOpenKey===key && key!=="new") {
+      wrap.classList.add("hidden");
+      window._diaryOpenKey="";
+      return;
+    }
+    window._diaryOpenKey=key;
     diaryEst = est || null;
-    document.getElementById("diaryWrap").classList.remove("hidden");
+    wrap.classList.remove("hidden");
     document.getElementById("dDate").value = new Date().toISOString().slice(0,10);
     document.getElementById("dWork").value = est && est.work_name ? est.work_name : "";
     document.getElementById("dTaluka").value = (est && (est.taluka||"")) || "";
     document.getElementById("dGrant").value = (est && (est.fund_head||est.grant||"")) || "";
+    document.getElementById("dContractor").value = (est && (est.contractor||"")) || "";
     document.getElementById("dAmtIn").value = est && est.amounting ? est.amounting : "";
     const typ = (est && String(est.type||"").toLowerCase().indexOf("paver")>=0) ? "paver" : "cc";
     document.getElementById("dType").value = typ;
@@ -1659,9 +1668,13 @@
       fetch(API+"/api/db/bundle?"+q).then(function(r){return r.json();}).then(function(b){
         if (!b || !b.ok) return;
         const site=(b.site&&b.site[0]);
-        if (site && site.rows && site.rows.length) {
-          DIARY = site.rows;
-          renderDiaryRows();
+        if (site) {
+          if (site.rows && site.rows.length) { DIARY = site.rows; renderDiaryRows(); }
+          const set=function(id,v){ const e=document.getElementById(id); if(e && v) e.value=v; };
+          set("dTaluka", site.taluka);
+          set("dGrant", site.fund_head||site.grant);
+          set("dContractor", site.contractor);
+          if (site.amounting) set("dAmtIn", site.amounting);
         }
         const med=b.media||[];
         const pb=document.getElementById("photoBox");
@@ -1815,7 +1828,12 @@
       brass: type==="paver" ? area*10.7584/100 : 0,
       bill: type==="paver" ? scanF24("paver", L, W) : scanF24("cc", L, W, ccT),
       estimate_id: diaryEst && diaryEst.id || "",
-      done: !!done
+      done: !!done,
+      taluka:(document.getElementById("dTaluka")||{}).value||"",
+      fund_head:(document.getElementById("dGrant")||{}).value||"",
+      grant:(document.getElementById("dGrant")||{}).value||"",
+      contractor:(document.getElementById("dContractor")||{}).value||"",
+      village:(diaryEst&&(diaryEst.village||diaryEst.gam))||""
     })}).catch(function(){});
   }
   function saveSiteOnly(){
@@ -1862,7 +1880,8 @@
           const s=window._doneRecent[+this.dataset.done];
           openDiary({
             id:s.estimate_id||s.id, work_name:s.work_name, amounting:s.amounting, type:s.type,
-            taluka:"", village:""
+            taluka:s.taluka||"", village:s.village||"",
+            fund_head:s.fund_head||s.grant||"", contractor:s.contractor||""
           });
         };
       });
