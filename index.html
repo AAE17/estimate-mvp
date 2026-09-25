@@ -2768,6 +2768,13 @@ function startScan(camera) {
       });
       const data = await res.json();
       if (!data.ok) throw new Error(data.error || "fail");
+      try{
+        if(typeof saveSiteMeta==="function") saveSiteMeta(val("work_name"),{
+          taluka:val("taluka"),
+          grant: (typeof fundHead==="function"?fundHead():""),
+          contractor:""
+        });
+      }catch(e){}
       if (data.xlsx) window.open(API + data.xlsx, "_blank");
       if (data.pdf) setTimeout(() => window.open(API + data.pdf, "_blank"), 500);
       msg.textContent = data.pdf && data.xlsx
