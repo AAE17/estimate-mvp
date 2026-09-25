@@ -398,6 +398,32 @@
     #s-bill .bill-fields{grid-template-columns:1fr 1fr}
     .bill-qty-live{grid-template-columns:minmax(240px,1fr) minmax(260px,1fr)}
     #liveBillBox{position:sticky;top:128px;min-height:260px}
+
+    #s-bill .bill-fields{grid-template-columns:1fr 1fr 1fr}
+    #s-bill .bill-fields .span2{grid-column:1/-1}
+    @media(max-width:800px){ #s-bill .bill-fields{grid-template-columns:1fr 1fr} }
+
+    .bill-r2{display:grid;grid-template-columns:1fr 1fr;gap:8px 10px;grid-column:1/-1}
+
+    #s-bill h2{margin:0 0 4px}
+    #s-bill .pillbar{padding:2px 0 4px;position:static;top:auto;box-shadow:none}
+    #s-bill .pill-space{height:8px;display:none}
+    #s-bill .bill-fields{gap:6px 8px}
+    #s-bill .field label{margin-bottom:2px;font-size:12px}
+    #s-bill .field input,#s-bill .field select{padding:7px 8px}
+    #s-bill .actions{margin-top:8px}
+    #liveBillBox{min-height:180px}
+
+    #s-bill.card{padding-top:10px}
+    #s-bill h2{margin:0}
+    #s-bill .bill-win{margin-top:4px}
+
+    #liveBillBox{min-height:0;padding:8px 10px}
+    #liveBillBox .live-grid{display:grid;grid-template-columns:1fr 120px;gap:8px;align-items:start}
+    #liveBillBox .live-side{border-left:1px solid #e6eaf0;padding-left:8px;font-size:12px}
+    #liveBillBox .live-side div{margin:0 0 6px}
+    #liveBillBox .live-side small{display:block;color:#64748b;font-size:10px}
+    #liveBillBox .mini{padding:2px 0}
 </style>
 </head>
 <body>
@@ -723,24 +749,23 @@
     </section>
 
                         <section id="s-bill" class="card hidden">
-      <h2>Bill Generate</h2>
+      <h2 style="display:flex;flex-wrap:wrap;align-items:baseline;gap:10px">Bill Generate <span class="muted" id="billModeHint" style="font-size:14px;font-weight:500">રસ્તો પસંદ કરો.</span></h2>
       <div class="pillbar" id="billPills">
         <button type="button" id="bm1" onclick="billMode(1)">એસ્ટિમેટ પરથી</button>
         <button type="button" id="bm2" onclick="billMode(2)">સેવ કરેલ માપ પરથી</button>
         <button type="button" id="bm3" onclick="billMode(3)">નવી સાઇટ</button>
       </div>
       <div class="pill-space"></div>
-      <p class="muted" id="billModeHint">રસ્તો પસંદ કરો.</p>
       <div class="bill-win">
       <div class="bill-fields">
       <div class="field span2" id="billPickWrap">
-        <label>કામ પસંદ</label>
+        <label>1. કામ પસંદ</label>
         <select id="billPick" onchange="billApplyPick()"><option value="">— પસંદ —</option></select>
       </div>
-      <div class="field"><label>પ્રકાર</label>
+      <div class="field span2" id="billWorkWrap"><label>1. કામનું નામ</label><input id="billWork" oninput="liveBill()"></div>
+      <div class="field"><label>2. પ્રકાર</label>
         <select id="billType" onchange="liveBill()"><option value="paver">Paver Block</option><option value="cc">CC Road</option></select>
       </div>
-      <div class="field" id="billWorkWrap"><label>કામનું નામ</label><input id="billWork" oninput="liveBill()"></div>
       <div class="field"><label>Grant Head</label>
         <select id="billGrant" onchange="onBillGrant();liveBill()"><option value="">— પસંદ કરો —</option></select>
       </div>
@@ -751,27 +776,31 @@
         <label>અન્ય Grant Head — પોતાનું લખો</label>
         <input id="billGrantOther" oninput="liveBill()" placeholder="Grant Head">
       </div>
-      <div class="field"><label>ગામ</label><input id="billGam" oninput="liveBill()"></div>
+      <div class="field"><label>3. ગામ</label><input id="billGam" oninput="liveBill()"></div>
       <div class="field"><label>તાલુકો</label><input id="billTal" oninput="liveBill()"></div>
       <div class="field"><label>DEE પેટા વિભાગ</label><input id="billSub"></div>
-      <div class="field"><label>AAE નામ</label><input id="billAAE" ></div>
-      <div class="field span2"><label>વર્ક ઓર્ડર</label><input id="billWO" ></div>
-      <div class="field"><label>TS Details</label><input id="billTS" ></div>
+      <div class="bill-r2 span2">
+        <div class="field"><label>4. AAE નામ</label><input id="billAAE"></div>
+        <div class="field"><label>વર્ક ઓર્ડર</label><input id="billWO"></div>
+      </div>
+      <div class="field"><label>5. TS Details</label><input id="billTS"></div>
       <div class="field"><label>TS Amount</label><input id="billTSAmt" type="number" oninput="liveBill()"></div>
-      <div class="field"><label>મંજૂર રકમ</label><input id="billAmt" type="number" oninput="liveBill()"></div>
-      <div class="field"><label>કામ શરૂ તારીખ</label><input id="billStart" ></div>
-      <div class="field"><label>કામ પૂર્ણ તારીખ</label><input id="billDate" oninput="liveBill()"></div>
-      <div class="field"><label>MB નંબર</label><input id="billNo" oninput="liveBill()"></div>
+      <div class="field"><label>AS Amount</label><input id="billAmt" type="number" oninput="liveBill()"></div>
+      <div class="bill-r2 span2">
+        <div class="field"><label>6. કામ શરૂ તારીખ</label><input id="billStart"></div>
+        <div class="field"><label>કામ પૂર્ણ તારીખ</label><input id="billDate" oninput="liveBill()"></div>
+      </div>
+      <div class="field"><label>7. MB નંબર</label><input id="billNo" oninput="liveBill()"></div>
       <div class="field"><label>પેજ થી</label><input id="billPg1"></div>
       <div class="field"><label>પેજ સુધી</label><input id="billPg2"></div>
       <div class="span2 bill-qty-live">
         <div class="bill-qty">
-          <div class="field"><label>Qty1 Box</label><input id="billQ1" type="number" step="0.01" oninput="liveBill()"></div>
-          <div class="field"><label>Qty2 Murum</label><input id="billQ2" type="number" step="0.01" oninput="liveBill()"></div>
-          <div class="field"><label>Qty3 Paver SMT</label><input id="billQ3" type="number" step="0.01" oninput="liveBill()"></div>
-          <div class="field"><label>Qty4 Vata</label><input id="billQ4" type="number" step="0.01" oninput="liveBill()"></div>
-          <div class="field"><label>Qty5 Test</label><input id="billQ5" type="number" step="1" oninput="liveBill()"></div>
-          <div class="field"><label>Qty6 Plate</label><input id="billQ6" type="number" step="1" oninput="liveBill()"></div>
+          <div class="field"><label>1. Excavation — Cmt</label><input id="billQ1" type="number" step="0.01" oninput="liveBill()"></div>
+          <div class="field"><label>2. Binding material — Cmt</label><input id="billQ2" type="number" step="0.01" oninput="liveBill()"></div>
+          <div class="field"><label>3. Paver Block — Smt</label><input id="billQ3" type="number" step="0.01" oninput="liveBill()"></div>
+          <div class="field"><label>4. Vata — Rmt</label><input id="billQ4" type="number" step="0.01" oninput="liveBill()"></div>
+          <div class="field"><label>5. Testing Charges — Job</label><input id="billQ5" type="number" step="1" oninput="liveBill()"></div>
+          <div class="field"><label>6. Name Plate — Job</label><input id="billQ6" type="number" step="1" oninput="liveBill()"></div>
         </div>
         <div id="liveBillBox" class="card" style="background:#fff;color:#111;min-height:220px"></div>
       </div>
@@ -1362,8 +1391,8 @@
     const tal=(document.getElementById("billTal")||{}).value||"—";
     const no=(document.getElementById("billNo")||{}).value||"—";
     const q=billQtyFromLW();
-    const rows=[["1 Box",q.box,156.56],["2 Murum",q.murum,210.42],["3 Paver",q.paver,740.51],["4 Vata",q.vata,23.68],["5 Test",q.test,608],["6 Plate",q.plate,306.14]];
-    let sub=0,h="<b>બિલ — લાઈવ</b><p class='muted'>"+work+" · "+gam+" / "+tal+" · MB "+no+"</p>";
+    const rows=[["1 Excavation",q.box,156.56],["2 Binding",q.murum,210.42],["3 Paver",q.paver,740.51],["4 Vata",q.vata,23.68],["5 Testing",q.test,608],["6 Name plate",q.plate,306.14]];
+    let sub=0,h="<b>બિલ — લાઈવ</b>";
     rows.forEach(function(r){ const amt=Number(r[1])*r[2]; sub+=amt; h+="<div class='mini'><span>"+r[0]+"</span><b>"+Number(r[1]).toFixed(2)+" → ₹ "+Math.round(amt)+"</b></div>"; });
     const gst=sub*0.18, tot=Math.floor(sub+gst);
     h+="<div class='mini'><span>+18% GST</span><b>₹ "+Math.round(gst)+"</b></div>";
