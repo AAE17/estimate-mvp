@@ -891,6 +891,22 @@ function dbRead(file, limit) {
 const SB_URL = (process.env.SUPABASE_URL || "").replace(/\/$/, "");
 const SB_KEY = process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_KEY || "";
 function sbOn() { return !!(SB_URL && SB_KEY); }
+function mergeItems(remote, local) {
+  const out = [];
+  const seen = {};
+  function key(x) {
+    return String(x.id || "") || (String(x.work_name || "") + "|" + String(x.ts || "") + "|" + String(x.amounting || ""));
+  }
+  (remote || []).concat(local || []).forEach(function (x) {
+    const k = key(x);
+    if (!k || seen[k]) return;
+    seen[k] = 1;
+    out.push(x);
+  });
+  out.sort(function (a, b) { return String(b.ts || "").localeCompare(String(a.ts || "")); });
+  return out;
+}
+
 function sbPick(table, row) {
   const cols = {
     estimates: ["id","ts","type","village","taluka","jilla","work_name","fund_head","amounting","length_m","width_m","area","brass","prepared_by"],
@@ -913,7 +929,28 @@ async function sbInsert(table, row) {
     },
     body: JSON.stringify(sbPick(table, row))
   });
-  if (!r.ok) throw new Error(await r.text());
+  if (!r.ok) {
+    const err = await r.text();
+    if (table === "estimates") {
+      const slim = Object.assign({}, sbPick(table, row));
+      delete slim.fund_head;
+      const r2 = await fetch(SB_URL + "/rest/v1/" + table, {
+        method: "POST",
+        headers: {
+          apikey: SB_KEY,
+          Authorization: "Bearer " + SB_KEY,
+          "Content-Type": "application/json",
+          Prefer: "return=representation"
+        },
+        body: JSON.stringify(slim)
+      });
+      if (r2.ok) {
+        const js2 = await r2.json();
+        return Array.isArray(js2) ? js2[0] : js2;
+      }
+    }
+    throw new Error(err);
+  }
   const js = await r.json();
   return Array.isArray(js) ? js[0] : js;
 }
@@ -959,9 +996,14 @@ app.post("/api/db/estimate", (req, res) => {
   res.json({ ok: true, id: rec.id });
 });
 app.get("/api/db/estimates", async (_req, res) => {
-  try { if (sbOn()) return res.json({ ok: true, items: await sbSelect("estimates", 200) }); }
-  catch (e) { console.error(e.message); }
-  res.json({ ok: true, items: dbRead(DB_EST, 200) });
+  const local = dbRead(DB_EST, 200);
+  try {
+    if (sbOn()) {
+      const remote = await sbSelect("estimates", 200);
+      return res.json({ ok: true, items: mergeItems(remote, local) });
+    }
+  } catch (e) { console.error(e.message); }
+  res.json({ ok: true, items: local });
 });
 app.post("/api/db/site", (req, res) => {
   const b = req.body || {};
@@ -986,9 +1028,14 @@ app.post("/api/db/site", (req, res) => {
   res.json({ ok: true, id: rec.id });
 });
 app.get("/api/db/site", async (_req, res) => {
-  try { if (sbOn()) return res.json({ ok: true, items: await sbSelect("site_measures", 200) }); }
-  catch (e) { console.error(e.message); }
-  res.json({ ok: true, items: dbRead(DB_SITE, 200) });
+  const local = dbRead(DB_SITE, 200);
+  try {
+    if (sbOn()) {
+      const remote = await sbSelect("site_measures", 200);
+      return res.json({ ok: true, items: mergeItems(remote, local) });
+    }
+  } catch (e) { console.error(e.message); }
+  res.json({ ok: true, items: local });
 });
 app.post("/api/db/site/delete", async (req, res) => {
   const id = String((req.body && req.body.id) || "");
