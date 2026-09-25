@@ -846,12 +846,12 @@
       <div class="letter-head">
         <div>
           <h2 style="margin:0">ફોરવર્ડિંગ લેટર</h2>
-          <p class="muted" style="margin:4px 0 0">એક દિવસના બિલ → એક પત્ર</p>
+          <p class="muted" style="margin:4px 0 0">પહેલાં તારીખ — પછી એ દિવસના બિલ</p>
         </div>
+        <input type="date" id="letterDate" onchange="renderLetterBills()">
       </div>
       <div class="bill-fields" style="margin-bottom:12px">
         <div class="field"><label>પત્ર નંબર</label><input id="letterNo" placeholder="1512"></div>
-        <div class="field"><label>તારીખ</label><input type="date" id="letterDate" onchange="renderLetterBills()"></div>
         <div class="field"><label>ઓડિટ A8 — જિલ્લા પંચાયત</label><input id="letterAudit" placeholder="ખેડા જિલ્લા પંચાયત, નડિયાદ"></div>
       </div>
       <div id="letterList">યાદી લોડ થાય…</div>
@@ -1448,13 +1448,12 @@
   function renderLetterBills(){
     const el=document.getElementById("letterList");
     const di=document.getElementById("letterDate");
-    if(di && !di.value) di.value=todayStr();
-    const ds=(di && di.value) || todayStr();
     if(!el) return;
+    const ds=(di && di.value) || "";
+    if(!ds){ el.innerHTML="<div class='ltr-row'>પહેલાં તારીખ પસંદ કરો</div>"; el._rows=[]; return; }
     const all=loadLocalBills();
-    let rows=all.filter(function(b){ return String(b.day||b.ts||"").slice(0,10)===ds; });
-    if(!rows.length) rows=all.slice(0,20);
-    if(!rows.length){ el.innerHTML="<div class='work-row'>આ તારીખે બિલ નથી</div>"; return; }
+    const rows=all.filter(function(b){ return String(b.day||b.ts||"").slice(0,10)===ds; });
+    if(!rows.length){ el.innerHTML="<div class='ltr-row'>આ તારીખે બિલ નથી</div>"; el._rows=[]; const c0=document.getElementById("letterCount"); if(c0) c0.textContent=""; return; }
     el.classList.remove("muted");
     el.innerHTML=rows.map(function(b,i){
       return "<label class='ltr-row'><input type='checkbox' class='letterPick' data-i='"+i+"' checked><div class='ltr-main'><div class='ltr-title'>"+(b.work_name||"કામ")+"</div><div class='ltr-sub'>"+(b.village||"ગામ નથી")+(b.taluka?(" · "+b.taluka):"")+" · MB "+(b.mb_no||"—")+"</div></div><div class='ltr-amt'>₹ "+Number(b.amounting||0).toLocaleString("en-IN")+"</div></label>";
