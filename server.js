@@ -893,8 +893,8 @@ const SB_KEY = process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_KEY || "";
 function sbOn() { return !!(SB_URL && SB_KEY); }
 function sbPick(table, row) {
   const cols = {
-    estimates: ["id","ts","type","village","taluka","jilla","work_name","amounting","length_m","width_m","area","brass","prepared_by"],
-    site_measures: ["id","ts","type","work_name","amounting","rows","area","brass","bill","gps","estimate_id"],
+    estimates: ["id","ts","type","village","taluka","jilla","work_name","fund_head","amounting","length_m","width_m","area","brass","prepared_by"],
+    site_measures: ["id","ts","type","work_name","amounting","rows","area","brass","bill","gps","estimate_id","taluka","village","fund_head","grant","contractor"],
     media: ["id","ts","kind","work_name","gps","url"],
     kachu_bills: ["id","ts","type","work_name","village","amounting","total","net","test_qty","name_plate","preview","xlsx"]
   }[table] || Object.keys(row);
