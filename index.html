@@ -381,6 +381,13 @@
       #s-bill:not(.hidden) .pillbar{ top:64px; }
     }
 
+
+    .work-row{display:flex;justify-content:space-between;gap:8px;align-items:center;padding:10px 12px;border-radius:12px;border:1px solid #e6eaf0;margin:6px 0;cursor:pointer;background:#fff}
+    .work-row:hover{background:#eef2f7}
+    .work-row.on{background:#e8eefc;border-color:#1d4ed8}
+    body.dark .work-row{background:#111827;border-color:#1f2937}
+    body.dark .work-row:hover{background:#1f2937}
+    body.dark .work-row.on{background:#1e3a8a;border-color:#60a5fa}
 </style>
 </head>
 <body>
@@ -1732,7 +1739,8 @@
     document.getElementById("dAmtIn").value = est && est.amounting ? est.amounting : "";
     const typ = (est && String(est.type||"").toLowerCase().indexOf("paver")>=0) ? "paver" : "cc";
     document.getElementById("dType").value = typ;
-    DIARY = [{l:"",w:"",d:""}];
+    const savedRows=(est && est.rows && est.rows.length)?est.rows:((metaFor((est&&est.work_name)||"").rows)||[]);
+    DIARY = (savedRows && savedRows.length) ? savedRows : [{l:"",w:"",d:""}];
     const bill=document.getElementById("dBill");
     if (bill) { bill.classList.add("hidden"); bill.innerHTML=""; }
     const kb0=document.getElementById("kachuBox");
@@ -1901,7 +1909,8 @@
     saveSiteMeta(workNm,{
       taluka:(document.getElementById("dTaluka")||{}).value||"",
       grant:(document.getElementById("dGrant")||{}).value||"",
-      contractor:(document.getElementById("dContractor")||{}).value||""
+      contractor:(document.getElementById("dContractor")||{}).value||"",
+      rows:DIARY
     });
     fetch(API+"/api/db/site",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
       type:type, work_name:(document.getElementById("dWork")||{}).value||"",
@@ -1955,13 +1964,15 @@
       });
       const inr0=function(x){return "₹ "+Number(x||0).toLocaleString("en-IN",{maximumFractionDigits:0});};
       el.innerHTML = rec.length ? rec.map(function(r,i){
-        return "<div><span>"+String(r.ts||"").slice(0,10)+" · "+(r.work_name||"")+"<br>એસ્ટિમેટ "+inr0(r.amounting)+" · બિલ "+inr0(r.bill)+
+        return "<div class='work-row' data-done='"+i+"'><span>"+String(r.ts||"").slice(0,10)+" · "+(r.work_name||"")+"<br>એસ્ટિમેટ "+inr0(r.amounting)+" · બિલ "+inr0(r.bill)+
           "</span><span><button type='button' class='btn btn-w' data-done='"+i+"' title='જોવું / એડિટ'>👁</button> "+
           "<button type='button' class='btn btn-w' data-del='"+i+"' title='ડિલીટ'>🗑</button></span></div>";
       }).join("") : "<div>હજુ Work Done નથી</div>";
       window._doneRecent=rec;
       el.querySelectorAll("[data-done]").forEach(function(b){
         b.onclick=function(){
+          el.querySelectorAll(".work-row").forEach(function(x){ x.classList.remove("on"); });
+          const row=this.closest(".work-row"); if(row) row.classList.add("on");
           const s=window._doneRecent[+this.dataset.done];
           openDiary({
             id:s.estimate_id||s.id, work_name:s.work_name, amounting:s.amounting, type:s.type,
@@ -1998,12 +2009,16 @@
         return true;
       }).slice(0,30);
       el.innerHTML = rec.length ? rec.map((r,i)=>
-        '<div><span>'+ (r.ts||"").slice(0,10)+' · '+(r.type||"")+' · '+(r.work_name||r.village||r.taluka||"")+
-        '</span><button type="button" class="btn btn-w" data-pick="'+i+'">પસંદ</button></div>'
+        '<div class="work-row" data-pick="'+i+'"><span>'+ (r.ts||"").slice(0,10)+' · '+(r.type||"")+' · '+(r.work_name||r.village||r.taluka||"")+
+        '</span><button type="button" class="btn btn-w">પસંદ</button></div>'
       ).join("") : "<div>હજુ એસ્ટિમેટ નથી</div>";
       window._siteRecent=rec;
       el.querySelectorAll("[data-pick]").forEach((b)=>{
-        b.onclick=function(){ openDiary(window._siteRecent[+this.dataset.pick]); };
+        b.onclick=function(){
+          el.querySelectorAll(".work-row").forEach(function(x){ x.classList.remove("on"); });
+          this.classList.add("on");
+          openDiary(window._siteRecent[+this.dataset.pick]);
+        };
       });
     }).catch(function(){ el.textContent="યાદી લાવી ન શકાઈ"; });
   }
