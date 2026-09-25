@@ -326,18 +326,22 @@ async function writeAndRespond(req, res, wb, d, prefix, areas, kind) {
     pdf: pdfUrl
   }, req);
   try {
-    const rec = dbAppend(DB_EST, {
-      kind: "estimate",
-      type: kind === "estimate_paver" ? "Paver" : "CC",
+    const isBill = String(kind||"").indexOf("bill")>=0;
+    const rec = dbAppend(isBill ? (global.DB_BILL || DB_EST) : DB_EST, {
+      kind: isBill ? "bill" : "estimate",
+      type: kind === "estimate_paver" || kind === "bill_paver" ? "Paver" : "CC",
       village: d.village, taluka: d.taluka, jilla: d.jilla,
       work_name: d.work_name || "",
       fund_head: d.fund_head || d.grant || "",
-      amounting: Number(d.amounting || 0),
+      amounting: Number(d.amounting || d.ts_amount || 0),
       length_m: Lm, width_m: Wm, area: areaM,
-      brass: kind === "estimate_paver" ? areaM * 10.7584 / 100 : 0,
-      prepared_by: d.prepared_by || ""
+      brass: (kind === "estimate_paver" || kind === "bill_paver") ? areaM * 10.7584 / 100 : 0,
+      prepared_by: d.prepared_by || "",
+      mb_no: d.mb_no || ""
     });
-    if (typeof sbOn === "function" && sbOn()) sbInsert("estimates", rec).catch(function(e){ console.error(e.message); });
+    if (typeof sbOn === "function" && sbOn()) {
+      sbInsert(isBill ? "bills" : "estimates", rec).catch(function(e){ console.error(e.message); });
+    }
   } catch (_e) {}
   const wantXlsx = output === "xlsx" || output === "both";
   res.json({
@@ -910,9 +914,10 @@ function mergeItems(remote, local) {
 function sbPick(table, row) {
   const cols = {
     estimates: ["id","ts","type","village","taluka","jilla","work_name","fund_head","amounting","length_m","width_m","area","brass","prepared_by"],
-    site_measures: ["id","ts","type","work_name","amounting","rows","area","brass","bill","gps","estimate_id","taluka","village","fund_head","grant","contractor"],
+    site_measures: ["id","ts","type","work_name","amounting","rows","area","brass","bill","gps","estimate_id","taluka","village","fund_head","grant_head","contractor"],
     media: ["id","ts","kind","work_name","gps","url"],
-    kachu_bills: ["id","ts","type","work_name","village","amounting","total","net","test_qty","name_plate","preview","xlsx"]
+    kachu_bills: ["id","ts","type","work_name","village","amounting","total","net","test_qty","name_plate","preview","xlsx"],
+    bills: ["id","ts","type","work_name","village","taluka","fund_head","amounting","prepared_by","mb_no"]
   }[table] || Object.keys(row);
   const o = {};
   cols.forEach(function (k) { if (row[k] !== undefined) o[k] = row[k]; });
@@ -995,6 +1000,13 @@ app.post("/api/db/estimate", (req, res) => {
   if (sbOn()) sbInsert("estimates", rec).catch(function(e){ console.error(e.message); });
   res.json({ ok: true, id: rec.id });
 });
+app.get("/api/db/bills", async (_req, res) => {
+  const local = [];
+  try {
+    if (sbOn()) return res.json({ ok: true, items: await sbSelect("bills", 200) });
+  } catch (e) { console.error(e.message); }
+  res.json({ ok: true, items: local });
+});
 app.get("/api/db/estimates", async (_req, res) => {
   const local = dbRead(DB_EST, 200);
   try {
@@ -1020,8 +1032,8 @@ app.post("/api/db/site", (req, res) => {
     estimate_id: b.estimate_id || "",
     taluka: b.taluka || "",
     village: b.village || "",
-    fund_head: b.fund_head || b.grant || "",
-    grant: b.grant || b.fund_head || "",
+    fund_head: b.fund_head || b.grant || b.grant_head || "",
+    grant_head: b.grant_head || b.grant || b.fund_head || "",
     contractor: b.contractor || ""
   });
   if (sbOn()) sbInsert("site_measures", rec).catch(function(e){ console.error(e.message); });
