@@ -1806,6 +1806,37 @@
     if(!y) return g;
     return g + " વર્ષ " + (typeof toGuNum==="function"?toGuNum(y):y) + ".";
   }
+
+  function applySiteGrant(raw){
+    raw=String(raw||"");
+    fillSiteGrantSelects();
+    function fromGu(s){
+      const g="૦૧૨૩૪૫૬૭૮૯";
+      return String(s).replace(/[૦-૯]/g,function(ch){return String(g.indexOf(ch));});
+    }
+    const head=raw.split(" વર્ષ ")[0].trim();
+    const gsel=document.getElementById("dGrant");
+    let hit="";
+    if(gsel && head){
+      for(let i=0;i<gsel.options.length;i++){
+        const v=gsel.options[i].value;
+        if(v && (head===v || head.indexOf(v)>=0 || v.indexOf(head)>=0)){ hit=v; break; }
+      }
+    }
+    if(hit){ gsel.value=hit; }
+    else if(head){
+      if(gsel) gsel.value="અન્ય";
+      const o=document.getElementById("dGrantOther"); if(o) o.value=head;
+    }
+    const ym=fromGu(raw).match(/(20\d{2}-\d{2})/);
+    const ysel=document.getElementById("dYear");
+    if(ysel && ym){
+      for(let i=0;i<ysel.options.length;i++){
+        if(ysel.options[i].value===ym[1]){ ysel.value=ym[1]; break; }
+      }
+    }
+    onSiteGrant();
+  }
   function openDiary(est) {
     try{ fillSiteGrantSelects(); }catch(e){}
 
@@ -1822,15 +1853,14 @@
     document.getElementById("dDate").value = new Date().toISOString().slice(0,10);
     document.getElementById("dWork").value = est && est.work_name ? est.work_name : "";
     document.getElementById("dTaluka").value = (est && (est.taluka||"")) || "";
-    document.getElementById("dGrant").value = (est && (est.fund_head||est.grant||"")) || "";
     document.getElementById("dContractor").value = (est && (est.contractor||"")) || "";
     (function(){
       const work=(est && est.work_name)||"";
-      const m=metaFor(work);
+      const m=metaFor(work)||{};
       const set=function(id,v){ const e=document.getElementById(id); if(e && v && !e.value) e.value=v; };
       set("dTaluka", (est&&est.taluka)||m.taluka);
-      set("dGrant", (est&&(est.fund_head||est.grant))||m.grant);
       set("dContractor", (est&&est.contractor)||m.contractor);
+      applySiteGrant((est&&(est.fund_head||est.grant))||m.grant||"");
     })();
     document.getElementById("dAmtIn").value = est && est.amounting ? est.amounting : "";
     const typ = (est && String(est.type||"").toLowerCase().indexOf("paver")>=0) ? "paver" : "cc";
