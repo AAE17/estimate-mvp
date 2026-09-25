@@ -556,9 +556,9 @@
     <section id="s-site" class="card hidden">
       <h2>Site Measurement</h2>
       <div class="pillbar" id="sitePills">
-        <button type="button" class="on" id="st1" onclick="siteTab('ong')">Ongoing</button>
-        <button type="button" id="st2" onclick="siteTab('new')">New work</button>
-        <button type="button" id="st3" onclick="siteTab('done')">Work Done</button>
+        <button type="button" class="on" id="st2" onclick="siteTab('new')">નવું કામ</button>
+        <button type="button" id="st1" onclick="siteTab('ong')">Ongoing</button>
+        <button type="button" id="st3" onclick="siteTab('done')">સેવ થયેલું</button>
       </div>
       <div class="pill-space"></div>
       <div id="ongBox">
@@ -957,7 +957,7 @@
     document.body.classList.toggle("form-on", id === "s-form");
     if (id === "s-hi") { setTab("tab-dash"); loadStats(); }
     if (id === "s-type" || id === "s-form") setTab("tab-est");
-    if (id === "s-site") { setTab("tab-site"); loadStats(); renderSiteList(); }
+    if (id === "s-site") { setTab("tab-site"); loadStats(); siteTab("new"); renderSiteList(); }
     if (id === "s-tour") { setTab("tab-tour"); }
     if (id === "s-pr") { loadProfile(); }
     if (id === "s-bill") { try{ billMode(window.__billMode||3); liveBill(); }catch(e){} setTab("tab-bill"); }
@@ -1234,7 +1234,7 @@
     const mode=window.__billMode;
     const url = mode===2 ? "/api/db/site" : "/api/db/estimates";
     fetch((typeof API!=="undefined"?API:"")+url).then(function(r){return r.json();}).then(function(d){
-      const raw=d.items||[];
+      const raw=(url.indexOf("estimates")>=0?mergeEstLists(d.items||[]):(d.items||[]));
       const seen={};
       const uniq=[];
       raw.slice().sort(function(a,b){return String(b.ts||"").localeCompare(String(a.ts||""));}).forEach(function(it){
@@ -1676,6 +1676,26 @@
     if (kb && !kb.classList.contains("hidden")) renderKachuSheets();
   }
 
+
+  function localEstKey(){ return "copilot_local_estimates"; }
+  function loadLocalEst(){ try{ return JSON.parse(localStorage.getItem(localEstKey())||"[]"); }catch(e){ return []; } }
+  function pushLocalEst(rec){
+    const all=loadLocalEst();
+    all.unshift(rec);
+    localStorage.setItem(localEstKey(), JSON.stringify(all.slice(0,80)));
+  }
+  function mergeEstLists(remote){
+    const loc=loadLocalEst();
+    const seen={};
+    const out=[];
+    (loc||[]).concat(remote||[]).forEach(function(x){
+      const k=String(x.id||"")+"|"+String(x.work_name||"")+"|"+String(x.ts||"").slice(0,16);
+      if(seen[k]) return;
+      seen[k]=1;
+      out.push(x);
+    });
+    return out;
+  }
   function siteMetaKey(){ return "copilot_site_meta"; }
   function loadSiteMeta(){ try{ return JSON.parse(localStorage.getItem(siteMetaKey())||"{}"); }catch(e){ return {}; } }
   function saveSiteMeta(work, data){
@@ -1967,7 +1987,7 @@
     const gr=((document.getElementById("fGrant")||{}).value||"").toLowerCase();
     const yr=((document.getElementById("fYear")||{}).value||"").trim();
     fetch(API+"/api/db/estimates").then(r=>r.json()).then((d)=>{
-      let rec=(d.items||[]);
+      let rec=mergeEstLists(d.items||[]);
       rec=rec.filter(function(r){
         const g=String(r.village||"").toLowerCase();
         const w=String(r.work_name||"").toLowerCase();
@@ -2026,7 +2046,7 @@
   }
   function loadStats() {
     fetch(API + "/api/db/estimates").then((r) => r.json()).then(function (d) {
-      const items = d.items || [];
+      const items = mergeEstLists(d.items || []);
       const today = new Date().toISOString().slice(0,10);
       const talMap = {};
       let cc=0, pv=0, amt=0, tod=0;
@@ -2773,6 +2793,19 @@ function startScan(camera) {
           taluka:val("taluka"),
           grant: (typeof fundHead==="function"?fundHead():""),
           contractor:""
+        });
+        if(typeof pushLocalEst==="function") pushLocalEst({
+          id:"loc-"+Date.now(),
+          ts:new Date().toISOString(),
+          type: currentType==="paver"?"Paver":"CC",
+          village: villageName(),
+          taluka: val("taluka"),
+          jilla: val("jilla"),
+          work_name: val("work_name"),
+          fund_head: (typeof fundHead==="function"?fundHead():""),
+          amounting: num("amounting"),
+          length_m: num("length_m"),
+          width_m: num("width_m")
         });
       }catch(e){}
       if (data.xlsx) window.open(API + data.xlsx, "_blank");
