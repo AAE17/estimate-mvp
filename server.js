@@ -1338,6 +1338,101 @@ app.post("/api/bill/paver", async (req, res) => {
   }
 });
 
+
+app.post("/api/bill/cc", async (req, res) => {
+  try {
+    const d = req.body || {};
+    const wb = new ExcelJS.Workbook();
+    await wb.xlsx.readFile(path.join(__dirname, "skeleton-cc-bill.xlsx"));
+    const pa = wb.getWorksheet("21 No. P.A. Form");
+    const bill = wb.getWorksheet("Bill");
+    const comp = wb.getWorksheet("COMP-14MU NAN");
+    if (!pa || !bill || !comp) throw new Error("cc bill skeleton missing");
+
+    const work = d.work_name || "";
+    const grant = d.fund_head || d.grant || "";
+    const gam = d.village || d.gam || "";
+    let tal = String(d.taluka || "").trim().replace(/^તા\.\s*/, "");
+    const talLabel = tal ? ("તા. " + tal) : "";
+    const agency = d.agency || "સરપંચ શ્રી ગ્રામ પંચાયત";
+    const wo = d.work_order || d.as_details || "";
+    const tsDet = d.ts_details || "";
+    const tsAmt = Number(d.ts_amount || d.amounting || 0);
+    const startDate = d.start_date || "";
+    const measDate = d.meas_date || d.date || "";
+    const mb = d.mb_no || "";
+    const pg1 = d.page_from || "";
+    const pg2 = d.page_to || "";
+    const subdiv = d.subdiv || d.subdiv_address || "";
+    const aae = d.prepared_by || d.aae || "";
+
+    const q = d.qty || {};
+    const q1 = Number(q.box ?? q.q1 ?? 0);
+    const q2 = Number(q.metal ?? q.q2 ?? 0);
+    const q3 = Number(q.murum ?? q.q3 ?? 0);
+    const q4 = Number(q.spread_metal ?? q.q4 ?? q2);
+    const q5 = Number(q.spread_mur ?? q.q5 ?? q3);
+    const q6 = Number(q.cc ?? q.q6 ?? 0);
+    const q7 = Number(q.test ?? q.q7 ?? 1);
+    const q8 = Number(q.plate ?? q.q8 ?? 0);
+    const rates = [158.12, 684.6, 173.51, 249.75, 147.47, 4915.01, 2656, 306.14];
+    const qtys = [q1, q2, q3, q4, q5, q6, q7, q8];
+    let sub = 0;
+    qtys.forEach(function (qty, i) {
+      const amt = qty * rates[i];
+      setVal(bill, "B" + (4 + i), qty);
+      setVal(bill, "E" + (4 + i), amt);
+      sub += amt;
+    });
+    const gst = sub * 0.18;
+    const tot = sub + gst;
+    const net = Math.floor(tot);
+
+    setVal(pa, "H2", grant);
+    setVal(pa, "G6", subdiv);
+    setVal(pa, "C7", work);
+    setVal(pa, "J7", talLabel);
+    setVal(pa, "G9", talLabel);
+    setVal(pa, "J8", gam);
+    setVal(pa, "G8", agency);
+    setVal(pa, "I9", wo);
+
+    setVal(bill, "A1", work);
+    setVal(bill, "E12", sub);
+    setVal(bill, "E13", gst);
+    setVal(bill, "E14", tot);
+    setVal(bill, "E15", net);
+    if (aae) setVal(bill, "A16", "શ્રી- " + aae);
+    setVal(bill, "B17", measDate);
+    setVal(bill, "B18", mb);
+    setVal(bill, "D18", pg1);
+    setVal(bill, "F18", pg2);
+
+    setVal(comp, "C2", grant);
+    setVal(comp, "C3", work);
+    setVal(comp, "C4", tsDet);
+    setVal(comp, "C5", tsAmt);
+    setVal(comp, "C6", wo);
+    setVal(comp, "C7", tsAmt);
+    setVal(comp, "C9", startDate);
+    setVal(comp, "C10", measDate);
+    setVal(comp, "C11", net);
+    setVal(comp, "D12", mb);
+    setVal(comp, "F12", pg1);
+    setVal(comp, "H12", pg2);
+    setVal(comp, "A20", tal || "");
+
+    const areas = {
+      "21 No. P.A. Form": "A1:J36",
+      "Bill": "A1:G21",
+      "COMP-14MU NAN": "A1:H21"
+    };
+    await writeAndRespond(req, res, wb, Object.assign({}, d, { type: "CC" }), "BILL_CC", areas, "bill_cc");
+  } catch (err) {
+    res.status(500).json({ ok: false, error: String(err.message || err) });
+  }
+});
+
 app.post("/api/mb/paver", async (req, res) => {
   try {
     const d = req.body || {};
