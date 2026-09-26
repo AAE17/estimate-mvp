@@ -463,6 +463,20 @@
       width:100%;max-width:240px;background:#fff !important;color:#0f172a !important;
       border:1px solid #cbd5e1;border-radius:10px;padding:8px 10px;color-scheme:light
     }
+
+    .letter-top{display:grid;grid-template-columns:minmax(140px,1fr) minmax(110px,0.8fr) minmax(140px,1fr) minmax(160px,1.3fr);gap:8px;margin-bottom:12px;align-items:end}
+    .letter-top .field{min-width:0}
+    .letter-top .field label{font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .letter-top .field input{width:100%;min-width:0;height:40px;box-sizing:border-box}
+    @media(max-width:720px){ .letter-top{grid-template-columns:1fr 1fr} }
+
+    #letterDate,#letterPatraDate{
+      width:100%;max-width:none;height:40px;
+      background:#fff !important;color:#0f172a !important;
+      border:1px solid #cbd5e1;border-radius:10px;padding:8px 10px;color-scheme:light
+    }
+    .ltr-row{grid-template-columns:24px 28px 1fr 150px 140px auto}
+    .ltr-no{font-weight:700;color:#334155;text-align:center}
 </style>
 </head>
 <body>
@@ -861,17 +875,11 @@
     
     <section id="s-letter" class="card hidden">
       <h2 style="margin:0 0 10px">ફોરવર્ડિંગ લેટર</h2>
-      <div class="field" style="max-width:240px;margin:0 0 12px">
-        <label>1. બિલ બન્યાની તારીખ</label>
-        <input type="date" id="letterDate" onchange="renderLetterBills()">
-      </div>
-      <div class="bill-r2 span2" style="margin-bottom:12px">
-        <div class="field"><label>2. વશી નંબર</label><input id="letterNo" required></div>
+      <div class="letter-top">
+        <div class="field"><label>બિલની તારીખ</label><input type="date" id="letterDate" onchange="renderLetterBills()"></div>
+        <div class="field"><label>વશી નંબર</label><input id="letterNo" required></div>
         <div class="field"><label>પત્રની તારીખ</label><input type="date" id="letterPatraDate"></div>
-      </div>
-      <div class="field" style="margin-bottom:12px">
-        <label>3. ઓડિટ માટે જિલ્લા પંચાયત કચેરી</label>
-        <input id="letterAudit" placeholder="જિલ્લો લખો">
+        <div class="field"><label>ઓડિટ — જિલ્લા પંચાયત</label><input id="letterAudit" placeholder="જિલ્લો"></div>
       </div>
       <div id="letterList"></div>
       <div class="letter-foot">
@@ -1475,7 +1483,7 @@
     if(!rows.length){ el.innerHTML="<div class='ltr-row'>આ તારીખે બિલ નથી</div>"; el._rows=[]; const c0=document.getElementById("letterCount"); if(c0) c0.textContent=""; return; }
     el.classList.remove("muted");
     el.innerHTML=rows.map(function(b,i){
-      return "<label class='ltr-row'><input type='checkbox' class='letterPick' data-i='"+i+"' checked onchange='letterCountSel()'><div class='ltr-main'><div class='ltr-title'>"+(b.work_name||"કામ")+"</div><div class='ltr-sub'>"+(b.village||"ગામ નથી")+(b.taluka?(" · "+b.taluka):"")+" · MB "+(b.mb_no||"—")+"</div></div><select class='letterOff' data-i='"+i+"' onclick='event.preventDefault()'><option value='rb'>DEE R&amp;B (પં)</option><option value='nani'>DEE નાની સિંચાઈ (પં)</option></select><input class='letterAddr' data-i='"+i+"' placeholder='ઓફિસ એડ્રેસ' onclick='event.preventDefault()'><div class='ltr-amt'>₹ "+Number(b.amounting||0).toLocaleString("en-IN")+"</div></label>";
+      return "<label class='ltr-row'><input type='checkbox' class='letterPick' data-i='"+i+"' checked onchange='letterCountSel()'><div class='ltr-no'>"+(i+1)+"</div><div class='ltr-main'><div class='ltr-title'>"+(b.work_name||"કામ")+"</div><div class='ltr-sub'>"+(b.village||"ગામ નથી")+(b.taluka?(" · "+b.taluka):"")+" · MB "+(b.mb_no||"—")+"</div></div><select class='letterOff' data-i='"+i+"' onclick='event.preventDefault()'><option value='rb'>DEE R&amp;B (પં)</option><option value='nani'>DEE નાની સિંચાઈ (પં)</option></select><input class='letterAddr' data-i='"+i+"' placeholder='ઓફિસ એડ્રેસ' onclick='event.preventDefault()'><div class='ltr-amt'>₹ "+Number(b.amounting||0).toLocaleString("en-IN")+"</div></label>";
     }).join("");
     el._rows=rows;
     letterCountSel();
