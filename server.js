@@ -1451,35 +1451,30 @@ app.post("/api/letter/fwd", async (req, res) => {
   try {
     const d = req.body || {};
     const all = Array.isArray(d.items) ? d.items : [];
-    const rb = Array.isArray(d.rb) ? d.rb : all.filter(function(x){ return x.office !== "nani"; });
-    const nani = Array.isArray(d.nani) ? d.nani : all.filter(function(x){ return x.office === "nani"; });
+    const rb = Array.isArray(d.rb) ? d.rb : all.filter(function (x) { return x.office !== "nani"; });
+    const nani = Array.isArray(d.nani) ? d.nani : all.filter(function (x) { return x.office === "nani"; });
     if (!all.length) return res.status(400).json({ ok: false, error: "no items" });
+    if (!String(d.letter_no || "").trim() || !d.date) {
+      return res.status(400).json({ ok: false, error: "vashi and date required" });
+    }
     const wb = new ExcelJS.Workbook();
     await wb.xlsx.readFile(path.join(__dirname, "skeleton-paver-frwd-letter.xlsx"));
     const dee = wb.getWorksheet("BILL APRROV nana") || wb.worksheets[0];
     const aud = wb.getWorksheet("AANTRIK ODIT nana") || wb.worksheets[1];
-    const naniWs = wb.addWorksheet("DEE Nani Sinchai");
-    dee.eachRow({ includeEmpty: true }, function (row, rn) {
-      row.eachCell({ includeEmpty: true }, function (cell, cn) {
-        const t = naniWs.getCell(rn, cn);
-        t.value = cell.value;
-        if (cell.style) t.style = cell.style;
-      });
-    });
     const taluka = d.taluka || all[0].taluka || "";
     const date = d.date || "";
-    const no = d.letter_no || String(Date.now()).slice(-4);
-    const subdiv = d.subdiv || all[0].subdiv || "";
+    const no = String(d.letter_no || "").trim();
     function set(ws, addr, v) {
       if (!ws) return;
       ws.getCell(addr).value = v;
     }
     function fillDee(ws, items, a7, letterNo) {
+      const first = items[0] || {};
       set(ws, "I1", letterNo);
       set(ws, "I2", taluka);
       set(ws, "H3", date);
       set(ws, "A7", a7);
-      set(ws, "A8", subdiv);
+      set(ws, "A8", first.office_addr || first.subdiv || d.subdiv || "");
       let total = 0;
       const list = (items || []).slice(0, 8);
       list.forEach(function (it, i) {
@@ -1491,16 +1486,41 @@ app.post("/api/letter/fwd", async (req, res) => {
         total += amt;
       });
       const tr = 19 + list.length;
+      set(ws, "A" + tr, "");
       set(ws, "B" + tr, "TOTAL");
       set(ws, "G" + tr, total);
+      // clear leftover skeleton total row
+      set(ws, "A" + (tr + 1), "");
+      set(ws, "B" + (tr + 1), "");
+      set(ws, "G" + (tr + 1), "");
       return total;
     }
-    const noN = (Number(no) || 0) + (rb.length ? 1 : 0);
-    if (rb.length) fillDee(dee, rb, "માર્ગ અને મકાન (પં) પેટા વિભાગ", no);
-    else fillDee(dee, [], "માર્ગ અને મકાન (પં) પેટા વિભાગ", no);
-    fillDee(naniWs, nani, "નાની સિંચાઈ (પં) પેટા વિભાગ", rb.length ? noN : no);
+    const areas = [];
+    if (rb.length) {
+      fillDee(dee, rb, "માર્ગ અને મકાન (પં) પેટા વિભાગ", no);
+      if (dee) dee.name = "DEE R&B";
+      areas.push("A1:I34");
+    } else if (dee) {
+      wb.removeWorksheet(dee.id);
+    }
+    if (nani.length) {
+      let naniWs = wb.getWorksheet("DEE Nani Sinchai");
+      if (!naniWs) {
+        naniWs = wb.addWorksheet("DEE Nani Sinchai");
+        const src = wb.getWorksheet("DEE R&B") || wb.worksheets[0];
+        if (src) {
+          src.eachRow({ includeEmpty: true }, function (row, rn) {
+            row.eachCell({ includeEmpty: true }, function (cell, cn) {
+              naniWs.getCell(rn, cn).value = cell.value;
+            });
+          });
+        }
+      }
+      fillDee(naniWs, nani, "નાની સિંચાઈ (પં) પેટા વિભાગ", no);
+      areas.push("A1:I34");
+    }
     if (aud) {
-      set(aud, "I1", (Number(no) || 0) + 2);
+      set(aud, "I1", no);
       set(aud, "I2", taluka);
       set(aud, "H3", date);
       set(aud, "A8", d.audit_office || "");
@@ -1513,14 +1533,21 @@ app.post("/api/letter/fwd", async (req, res) => {
         set(aud, "G" + r, amt);
         t2 += amt;
       });
-      set(aud, "B" + (20 + Math.min(all.length, 8)), "TOTAL");
-      set(aud, "G" + (20 + Math.min(all.length, 8)), t2);
+      const atr = 20 + Math.min(all.length, 8);
+      set(aud, "B" + atr, "TOTAL");
+      set(aud, "G" + atr, t2);
+      set(aud, "A" + (atr + 1), "");
+      set(aud, "B" + (atr + 1), "");
+      set(aud, "G" + (atr + 1), "");
+      areas.push("A1:I34");
     }
-    return writeAndRespond(req, res, wb, Object.assign({}, d, { output: d.output || "both", village: taluka || "letter" }), "LETTER", ["A1:I34", "A1:I34", "A1:I34"], "letter_fwd");
+    return writeAndRespond(req, res, wb, Object.assign({}, d, { output: d.output || "both", village: taluka || "letter" }), "LETTER", areas.length ? areas : ["A1:I34"], "letter_fwd");
   } catch (e) {
     res.status(500).json({ ok: false, error: String(e.message || e) });
   }
 });
+
+
 
 app.listen(PORT, () => {
   console.log("ParaState MVP on " + PORT);
