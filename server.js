@@ -1460,11 +1460,14 @@ app.post("/api/letter/fwd", async (req, res) => {
     if (!String(d.letter_no || "").trim() || !d.date) {
       return res.status(400).json({ ok: false, error: "vashi and date required" });
     }
+    const fileA = path.join(__dirname, "skeleton-paver-frwd-letter.xlsx");
+    const fileB = path.join(__dirname, "skeleton-letter-3.xlsx");
     const wb = new ExcelJS.Workbook();
-    await wb.xlsx.readFile(path.join(__dirname, "skeleton-paver-frwd-letter.xlsx"));
-    const src = wb.getWorksheet("BILL APRROV nana") || wb.worksheets[0];
-    const aud = wb.getWorksheet("AANTRIK ODIT nana") || wb.worksheets[1];
-    const taluka = String(d.taluka || all[0].taluka || "").trim();
+    await wb.xlsx.readFile(require("fs").existsSync(fileA) ? fileA : fileB);
+    const wsRb = wb.getWorksheet("DEE-R&B") || wb.getWorksheet("DEE R&B");
+    const wsNani = wb.getWorksheet("DEE-Nani Sinchai") || wb.getWorksheet("DEE Nani Sinchai");
+    const wsAud = wb.getWorksheet("Audit") || wb.getWorksheet("AANTRIK ODIT nana");
+    const taluka = String(d.taluka || (all[0] && all[0].taluka) || "").trim();
     const date = d.date || "";
     let no = parseInt(String(d.letter_no).replace(/[^\d]/g, ""), 10);
     if (!no) no = Number(d.letter_no) || 0;
@@ -1480,36 +1483,27 @@ app.post("/api/letter/fwd", async (req, res) => {
       });
       return u;
     }
-    function fillDee(ws, items, a7, letterNo) {
+    function fillDee(ws, items, letterNo) {
+      if (!ws) return;
       const first = items[0] || {};
       set(ws, "I1", letterNo);
       set(ws, "I2", taluka);
       set(ws, "H3", date);
-      set(ws, "A7", a7);
-      set(ws, "A8", first.office_addr || first.subdiv || d.subdiv || "");
-      try { ws.unMergeCells("B19:F19"); } catch (e) {}
-      try { ws.unMergeCells("B20:F20"); } catch (e) {}
-      try { ws.unMergeCells("G19:H19"); } catch (e) {}
-      try { ws.unMergeCells("G20:H20"); } catch (e) {}
-      set(ws, "A19", "");
-      set(ws, "B19", "");
-      set(ws, "G19", "");
-      set(ws, "B20", "");
-      set(ws, "G20", "");
+      if (first.office_addr || first.subdiv || d.subdiv) {
+        set(ws, "A8", first.office_addr || first.subdiv || d.subdiv);
+      }
       const list = (items || []).slice(0, 8);
       let total = 0;
       list.forEach(function (it, i) {
         const r = 19 + i;
         set(ws, "A" + r, i + 1);
         set(ws, "B" + r, it.work_name || "");
-        const amt = Number(it.amounting || 0);
-        set(ws, "G" + r, amt);
-        total += amt;
+        set(ws, "G" + r, Number(it.amounting || 0));
+        total += Number(it.amounting || 0);
       });
       const tr = 19 + list.length;
       set(ws, "A" + tr, "");
-      set(ws, "B" + tr, "");
-      set(ws, "F" + tr, "TOTAL");
+      set(ws, "B" + tr, "TOTAL");
       set(ws, "G" + tr, total);
       const mbs = uniqMb(items);
       set(ws, "D28", mbs[0] || "");
@@ -1518,83 +1512,63 @@ app.post("/api/letter/fwd", async (req, res) => {
       set(ws, "G28", mbs[3] || "");
       set(ws, "F33", taluka);
     }
-    function cloneDee(name) {
-      const ns = wb.addWorksheet(name);
-      src.eachRow({ includeEmpty: true }, function (row, rn) {
-        row.eachCell({ includeEmpty: true }, function (cell, cn) {
-          const t = ns.getCell(rn, cn);
-          t.value = cell.value;
-        });
-      });
-      return ns;
-    }
-    const made = [];
-    if (rb.length) {
-      src.name = "DEE R&B";
-      fillDee(src, rb, "માર્ગ અને મકાન (પં) પેટા વિભાગ", no);
-      made.push(src);
-      no += 1;
-    } else {
-      wb.removeWorksheet(src.id);
-    }
-    if (nani.length) {
-      const nws = cloneDee("DEE Nani Sinchai");
-      fillDee(nws, nani, "નાની સિંચાઈ (પં) પેટા વિભાગ", no);
-      made.push(nws);
-      no += 1;
-    }
-    if (aud) {
-      set(aud, "I1", no);
-      set(aud, "I2", taluka);
-      set(aud, "H3", date);
-      set(aud, "A8", d.audit_office || "");
-      try { aud.unMergeCells("B20:F20"); } catch (e) {}
-      try { aud.unMergeCells("B21:F21"); } catch (e) {}
-      const list = all.slice(0, 8);
-      let t2 = 0;
+    function fillAudit(ws, items, letterNo) {
+      if (!ws) return;
+      set(ws, "I1", letterNo);
+      set(ws, "I2", taluka);
+      set(ws, "H3", date);
+      set(ws, "A8", d.audit_office || "");
+      const list = (items || []).slice(0, 8);
+      let total = 0;
       list.forEach(function (it, i) {
         const r = 20 + i;
-        set(aud, "A" + r, i + 1);
-        set(aud, "B" + r, it.work_name || "");
-        const amt = Number(it.amounting || 0);
-        set(aud, "G" + r, amt);
-        t2 += amt;
+        set(ws, "A" + r, i + 1);
+        set(ws, "B" + r, it.work_name || "");
+        set(ws, "G" + r, Number(it.amounting || 0));
+        total += Number(it.amounting || 0);
       });
-      const atr = 20 + list.length;
-      set(aud, "F" + atr, "TOTAL");
-      set(aud, "G" + atr, t2);
-      set(aud, "B30", "માપ બુક નંબર");
-      set(aud, "D30", uniqMb(all).join(", "));
-      set(aud, "B31", "બીલ-કમ્પ્લીશન સર્ટી ત્રણ નકલમાં");
-      set(aud, "B32", "વર્કફાઈલ 1 નંગ");
-      set(aud, "H35", taluka);
+      const tr = 20 + list.length;
+      set(ws, "B" + tr, "TOTAL");
+      set(ws, "G" + tr, total);
+      set(ws, "B30", "માપ બુક નંબર");
+      set(ws, "D30", uniqMb(items).join(", "));
+      set(ws, "H35", taluka);
     }
+    if (rb.length && wsRb) { fillDee(wsRb, rb, no); no += 1; }
+    else if (wsRb) wb.removeWorksheet(wsRb.id);
+    if (nani.length && wsNani) { fillDee(wsNani, nani, no); no += 1; }
+    else if (wsNani) wb.removeWorksheet(wsNani.id);
+    if (wsAud) fillAudit(wsAud, all, no);
+    const orderNames = ["DEE-R&B", "DEE R&B", "DEE-Nani Sinchai", "DEE Nani Sinchai", "Audit"];
+    if (wb._worksheets) {
+      const map = {};
+      wb.worksheets.forEach(function (w) { map[w.name] = w; });
+      const ordered = [];
+      orderNames.forEach(function (n) {
+        if (map[n] && ordered.indexOf(map[n]) < 0) ordered.push(map[n]);
+      });
+      if (ordered.length) wb._worksheets = [undefined].concat(ordered);
+    }
+    const areaMap = {};
     wb.worksheets.forEach(function (ws) {
+      const area = ws.name === "Audit" ? "A1:I35" : "A1:I33";
       ws.pageSetup.paperSize = 9;
       ws.pageSetup.orientation = "portrait";
       ws.pageSetup.fitToPage = true;
       ws.pageSetup.fitToWidth = 1;
       ws.pageSetup.fitToHeight = 1;
-      ws.pageSetup.printArea = "A1:I34";
-      for (let c = 10; c <= 80; c++) ws.getColumn(c).hidden = true;
+      ws.pageSetup.printArea = area;
+      for (let c = 10; c <= 256; c++) ws.getColumn(c).hidden = true;
+      areaMap[ws.name] = area;
     });
-    const want = ["DEE R&B", "DEE Nani Sinchai", "AANTRIK ODIT nana"].filter(function (n) {
-      return !!wb.getWorksheet(n);
-    });
-    if (wb._worksheets) {
-      const map = {};
-      wb.worksheets.forEach(function (w) { map[w.name] = w; });
-      wb._worksheets = [undefined].concat(want.map(function (n) { return map[n]; }).filter(Boolean));
-    }
-    const areaMap = {};
-    want.forEach(function (n) { areaMap[n] = "A1:I34"; });
     return writeAndRespond(req, res, wb, Object.assign({}, d, { output: d.output || "both", village: taluka || "letter" }), "LETTER", areaMap, "letter_fwd");
   } catch (e) {
     res.status(500).json({ ok: false, error: String(e.message || e) });
   }
 });
 
+
+
 app.listen(PORT, () => {
   console.log("ParaState MVP on " + PORT);
 });
-
