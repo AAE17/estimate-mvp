@@ -1414,13 +1414,15 @@ app.post("/api/bill/cc", async (req, res) => {
     setVal(comp, "C5", tsAmt);
     setVal(comp, "C6", wo);
     setVal(comp, "C7", tsAmt);
+    setVal(comp, "C8", agency);
+    setVal(comp, "F8", gam);
     setVal(comp, "C9", startDate);
     setVal(comp, "C10", measDate);
     setVal(comp, "C11", net);
     setVal(comp, "D12", mb);
     setVal(comp, "F12", pg1);
     setVal(comp, "H12", pg2);
-    setVal(comp, "A20", tal || "");
+    setVal(comp, "A20", talLabel || tal || "");
 
     const areas = {
       "21 No. P.A. Form": "A1:J36",
