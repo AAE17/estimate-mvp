@@ -70,10 +70,13 @@ const PRINT_AREA_PAVER = {
 
 function applyOnePage(wb, areas) {
   const spec = areas || PRINT_AREA;
-  Object.keys(spec).forEach((name) => {
+  const names = Array.isArray(spec)
+    ? wb.worksheets.map(function (w) { return w.name; })
+    : Object.keys(spec);
+  names.forEach((name) => {
     const ws = wb.getWorksheet(name);
     if (!ws) return;
-    const area = spec[name];
+    const area = Array.isArray(spec) ? (spec[0] || "A1:I34") : spec[name];
     const m = area.match(/^([A-Z]+)(\d+):([A-Z]+)(\d+)$/);
     if (!m) return;
     const lastC = colLetterToNum(m[3]);
@@ -1541,7 +1544,16 @@ app.post("/api/letter/fwd", async (req, res) => {
       set(aud, "G" + (atr + 1), "");
       areas.push("A1:I34");
     }
-    return writeAndRespond(req, res, wb, Object.assign({}, d, { output: d.output || "both", village: taluka || "letter" }), "LETTER", areas.length ? areas : ["A1:I34"], "letter_fwd");
+    wb.worksheets.forEach(function (ws) {
+      ws.pageSetup.paperSize = 9;
+      ws.pageSetup.orientation = "portrait";
+      ws.pageSetup.fitToPage = true;
+      ws.pageSetup.fitToWidth = 1;
+      ws.pageSetup.fitToHeight = 1;
+      ws.pageSetup.printArea = "A1:I34";
+      for (let c = 10; c <= 80; c++) ws.getColumn(c).hidden = true;
+    });
+    return writeAndRespond(req, res, wb, Object.assign({}, d, { output: d.output || "both", village: taluka || "letter" }), "LETTER", { "DEE R&B": "A1:I34", "DEE Nani Sinchai": "A1:I34", "AANTRIK ODIT nana": "A1:I34", "BILL APRROV nana": "A1:I34" }, "letter_fwd");
   } catch (e) {
     res.status(500).json({ ok: false, error: String(e.message || e) });
   }
