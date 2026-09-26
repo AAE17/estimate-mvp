@@ -456,6 +456,13 @@
     body.dark #letterDate{background:#fff !important;color:#0f172a !important;color-scheme:light}
     .ltr-row{grid-template-columns:24px 1fr 160px auto}
     .letterOff{border:1px solid #e6eaf0;border-radius:8px;padding:6px 8px;font-size:12px;background:#fff}
+
+    .ltr-row{grid-template-columns:24px 1fr 150px 140px auto;align-items:center}
+    .letterAddr{border:1px solid #e6eaf0;border-radius:8px;padding:6px 8px;font-size:12px;min-width:110px}
+    #letterPatraDate,#letterDate{
+      width:100%;max-width:240px;background:#fff !important;color:#0f172a !important;
+      border:1px solid #cbd5e1;border-radius:10px;padding:8px 10px;color-scheme:light
+    }
 </style>
 </head>
 <body>
@@ -853,19 +860,22 @@
 
     
     <section id="s-letter" class="card hidden">
-      <h2 style="margin:0 0 6px">ફોરવર્ડિંગ લેટર</h2>
+      <h2 style="margin:0 0 10px">ફોરવર્ડિંગ લેટર</h2>
       <div class="field" style="max-width:240px;margin:0 0 12px">
-        <label>1. તારીખ</label>
+        <label>1. બિલ બન્યાની તારીખ</label>
         <input type="date" id="letterDate" onchange="renderLetterBills()">
       </div>
-      <div class="bill-fields" style="margin-bottom:12px">
-        <div class="field"><label>પત્ર નંબર (R&amp;B)</label><input id="letterNo" placeholder="1512"></div>
-        <div class="field"><label>ઓડિટ A8 — જિલ્લા પંચાયત</label><input id="letterAudit"></div>
+      <div class="bill-r2 span2" style="margin-bottom:12px">
+        <div class="field"><label>2. વશી નંબર</label><input id="letterNo" required></div>
+        <div class="field"><label>પત્રની તારીખ</label><input type="date" id="letterPatraDate"></div>
       </div>
-      <p class="muted" id="letterHint">તારીખ પસંદ કરો. પછી દરેક બિલ પર ઓફિસ પસંદ કરો.</p>
+      <div class="field" style="margin-bottom:12px">
+        <label>3. ઓડિટ માટે જિલ્લા પંચાયત કચેરી</label>
+        <input id="letterAudit" placeholder="જિલ્લો લખો">
+      </div>
       <div id="letterList"></div>
       <div class="letter-foot">
-        <span class="muted" id="letterCount"></span>
+        <span class="muted" id="letterCount">0 બિલ પસંદ</span>
         <button type="button" class="btn btn-g" onclick="makeFwdLetter()">પત્ર બનાવો</button>
       </div>
     </section>
@@ -1465,11 +1475,16 @@
     if(!rows.length){ el.innerHTML="<div class='ltr-row'>આ તારીખે બિલ નથી</div>"; el._rows=[]; const c0=document.getElementById("letterCount"); if(c0) c0.textContent=""; return; }
     el.classList.remove("muted");
     el.innerHTML=rows.map(function(b,i){
-      return "<div class='ltr-row'><input type='checkbox' class='letterPick' data-i='"+i+"' checked><div class='ltr-main'><div class='ltr-title'>"+(b.work_name||"કામ")+"</div><div class='ltr-sub'>"+(b.village||"ગામ નથી")+(b.taluka?(" · "+b.taluka):"")+" · MB "+(b.mb_no||"—")+"</div></div><select class='letterOff' data-i='"+i+"'><option value='rb'>DEE R&amp;B (પં)</option><option value='nani'>DEE નાની સિંચાઈ (પં)</option></select><div class='ltr-amt'>₹ "+Number(b.amounting||0).toLocaleString("en-IN")+"</div></div>";
+      return "<label class='ltr-row'><input type='checkbox' class='letterPick' data-i='"+i+"' checked onchange='letterCountSel()'><div class='ltr-main'><div class='ltr-title'>"+(b.work_name||"કામ")+"</div><div class='ltr-sub'>"+(b.village||"ગામ નથી")+(b.taluka?(" · "+b.taluka):"")+" · MB "+(b.mb_no||"—")+"</div></div><select class='letterOff' data-i='"+i+"' onclick='event.preventDefault()'><option value='rb'>DEE R&amp;B (પં)</option><option value='nani'>DEE નાની સિંચાઈ (પં)</option></select><input class='letterAddr' data-i='"+i+"' placeholder='ઓફિસ એડ્રેસ' onclick='event.preventDefault()'><div class='ltr-amt'>₹ "+Number(b.amounting||0).toLocaleString("en-IN")+"</div></label>";
     }).join("");
     el._rows=rows;
+    letterCountSel();
+  }
+  function letterCountSel(){
+    const el=document.getElementById("letterList");
+    const n=el?el.querySelectorAll(".letterPick:checked").length:0;
     const c=document.getElementById("letterCount");
-    if(c) c.textContent=rows.length+" બિલ પસંદ";
+    if(c) c.textContent=n+" બિલ પસંદ";
   }
   async function makeFwdLetter(){
     const el=document.getElementById("letterList");
@@ -1478,14 +1493,20 @@
     (el?el.querySelectorAll(".letterPick:checked"):[]).forEach(function(c){
       const it=Object.assign({}, rows[+c.dataset.i]);
       const off=el.querySelector('.letterOff[data-i="'+c.dataset.i+'"]');
+      const addr=el.querySelector('.letterAddr[data-i="'+c.dataset.i+'"]');
       it.office=off?off.value:"rb";
+      it.office_addr=addr?addr.value.trim():"";
       picks.push(it);
     });
     if(!picks.length){ alert("કામ પસંદ કરો"); return; }
+    const vashi=(document.getElementById("letterNo")||{}).value||"";
+    if(!vashi.trim()){ alert("વશી નંબર ફરજિયાત"); return; }
+    const pdate=(document.getElementById("letterPatraDate")||{}).value||"";
+    if(!pdate){ alert("પત્રની તારીખ ફરજિયાત"); return; }
     const ds=(document.getElementById("letterDate")||{}).value||"";
-    if(!ds){ alert("તારીખ પસંદ કરો"); return; }
-    const parts=ds.split("-");
-    const dateTxt=parts.length===3?(parts[2]+"-"+parts[1]+"-"+parts[0]+"."):ds;
+    if(!ds){ alert("બિલની તારીખ પસંદ કરો"); return; }
+    const parts=pdate.split("-");
+    const dateTxt=parts.length===3?(parts[2]+"-"+parts[1]+"-"+parts[0]+"."):pdate;
     const rb=picks.filter(function(x){return x.office!=="nani";});
     const nani=picks.filter(function(x){return x.office==="nani";});
     try{
@@ -1493,7 +1514,7 @@
       const base=(typeof API!=="undefined"?API:"");
       const res=await fetch(base+"/api/letter/fwd",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
         output:"both",
-        letter_no:(document.getElementById("letterNo")||{}).value||"",
+        letter_no:vashi.trim(),
         date:dateTxt,
         taluka:picks[0].taluka||"",
         subdiv:picks[0].subdiv||"",
