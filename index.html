@@ -477,6 +477,23 @@
     }
     .ltr-row{grid-template-columns:24px 28px 1fr 150px 140px auto}
     .ltr-no{font-weight:700;color:#334155;text-align:center}
+
+    .letter-cal{position:relative}
+    .letter-cal input[type=date]{
+      position:absolute;opacity:0;width:36px;height:36px;pointer-events:none
+    }
+    .cal-btn{
+      width:40px;height:40px;border:1px solid #cbd5e1;border-radius:10px;
+      background:#fff;cursor:pointer;font-size:18px;line-height:1
+    }
+    .cal-view{margin-left:8px;font-size:13px;color:#334155}
+
+    .letter-rest.hidden{display:none}
+    .cal-row{display:flex;align-items:center;gap:8px}
+    .letter-top{grid-template-columns:minmax(120px,0.8fr) minmax(140px,1fr) minmax(180px,1.3fr)}
+    .letter-top input[type=text], .letter-top input:not([type=date]){
+      height:40px;border:1px solid #cbd5e1;border-radius:10px;padding:8px 10px;background:#fff
+    }
 </style>
 </head>
 <body>
@@ -822,7 +839,7 @@
       </div>
       <div class="field span2" id="billWorkWrap"><label>1. કામનું નામ</label><input id="billWork" oninput="liveBill()"></div>
       <div class="field"><label>2. પ્રકાર</label>
-        <select id="billType" onchange="liveBill()"><option value="paver">Paver Block</option><option value="cc">CC Road</option></select>
+        <select id="billType" onchange="syncBillQtyLabels();liveBill()"><option value="paver">Paver Block</option><option value="cc">CC Road</option></select>
       </div>
       <div class="field"><label>Grant Head</label>
         <select id="billGrant" onchange="onBillGrant();liveBill()"><option value="">— પસંદ કરો —</option></select>
@@ -853,12 +870,14 @@
       <div class="field"><label>પેજ સુધી</label><input id="billPg2"></div>
       <div class="span2 bill-qty-live">
         <div class="bill-qty">
-          <div class="field"><label>1. Excavation — Cmt</label><input id="billQ1" type="number" step="0.01" oninput="liveBill()"></div>
-          <div class="field"><label>2. Binding material — Cmt</label><input id="billQ2" type="number" step="0.01" oninput="liveBill()"></div>
-          <div class="field"><label>3. Paver Block — Smt</label><input id="billQ3" type="number" step="0.01" oninput="liveBill()"></div>
-          <div class="field"><label>4. Vata — Rmt</label><input id="billQ4" type="number" step="0.01" oninput="liveBill()"></div>
-          <div class="field"><label>5. Testing Charges — Job</label><input id="billQ5" type="number" step="1" oninput="liveBill()"></div>
-          <div class="field"><label>6. Name Plate — Job</label><input id="billQ6" type="number" step="1" oninput="liveBill()"></div>
+          <div class="field"><label id="lq1">1. Excavation — Cmt</label><input id="billQ1" type="number" step="0.01" oninput="onBillQty()"></div>
+          <div class="field"><label id="lq2">2. Binding material — Cmt</label><input id="billQ2" type="number" step="0.01" oninput="onBillQty()"></div>
+          <div class="field"><label id="lq3">3. Paver Block — Smt</label><input id="billQ3" type="number" step="0.01" oninput="onBillQty()"></div>
+          <div class="field"><label id="lq4">4. Vata — Rmt</label><input id="billQ4" type="number" step="0.01" oninput="onBillQty()"></div>
+          <div class="field"><label id="lq5">5. Testing Charges — Job</label><input id="billQ5" type="number" step="1" oninput="onBillQty()"></div>
+          <div class="field"><label id="lq6">6. Name Plate — Job</label><input id="billQ6" type="number" step="1" oninput="onBillQty()"></div>
+          <div class="field hidden" id="wrapQ7"><label id="lq7">7. Testing — Job</label><input id="billQ7" type="number" step="1" oninput="liveBill()"></div>
+          <div class="field hidden" id="wrapQ8"><label id="lq8">8. Name plate — Job</label><input id="billQ8" type="number" step="1" oninput="liveBill()"></div>
         </div>
         <div id="liveBillBox" class="card" style="background:#fff;color:#111;min-height:220px"></div>
       </div>
@@ -875,16 +894,33 @@
     
     <section id="s-letter" class="card hidden">
       <h2 style="margin:0 0 10px">ફોરવર્ડિંગ લેટર</h2>
-      <div class="letter-top">
-        <div class="field"><label>બિલની તારીખ</label><input type="date" id="letterDate" onchange="renderLetterBills()"></div>
-        <div class="field"><label>વશી નંબર</label><input id="letterNo" required></div>
-        <div class="field"><label>પત્રની તારીખ</label><input type="date" id="letterPatraDate"></div>
-        <div class="field"><label>ઓડિટ — જિલ્લા પંચાયત</label><input id="letterAudit" placeholder="જિલ્લો"></div>
+      <div class="letter-step1">
+        <div class="field letter-cal">
+          <label>પહેલાં બિલની તારીખ પસંદ કરો</label>
+          <div class="cal-row">
+            <button type="button" class="cal-btn" onclick="document.getElementById('letterDate').showPicker?document.getElementById('letterDate').showPicker():document.getElementById('letterDate').click()">📅</button>
+            <input type="date" id="letterDate" onchange="onLetterDate()">
+            <span id="letterDateView" class="cal-view"></span>
+          </div>
+        </div>
       </div>
-      <div id="letterList"></div>
-      <div class="letter-foot">
-        <span class="muted" id="letterCount">0 બિલ પસંદ</span>
-        <button type="button" class="btn btn-g" onclick="makeFwdLetter()">પત્ર બનાવો</button>
+      <div id="letterRest" class="letter-rest hidden">
+        <div class="letter-top">
+          <div class="field"><label>વશી નંબર</label><input id="letterNo" required placeholder="501"></div>
+          <div class="field letter-cal"><label>પત્રની તારીખ</label>
+            <div class="cal-row">
+              <button type="button" class="cal-btn" onclick="document.getElementById('letterPatraDate').showPicker?document.getElementById('letterPatraDate').showPicker():document.getElementById('letterPatraDate').click()">📅</button>
+              <input type="date" id="letterPatraDate" onchange="var e=document.getElementById('letterPatraView');if(e)e.textContent=this.value;">
+              <span id="letterPatraView" class="cal-view"></span>
+            </div>
+          </div>
+          <div class="field"><label>ઓડિટ — જિલ્લા પંચાયત</label><input id="letterAudit" placeholder="જિલ્લો"></div>
+        </div>
+        <div id="letterList"></div>
+        <div class="letter-foot">
+          <span class="muted" id="letterCount">0 બિલ પસંદ</span>
+          <button type="button" class="btn btn-g" onclick="makeFwdLetter()">પત્ર બનાવો</button>
+        </div>
       </div>
     </section>
 
@@ -1457,6 +1493,10 @@
   }
   function billQtyFromLW(){
     const g=function(id,fb){ const v=parseFloat((document.getElementById(id)||{}).value); return isNaN(v)?fb:v; };
+    if(isCcBill()){
+      const q2=g("billQ2",0), q3=g("billQ3",0);
+      return {box:g("billQ1",0),metal:q2,murum:q3,spreadM:g("billQ4",q2),spreadU:g("billQ5",q3),cc:g("billQ6",0),test:g("billQ7",1),plate:g("billQ8",0)};
+    }
     return {box:g("billQ1",0),murum:g("billQ2",0),paver:g("billQ3",0),vata:g("billQ4",0),test:g("billQ5",1),plate:g("billQ6",0)};
   }
 
@@ -1487,6 +1527,14 @@
     }).join("");
     el._rows=rows;
     letterCountSel();
+  }
+  function onLetterDate(){
+    const ds=(document.getElementById("letterDate")||{}).value||"";
+    const view=document.getElementById("letterDateView");
+    if(view) view.textContent=ds;
+    const rest=document.getElementById("letterRest");
+    if(rest) rest.classList.toggle("hidden", !ds);
+    if(ds) renderLetterBills();
   }
   function letterCountSel(){
     const el=document.getElementById("letterList");
@@ -1538,6 +1586,29 @@
     }catch(e){ alert("પત્ર ભૂલ: "+e.message); }
     finally{ if(typeof setBusy==="function") setBusy(false); }
   }
+    function isCcBill(){ return ((document.getElementById("billType")||{}).value||"") === "cc"; }
+  function syncBillQtyLabels(){
+    const cc=isCcBill();
+    const map=cc
+      ?[["1. Box cutting — Cmt"],["2. Metal 40-63 — Cmt"],["3. Murrum — Cmt"],["4. Spreading metal — Cmt"],["5. Spreading murrum — Cmt"],["6. CC 1:2:4 — Cmt"],["7. Testing — Job"],["8. Name plate — Job"]]
+      :[["1. Excavation — Cmt"],["2. Binding material — Cmt"],["3. Paver Block — Smt"],["4. Vata — Rmt"],["5. Testing Charges — Job"],["6. Name Plate — Job"]];
+    map.forEach(function(lab,i){ const el=document.getElementById("lq"+(i+1)); if(el) el.textContent=lab[0]; });
+    const w7=document.getElementById("wrapQ7"), w8=document.getElementById("wrapQ8");
+    if(w7) w7.classList.toggle("hidden", !cc);
+    if(w8) w8.classList.toggle("hidden", !cc);
+    onBillQty();
+  }
+  function onBillQty(){
+    if(isCcBill()){
+      const q2=document.getElementById("billQ2");
+      const q3=document.getElementById("billQ3");
+      const q4=document.getElementById("billQ4");
+      const q5=document.getElementById("billQ5");
+      if(q4 && q2) q4.value=q2.value;
+      if(q5 && q3) q5.value=q3.value;
+    }
+    liveBill();
+  }
   function liveBill(){
     const box=document.getElementById("liveBillBox");
     if(!box) return;
@@ -1546,7 +1617,9 @@
     const tal=(document.getElementById("billTal")||{}).value||"—";
     const no=(document.getElementById("billNo")||{}).value||"—";
     const q=billQtyFromLW();
-    const rows=[["1 Excavation",q.box,156.56],["2 Binding",q.murum,210.42],["3 Paver",q.paver,740.51],["4 Vata",q.vata,23.68],["5 Testing",q.test,608],["6 Name plate",q.plate,306.14]];
+    const rows=isCcBill()
+      ?[["1 Box",q.box,158.12],["2 Metal",q.metal,684.6],["3 Murrum",q.murum,173.51],["4 Spread M",q.spreadM,249.75],["5 Spread μ",q.spreadU,147.47],["6 CC",q.cc,4915.01],["7 Test",q.test,2656],["8 Plate",q.plate,306.14]]
+      :[["1 Excavation",q.box,156.56],["2 Binding",q.murum,210.42],["3 Paver",q.paver,740.51],["4 Vata",q.vata,23.68],["5 Testing",q.test,608],["6 Name plate",q.plate,306.14]];
     let sub=0,h="<b>બિલ — લાઈવ</b>";
     rows.forEach(function(r){ const amt=Number(r[1])*r[2]; sub+=amt; h+="<div class='mini'><span>"+r[0]+"</span><b>"+Number(r[1]).toFixed(2)+" → ₹ "+Math.round(amt)+"</b></div>"; });
     const gst=sub*0.18, tot=Math.floor(sub+gst);
@@ -1573,7 +1646,10 @@
       if(typeof setBusy==="function") setBusy(true);
       document.querySelectorAll("#s-bill .dl").forEach(function(b){ b.disabled=true; });
       const base=(typeof API!=="undefined"?API:"");
-      const res=await fetch(base+"/api/bill/paver",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+            body.type=isCcBill()?"CC":"Paver";
+      body.qty=isCcBill()?{box:q.box,metal:q.metal,murum:q.murum,spread_metal:q.spreadM,spread_mur:q.spreadU,cc:q.cc,test:q.test,plate:q.plate}:q;
+      const url=base+(isCcBill()?"/api/bill/cc":"/api/bill/paver");
+      const res=await fetch(url,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
       const data=await res.json();
       if(!data.ok) throw new Error(data.error||"fail");
       try{
