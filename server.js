@@ -1450,51 +1450,73 @@ const PORT = process.env.PORT || 3000;
 app.post("/api/letter/fwd", async (req, res) => {
   try {
     const d = req.body || {};
-    const items = Array.isArray(d.items) ? d.items : [];
-    if (!items.length) return res.status(400).json({ ok: false, error: "no items" });
+    const all = Array.isArray(d.items) ? d.items : [];
+    const rb = Array.isArray(d.rb) ? d.rb : all.filter(function(x){ return x.office !== "nani"; });
+    const nani = Array.isArray(d.nani) ? d.nani : all.filter(function(x){ return x.office === "nani"; });
+    if (!all.length) return res.status(400).json({ ok: false, error: "no items" });
     const wb = new ExcelJS.Workbook();
     await wb.xlsx.readFile(path.join(__dirname, "skeleton-paver-frwd-letter.xlsx"));
     const dee = wb.getWorksheet("BILL APRROV nana") || wb.worksheets[0];
     const aud = wb.getWorksheet("AANTRIK ODIT nana") || wb.worksheets[1];
-    const taluka = d.taluka || items[0].taluka || "";
+    const naniWs = wb.addWorksheet("DEE Nani Sinchai");
+    dee.eachRow({ includeEmpty: true }, function (row, rn) {
+      row.eachCell({ includeEmpty: true }, function (cell, cn) {
+        const t = naniWs.getCell(rn, cn);
+        t.value = cell.value;
+        if (cell.style) t.style = cell.style;
+      });
+    });
+    const taluka = d.taluka || all[0].taluka || "";
     const date = d.date || "";
     const no = d.letter_no || String(Date.now()).slice(-4);
+    const subdiv = d.subdiv || all[0].subdiv || "";
     function set(ws, addr, v) {
       if (!ws) return;
-      const c = ws.getCell(addr);
-      c.value = v;
+      ws.getCell(addr).value = v;
     }
-    set(dee, "I1", no);
-    set(dee, "I2", taluka);
-    set(dee, "H3", date);
-    set(dee, "A8", d.subdiv || items[0].subdiv || "");
-    set(aud, "A8", d.audit_office || "");
-    let total = 0;
-    items.slice(0, 8).forEach(function (it, i) {
-      const r = 19 + i;
-      set(dee, "A" + r, i + 1);
-      set(dee, "B" + r, (it.work_name || "") + (it.mb_no ? ("  (MB "+it.mb_no+")") : ""));
-      const amt = Number(it.amounting || 0);
-      set(dee, "G" + r, amt);
-      total += amt;
-    });
-    const tr = 19 + Math.min(items.length, 8);
-    set(dee, "B" + tr, "TOTAL");
-    set(dee, "G" + tr, total);
+    function fillDee(ws, items, a7, letterNo) {
+      set(ws, "I1", letterNo);
+      set(ws, "I2", taluka);
+      set(ws, "H3", date);
+      set(ws, "A7", a7);
+      set(ws, "A8", subdiv);
+      let total = 0;
+      const list = (items || []).slice(0, 8);
+      list.forEach(function (it, i) {
+        const r = 19 + i;
+        set(ws, "A" + r, i + 1);
+        set(ws, "B" + r, (it.work_name || "") + (it.mb_no ? ("  (MB " + it.mb_no + ")") : ""));
+        const amt = Number(it.amounting || 0);
+        set(ws, "G" + r, amt);
+        total += amt;
+      });
+      const tr = 19 + list.length;
+      set(ws, "B" + tr, "TOTAL");
+      set(ws, "G" + tr, total);
+      return total;
+    }
+    const noN = (Number(no) || 0) + (rb.length ? 1 : 0);
+    if (rb.length) fillDee(dee, rb, "માર્ગ અને મકાન (પં) પેટા વિભાગ", no);
+    else fillDee(dee, [], "માર્ગ અને મકાન (પં) પેટા વિભાગ", no);
+    fillDee(naniWs, nani, "નાની સિંચાઈ (પં) પેટા વિભાગ", rb.length ? noN : no);
     if (aud) {
-      set(aud, "I1", (Number(no) || 0) + 1);
+      set(aud, "I1", (Number(no) || 0) + 2);
       set(aud, "I2", taluka);
       set(aud, "H3", date);
-      items.slice(0, 8).forEach(function (it, i) {
+      set(aud, "A8", d.audit_office || "");
+      let t2 = 0;
+      all.slice(0, 8).forEach(function (it, i) {
         const r = 20 + i;
         set(aud, "A" + r, i + 1);
-        set(aud, "B" + r, (it.work_name || "") + (it.mb_no ? ("  (MB "+it.mb_no+")") : ""));
-        set(aud, "G" + r, Number(it.amounting || 0));
+        set(aud, "B" + r, (it.work_name || "") + (it.mb_no ? ("  (MB " + it.mb_no + ")") : ""));
+        const amt = Number(it.amounting || 0);
+        set(aud, "G" + r, amt);
+        t2 += amt;
       });
-      set(aud, "B" + (20 + Math.min(items.length, 8)), "TOTAL");
-      set(aud, "G" + (20 + Math.min(items.length, 8)), total);
+      set(aud, "B" + (20 + Math.min(all.length, 8)), "TOTAL");
+      set(aud, "G" + (20 + Math.min(all.length, 8)), t2);
     }
-    return writeAndRespond(req, res, wb, Object.assign({}, d, { output: d.output || "both", village: taluka || "letter" }), "LETTER", ["A1:I34", "A1:I34"], "letter_fwd");
+    return writeAndRespond(req, res, wb, Object.assign({}, d, { output: d.output || "both", village: taluka || "letter" }), "LETTER", ["A1:I34", "A1:I34", "A1:I34"], "letter_fwd");
   } catch (e) {
     res.status(500).json({ ok: false, error: String(e.message || e) });
   }
