@@ -1469,8 +1469,25 @@ app.post("/api/letter/fwd", async (req, res) => {
     const wsAud = wb.getWorksheet("Audit") || wb.getWorksheet("AANTRIK ODIT nana");
     const taluka = String(d.taluka || (all[0] && all[0].taluka) || "").trim();
     const date = d.date || "";
-    let no = parseInt(String(d.letter_no).replace(/[^\d]/g, ""), 10);
-    if (!no) no = Number(d.letter_no) || 0;
+        const rawNo = String(d.letter_no || "").trim();
+    let no = parseInt(fromGujDigits(rawNo).replace(/[^0-9]/g, ""), 10);
+    if (!no) no = Number(fromGujDigits(rawNo)) || 0;
+    const useGuj = hasGuj(d.letter_no) || /[૦-૯]/.test(String(d.letter_no||"")) || hasGuj(taluka) || hasGuj(d.audit_office) ||
+      all.some(function (x) { return hasGuj(x.work_name) || hasGuj(x.taluka); });
+        function hasGuj(t) {
+      return /[઀-૿]/.test(String(t || ""));
+    }
+    function toGujDigits(v) {
+      const map = "૦૧૨૩૪૫૬૭૮૯";
+      return String(v == null ? "" : v).replace(/[0-9]/g, function (d) { return map[Number(d)]; });
+    }
+    function fromGujDigits(v) {
+      return String(v == null ? "" : v).replace(/[૦-૯]/g, function (d) { return "0123456789"["૦૧૨૩૪૫૬૭૮૯".indexOf(d)]; });
+    }
+    function showVal(v, guj) {
+      if (v == null || v === "") return v;
+      return guj ? toGujDigits(v) : v;
+    }
     function set(ws, addr, v) {
       if (!ws) return;
       ws.getCell(addr).value = v;
