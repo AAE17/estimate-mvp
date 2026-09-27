@@ -534,11 +534,16 @@
     .est-map{display:grid;grid-template-columns:40px 1fr 1fr 88px;gap:8px;align-items:center;background:#eef2f7;border-radius:14px;padding:8px 10px;margin:6px 0}
     .est-map.head{background:transparent;font-weight:700;font-size:13px;padding:0 10px}
     .est-map input{width:100%;text-align:center;border:0;background:transparent;font-size:16px;padding:8px 4px}
-    .est-seg{display:grid;grid-template-columns:40px minmax(0,1fr) minmax(0,1fr) 36px 36px;gap:8px;align-items:center;margin:6px 0;width:100%}
-    .est-seg.head{font-size:13px;font-weight:600;color:#64748b}
-    .est-seg.head span:nth-child(1){text-align:center}
-    .est-seg span:first-child{text-align:center;font-weight:700}
-    .est-seg input{width:100%;min-width:0;padding:10px 12px;border:1px solid #e2e8f0;border-radius:10px;background:#fff;box-sizing:border-box}
+    #s-form .est-seg{
+      display:flex !important;flex-direction:row !important;flex-wrap:nowrap !important;
+      align-items:center;gap:10px;width:100%;margin:8px 0;
+      background:#eef2f7;border-radius:14px;padding:8px 12px;box-sizing:border-box
+    }
+    #s-form .est-seg.head{background:transparent;padding:0 12px;margin:0}
+    #s-form .est-seg > span:first-child{width:28px;flex:0 0 28px;text-align:center;font-weight:700}
+    #s-form .est-seg input{flex:1 1 0;min-width:0;width:auto !important;display:inline-block !important;
+      text-align:center;border:0;background:transparent;padding:8px 4px;font-size:16px}
+    #s-form .est-seg .pm{flex:0 0 32px}
 </style>
 </head>
 <body>
