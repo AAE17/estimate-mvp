@@ -494,6 +494,7 @@
     .letter-top input[type=text], .letter-top input:not([type=date]){
       height:40px;border:1px solid #cbd5e1;border-radius:10px;padding:8px 10px;background:#fff
     }
+    .bill-vigat{font-weight:700;font-size:15px;padding:6px 0 2px;color:#1e3a5f}
 </style>
 </head>
 <body>
@@ -856,10 +857,11 @@
       <div class="field"><label>DEE પેટા વિભાગ</label><input id="billSub"></div>
       <div class="bill-r2 span2">
         <div class="field"><label>4. AAE નામ</label><input id="billAAE"></div>
-        <div class="field"><label>વર્ક ઓર્ડર</label><input id="billWO"></div>
+        <div class="field"><label>Work order Details & Date:</label><input id="billWO" placeholder="વશી / તારીખ"></div>
       </div>
       <div class="field"><label>5. TS Details</label><input id="billTS"></div>
       <div class="field"><label>TS Amount</label><input id="billTSAmt" type="number" oninput="liveBill()"></div>
+      <div class="field"><label>AS Details & Date:</label><input id="billASDet" placeholder="હુકમ / તારીખ"></div>
       <div class="field"><label>AS Amount</label><input id="billAmt" type="number" oninput="liveBill()"></div>
       <div class="bill-r2 span2">
         <div class="field"><label>6. કામ શરૂ તારીખ</label><input id="billStart"></div>
@@ -868,13 +870,14 @@
       <div class="field"><label>7. MB નંબર</label><input id="billNo" oninput="liveBill()"></div>
       <div class="field"><label>પેજ થી</label><input id="billPg1"></div>
       <div class="field"><label>પેજ સુધી</label><input id="billPg2"></div>
+      <div class="span2"><div class="bill-vigat">બિલની વિગત</div></div>
       <div class="span2 bill-qty-live">
         <div class="bill-qty">
           <div class="field"><label id="lq1">1. Excavation — Cmt</label><input id="billQ1" type="number" step="0.01" oninput="onBillQty()"></div>
           <div class="field"><label id="lq2">2. Binding material — Cmt</label><input id="billQ2" type="number" step="0.01" oninput="onBillQty()"></div>
           <div class="field"><label id="lq3">3. Paver Block — Smt</label><input id="billQ3" type="number" step="0.01" oninput="onBillQty()"></div>
           <div class="field"><label id="lq4">4. Vata — Rmt</label><input id="billQ4" type="number" step="0.01" oninput="onBillQty()"></div>
-          <div class="field"><label id="lq5">5. Testing Charges — Job</label><input id="billQ5" type="number" step="1" oninput="onBillQty()"></div>
+          <div class="field"><label id="lq5">5. Test Reports — Job</label><input id="billQ5" type="number" step="1" oninput="onBillQty()"></div>
           <div class="field"><label id="lq6">6. Name Plate — Job</label><input id="billQ6" type="number" step="1" oninput="onBillQty()"></div>
           <div class="field hidden" id="wrapQ7"><label id="lq7">7. Testing — Job</label><input id="billQ7" type="number" step="1" oninput="liveBill()"></div>
           <div class="field hidden" id="wrapQ8"><label id="lq8">8. Name plate — Job</label><input id="billQ8" type="number" step="1" oninput="liveBill()"></div>
@@ -1617,8 +1620,8 @@
   function syncBillQtyLabels(){
     const cc=isCcBill();
     const map=cc
-      ?[["1. Box cutting — Cmt"],["2. Metal 40-63 — Cmt"],["3. Murrum — Cmt"],["4. Spreading metal — Cmt"],["5. Spreading murrum — Cmt"],["6. CC 1:2:4 — Cmt"],["7. Testing — Job"],["8. Name plate — Job"]]
-      :[["1. Excavation — Cmt"],["2. Binding material — Cmt"],["3. Paver Block — Smt"],["4. Vata — Rmt"],["5. Testing Charges — Job"],["6. Name Plate — Job"]];
+      ?[["1. Box cutting — Cmt"],["2. Metal 40-63 — Cmt"],["3. Murrum — Cmt"],["4. Spreading metal — Cmt"],["5. Spreading murrum — Cmt"],["6. CC 1:2:4 — Cmt"],["7. Test Reports — Job"],["8. Name plate — Job"]]
+      :[["1. Excavation — Cmt"],["2. Binding material — Cmt"],["3. Paver Block — Smt"],["4. Vata — Rmt"],["5. Test Reports — Job"],["6. Name Plate — Job"]];
     map.forEach(function(lab,i){ const el=document.getElementById("lq"+(i+1)); if(el) el.textContent=lab[0]; });
     const w7=document.getElementById("wrapQ7"), w8=document.getElementById("wrapQ8");
     if(w7) w7.classList.toggle("hidden", !cc);
@@ -1662,7 +1665,7 @@
       work_name:val("billWork"), fund_head:billFundHead(), grant:billFundHead(),
       village:val("billGam"), gam:val("billGam"), taluka:val("billTal"),
       subdiv:val("billSub"), subdiv_address:val("billSub"),
-      work_order:val("billWO"), as_details:val("billWO"),
+      work_order:val("billWO"), as_details:val("billASDet"),
       ts_details:val("billTS"), amounting:Number(val("billAmt")||0), ts_amount:Number(val("billTSAmt")||val("billAmt")||0),
       start_date:val("billStart"), meas_date:val("billDate"), date:val("billDate"),
       mb_no:val("billNo"), page_from:val("billPg1"), page_to:val("billPg2"),
