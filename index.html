@@ -558,6 +558,8 @@
     #s-form table.est-lw td{background:#eef2f7}
     #s-form .pm{background:#fff;border:1px solid #e2e8f0;color:#0f172a}
     #s-form .pm.add{background:#1e3a5f;border-color:#1e3a5f;color:#fff}
+#ongBox .site-l3{display:grid;grid-template-columns:1fr 1.2fr .8fr;gap:8px 12px;align-items:end}
+#siteList{display:none!important}
 </style>
 </head>
 <body>
@@ -2609,7 +2611,7 @@ function onLetterDate(){
     if (done) done.classList.toggle("hidden", which!=="done");
     if (which==="new") { if (ong) ong.classList.add("hidden"); if (done) done.classList.add("hidden"); openDiary(null); }
     else if (wrap && which!=="new") { /* keep diary if already open */ }
-    if (which==="ong") renderSiteList();
+    if (which==="ong") { renderSiteList(); openDiary(null); }
     if (which==="done") renderDoneList();
   }
   function renderDoneList(){
