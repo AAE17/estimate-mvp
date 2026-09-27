@@ -1457,7 +1457,10 @@ app.post("/api/bill/cc", async (req, res) => {
   }
 });
 
-app.post("/api/mb/paver", async (req, res) => {
+
+app.post("/api/mb/paver", (req, res) => { req.url = "/api/mb"; req.body = Object.assign({}, req.body||{}, { type: "paver" }); return app._router.handle(req, res, function(){}); });
+
+app.post("/api/mb", async (req, res) => {
   try {
     const d = req.body || {};
     function mix(v) {
@@ -1465,103 +1468,63 @@ app.post("/api/mb/paver", async (req, res) => {
       if (!parts.length) return Number(v) || 0;
       return parts.reduce(function (a, b) { return a + b; }, 0) / parts.length;
     }
+    const type = String(d.type || "paver").toLowerCase().indexOf("cc") >= 0 ? "cc" : "paver";
     const rows = Array.isArray(d.rows) ? d.rows : [];
-    const excD = Number(d.exc_d || 0.2);
-    const dustD = Number(d.dust_d || 0.1);
-    let area = 0, excav = 0, vata = 0, dust = 0;
+    const file = path.join(__dirname, "skeleton-mb.xlsx");
+    const fileOld = path.join(__dirname, "skeleton-mb-paver.xlsx");
+    const wb = new ExcelJS.Workbook();
+    await wb.xlsx.readFile(require("fs").existsSync(file) ? file : fileOld);
+    const ws = type === "cc"
+      ? (wb.getWorksheet("mb-cc road") || wb.getWorksheet("mb-cc") || wb.worksheets[1])
+      : (wb.getWorksheet("mb-paver") || wb.worksheets[0]);
+    if (!ws) throw new Error("mb sheet missing");
+
     const segs = [];
-    rows.forEach((r) => {
+    rows.forEach(function (r) {
       const L = mix(r.l || r.L);
       const W = mix(r.w || r.W);
       if (!L && !W) return;
-      segs.push({ L, W, dep: excD, vol: L * W * excD, smt: L * W, dust: L * W * dustD });
-      area += L * W;
-      excav += L * W * excD;
-      dust += L * W * dustD;
-      vata += 2 * L + 2 * W;
+      segs.push({ L, W, d: mix(r.d || r.D) });
     });
-    const H11 = dust / 1.5;
-    const I11 = Math.floor(H11 + 1e-9);
-    const collect = I11 * 1.5;
-    const boxes = I11;
-    const testQ = d.test_qty == null ? 1 : Number(d.test_qty);
-    const plateQ = d.name_plate == null ? 0 : Number(d.name_plate);
-    const items = [
-      ["EXCAVATION", excav, 156.56],
-      ["COLLECTING, CARTING", collect, 210.42],
-      ["BLOCK", area, 740.51],
-      ["VATA", vata, 23.68],
-      ["Test", testQ, 608],
-      ["NAME PLATE", plateQ, 306.14]
-    ];
-    let sub = 0;
-    items.forEach((it) => { it.push(it[1] * it[2]); sub += it[3]; });
-    const gst = sub * 0.18;
-    const total = sub + gst;
-    const est = Number(d.amounting || 0);
-    const net = est - total;
 
-    const wb = new ExcelJS.Workbook();
-    const ws = wb.addWorksheet("MB");
-    ws.getCell("A1").value = d.work_name || "";
-    ws.getCell("A2").value = d.village || "";
-    ws.getCell("D2").value = d.grant || d.taluka || "";
-    ws.getCell("J2").value = d.contractor || "";
-    const heads = ["Item", "Sr", "Qty", "Rate", "Amount"];
-    heads.forEach((h, i) => { ws.getCell(3, i + 1).value = h; });
-    items.forEach((it, i) => {
-      const r = 4 + i;
-      ws.getCell("A" + r).value = it[0];
-      ws.getCell("B" + r).value = i + 1;
-      ws.getCell("C" + r).value = Math.round(it[1] * 10000) / 10000;
-      ws.getCell("D" + r).value = it[2];
-      ws.getCell("E" + r).value = Math.round(it[3] * 100) / 100;
-    });
-    ws.getCell("D10").value = "18% GST";
-    ws.getCell("E10").value = Math.round(gst * 100) / 100;
-    ws.getCell("D11").value = "Total";
-    ws.getCell("E11").value = Math.round(total * 100) / 100;
-    ws.getCell("D12").value = "Est";
-    ws.getCell("E12").value = est;
-    ws.getCell("D13").value = "Net";
-    ws.getCell("E13").value = Math.round(net * 100) / 100;
-    ws.getCell("G3").value = "L";
-    ws.getCell("H3").value = "W";
-    ws.getCell("I3").value = "D";
-    segs.forEach((s, i) => {
-      const r = 4 + i;
-      ws.getCell("G" + r).value = s.L;
-      ws.getCell("H" + r).value = s.W;
-      ws.getCell("I" + r).value = s.dep;
-    });
-    ws.getCell("G16").value = "Boxes";
-    ws.getCell("H16").value = boxes;
-    ws.getCell("G17").value = "Collect Qty";
-    ws.getCell("H17").value = collect;
-
-    const safe = String(d.village || d.work_name || "mb").replace(/[^a-zA-Z0-9._-]+/g, "_").slice(0, 24);
-    const xlsxName = "MB_PAVER_" + safe + "_" + Date.now() + ".xlsx";
-    const xlsxFull = path.join(OUT_DIR, xlsxName);
-    await wb.xlsx.writeFile(xlsxFull);
-    let pdfUrl = null;
-    if (d.output === "pdf" || d.output === "both") {
-      try {
-        await convertWithSoffice(xlsxFull);
-        const pdfName = xlsxName.replace(/\.xlsx$/i, ".pdf");
-        const produced = xlsxFull.replace(/\.xlsx$/i, ".pdf");
-        const pdfFull = path.join(OUT_DIR, pdfName);
-        if (fs.existsSync(produced) && produced !== pdfFull) fs.copyFileSync(produced, pdfFull);
-        if (fs.existsSync(pdfFull)) pdfUrl = "/api/download/" + pdfName;
-      } catch (e) {
-        console.error("mb pdf", e.message);
-      }
+    if (type === "paver") {
+      const excD = Number(d.exc_d || 0.2);
+      const dustD = Number(d.dust_d || 0.1);
+      segs.forEach(function (s, i) {
+        if (i > 11) return;
+        const r = 3 + i;
+        setVal(ws, "G" + r, s.L);
+        setVal(ws, "H" + r, s.W);
+        setVal(ws, "I" + r, excD);
+      });
+      setVal(ws, "C6", Number(d.test_qty == null ? 1 : d.test_qty));
+      setVal(ws, "C7", Number(d.name_plate == null ? 0 : d.name_plate));
+      setVal(ws, "E11", Number(d.amounting || 0));
+    } else {
+      const boxT = Number(d.exc_d || 0.3);
+      const ccT = Number(d.cc_t || d.dust_d || 0.1);
+      segs.forEach(function (s, i) {
+        if (i > 7) return;
+        const r = 3 + i;
+        setVal(ws, "G" + r, s.L);
+        setVal(ws, "H" + r, s.W);
+        setVal(ws, "I" + r, s.d || boxT);
+        setVal(ws, "L" + r, s.L);
+        setVal(ws, "M" + r, s.W);
+        setVal(ws, "N" + r, ccT);
+      });
+      setVal(ws, "C8", Number(d.test_qty == null ? 0 : d.test_qty));
+      setVal(ws, "C9", Number(d.name_plate == null ? 0 : d.name_plate));
+      setVal(ws, "E13", Number(d.amounting || 0));
     }
-    res.json({
-      ok: true,
-      xlsx: "/api/download/" + xlsxName,
-      pdf: pdfUrl,
-      preview: { items, sub, gst, total, est, net, boxes, collect, area, excav, vata }
+
+    const prefix = type === "cc" ? "MB_CC" : "MB_PAVER";
+    const areas = {};
+    areas[ws.name] = type === "cc" ? "A1:P20" : "A1:M32";
+    wb.worksheets.forEach(function (w) {
+      if (w !== ws) w.state = "hidden";
     });
+    await writeAndRespond(req, res, wb, Object.assign({}, d, { output: d.output || "xlsx" }), prefix, areas, "bill_mb");
   } catch (err) {
     res.status(500).json({ ok: false, error: String(err.message || err) });
   }
