@@ -757,10 +757,10 @@
       
 
       <div id="ongBox">
-        <div class="head">
+        <div class="head site-l3">
           <div class="field"><label>ગામ</label><input id="fGam" oninput="renderSiteList()"></div>
-          <div class="field"><label>Grant / કામ</label><input id="fGrant" oninput="renderSiteList()"></div>
-          <div class="field"><label>વર્ષ</label><input id="fYear" placeholder="2026" oninput="renderSiteList()"></div>
+          <div class="field"><label>Grant Head</label><select id="fGrant" onchange="renderSiteList()"><option value="">— Grant Head —</option></select></div>
+          <div class="field"><label>વર્ષ</label><select id="fYear" onchange="renderSiteList()"><option value="">— Year —</option></select></div>
         </div>
         <div id="siteList" class="mini"></div>
       </div>
@@ -780,7 +780,7 @@
               <div class="field"><label>ગામ</label><input id="dGam" oninput="liveMbBill()"></div>
               <div class="field"><label>તાલુકો</label><input id="dTaluka" oninput="liveMbBill()"></div>
             </div>
-            <div class="field"><label>2. કામનું નામ</label><input id="dWork" oninput="liveMbBill()"></div>
+            <div class="field"><label>2. કામનું નામ</label><select id="dWork" onchange="pickSiteWork();liveMbBill()"><option value="">— કામ પસંદ —</option></select></div>
             <div class="head site-l3">
               <div class="field"><label>3. Grant Head</label>
                 <select id="dGrant" onchange="onSiteGrant();liveMbBill()"><option value="">— પસંદ —</option></select>
@@ -1876,7 +1876,7 @@ function onLetterDate(){
   }
   function savePlan(){
     const c=document.getElementById("planPad");
-    const work=(document.getElementById("dWork")||{}).value||"";
+    const work=siteWorkName();
     pushMedia({kind:"plan", ts:new Date().toISOString(), work:work, data:c.toDataURL("image/jpeg",0.55), gps:""});
     alert("સ્કેચ Profileમાં સેવ");
   }
@@ -1922,7 +1922,7 @@ function onLetterDate(){
         gpsEl.textContent = gps || "GPS નથી";
         stamp(reader.result, gps, function(out){
           img.src=out;
-          const work=(document.getElementById("dWork")||{}).value||"";
+          const work=siteWorkName();
           pushMedia({kind:"photo", ts:new Date().toISOString(), work:work, data:out, gps:gps||""});
         });
       }
@@ -2076,7 +2076,7 @@ function onLetterDate(){
     if (th) {
       /* header labels stay in html */
     }
-    if (hd) hd.textContent = paver ? "" : "જાડાઈ";
+    if (hd) hd.textContent = paver ? "" : "C.C. Road Thickness";
     tb.innerHTML="";
     DIARY.forEach((s,i)=>{
       const row=document.createElement("div");
@@ -2253,6 +2253,54 @@ function onLetterDate(){
     if(y && y.options.length<3 && typeof fyYears==="function"){
       fillSelect(y, fyYears(), "— Year —");
     }
+    const fg=document.getElementById("fGrant");
+    const fy=document.getElementById("fYear");
+    if(fg && typeof GRANTS!=="undefined" && fg.options.length<3) fillSelect(fg, GRANTS, "— Grant Head —");
+    if(fy && typeof fyYears==="function" && fy.options.length<3) fillSelect(fy, fyYears(), "— Year —");
+    fillSiteWorkSelect();
+  }
+  function siteWorkName(){
+    const s=document.getElementById("dWork");
+    if(!s) return "";
+    const o=s.options[s.selectedIndex];
+    if(!o) return "";
+    return (o.getAttribute("data-name")||o.textContent||"").split(" · ")[0];
+  }
+  function fillSiteWorkSelect(){
+    const sel=document.getElementById("dWork");
+    if(!sel) return;
+    const keep=sel.value;
+    fetch(API+"/api/db/estimates").then(function(r){return r.json();}).then(function(d){
+      const rec=mergeEstLists(d.items||[]);
+      const opts=['<option value="">— કામ પસંદ —</option>'];
+      rec.slice(0,80).forEach(function(r){
+        const id=String(r.id||r.estimate_id||"");
+        const nm=r.work_name||"—";
+        const gam=r.village||"";
+        opts.push('<option value="'+id.replace(/"/g,"")+'" data-name="'+String(nm).replace(/"/g,"&quot;")+'">'+nm+(gam?(" · "+gam):"")+'</option>');
+      });
+      sel.innerHTML=opts.join("");
+      if(keep) sel.value=keep;
+    }).catch(function(){});
+  }
+  function pickSiteWork(){
+    const sel=document.getElementById("dWork");
+    if(!sel||!sel.value) return;
+    const id=sel.value;
+    fetch(API+"/api/db/estimates").then(function(r){return r.json();}).then(function(d){
+      const rec=mergeEstLists(d.items||[]).find(function(r){return String(r.id||r.estimate_id||"")===id;});
+      if(!rec) return;
+      diaryEst=rec;
+      const set=function(i,v){const e=document.getElementById(i); if(e&&v) e.value=v;};
+      set("dGam", rec.village||rec.gam||"");
+      set("dTaluka", rec.taluka||"");
+      set("dAmtIn", rec.amounting||rec.amount||"");
+      set("dContractor", rec.contractor||"");
+      const typ=(String(rec.type||"").toLowerCase().indexOf("paver")>=0)?"paver":"cc";
+      const dt=document.getElementById("dType"); if(dt) dt.value=typ;
+      applySiteGrant(rec.fund_head||rec.grant||"");
+      renderDiaryRows(); liveMbBill();
+    }).catch(function(){});
   }
   function siteFundHead(){
     let g=(document.getElementById("dGrant")||{}).value||"";
@@ -2307,7 +2355,23 @@ function onLetterDate(){
     diaryEst = est || null;
     wrap.classList.remove("hidden");
     document.getElementById("dDate").value = new Date().toISOString().slice(0,10);
-    document.getElementById("dWork").value = est && est.work_name ? est.work_name : "";
+    (function(){
+      const wsel=document.getElementById("dWork");
+      if(!wsel) return;
+      const want=est && (est.work_name||"");
+      const id=est && String(est.id||est.estimate_id||"");
+      let hit=false;
+      for(let i=0;i<wsel.options.length;i++){
+        if((id && wsel.options[i].value===id) || (want && (wsel.options[i].getAttribute("data-name")||"")===want)){
+          wsel.selectedIndex=i; hit=true; break;
+        }
+      }
+      if(!hit && want){
+        const o=document.createElement("option");
+        o.value=id||want; o.setAttribute("data-name",want); o.textContent=want;
+        wsel.appendChild(o); wsel.value=o.value;
+      }
+    })();
     document.getElementById("dTaluka").value = (est && (est.taluka||"")) || "";
     document.getElementById("dContractor").value = (est && (est.contractor||"")) || "";
     const gamEl=document.getElementById("dGam");
@@ -2406,7 +2470,7 @@ function onLetterDate(){
   }
   function kachuBody(output){
     return {
-      work_name:(document.getElementById("dWork")||{}).value||"",
+      work_name:siteWorkName(),
       village:(document.getElementById("dGam")||{}).value||(diaryEst&&diaryEst.village)||"",
       type: diaryType(),
       contractor:(document.getElementById("dContractor")||{}).value||"",
@@ -2502,7 +2566,7 @@ function onLetterDate(){
   }
   function saveSitePayload(type, estAmt, area, L, W, done){
     const ccT=(function(){let v=0;DIARY.forEach(function(r){v+=Number(r.l||0)*Number(r.w||0)*Number(r.d||0.1);}); return area?v/area:0.1;})();
-    const workNm=(document.getElementById("dWork")||{}).value||"";
+    const workNm=siteWorkName();
     saveSiteMeta(workNm,{
       taluka:(document.getElementById("dTaluka")||{}).value||"",
       grant:(typeof siteFundHead==="function"?siteFundHead():(document.getElementById("dGrant")||{}).value||""),
@@ -2510,7 +2574,7 @@ function onLetterDate(){
       rows:DIARY
     });
     fetch(API+"/api/db/site",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
-      type:type, work_name:(document.getElementById("dWork")||{}).value||"",
+      type:type, work_name:siteWorkName(),
       amounting:estAmt, rows:DIARY, area:area,
       brass: type==="paver" ? area*10.7584/100 : 0,
       bill: type==="paver" ? scanF24("paver", L, W) : scanF24("cc", L, W, ccT),
@@ -2601,8 +2665,10 @@ function onLetterDate(){
         const w=String(r.work_name||"").toLowerCase();
         const y=String(r.ts||"").slice(0,4);
         if (gam && g.indexOf(gam)<0 && w.indexOf(gam)<0) return false;
-        if (gr && w.indexOf(gr)<0 && String(r.taluka||"").toLowerCase().indexOf(gr)<0) return false;
-        if (yr && y.indexOf(yr)<0) return false;
+        const fh=String(r.fund_head||r.grant||"").toLowerCase();
+        if (gr && fh.indexOf(gr)<0 && w.indexOf(gr)<0) return false;
+        const yy=String(r.year||r.ts||"").toLowerCase();
+        if (yr && yy.indexOf(yr.toLowerCase())<0 && y.indexOf(yr)<0) return false;
         return true;
       }).slice(0,30);
       el.innerHTML = rec.length ? rec.map((r,i)=>
@@ -2751,7 +2817,7 @@ function onLetterDate(){
   }
   function savePlan(){
     const c=document.getElementById("planPad");
-    const work=(document.getElementById("dWork")||{}).value||"";
+    const work=siteWorkName();
     pushMedia({kind:"plan", ts:new Date().toISOString(), work:work, data:c.toDataURL("image/jpeg",0.55), gps:""});
     alert("સ્કેચ Profileમાં સેવ");
   }
@@ -2797,7 +2863,7 @@ function onLetterDate(){
         gpsEl.textContent = gps || "GPS નથી";
         stamp(reader.result, gps, function(out){
           img.src=out;
-          const work=(document.getElementById("dWork")||{}).value||"";
+          const work=siteWorkName();
           pushMedia({kind:"photo", ts:new Date().toISOString(), work:work, data:out, gps:gps||""});
         });
       }
@@ -2972,7 +3038,7 @@ function openTijori(){
   }
   function savePlan(){
     const c=document.getElementById("planPad");
-    const work=(document.getElementById("dWork")||{}).value||"";
+    const work=siteWorkName();
     pushMedia({kind:"plan", ts:new Date().toISOString(), work:work, data:c.toDataURL("image/jpeg",0.55), gps:""});
     alert("સ્કેચ Profileમાં સેવ");
   }
@@ -3018,7 +3084,7 @@ function openTijori(){
         gpsEl.textContent = gps || "GPS નથી";
         stamp(reader.result, gps, function(out){
           img.src=out;
-          const work=(document.getElementById("dWork")||{}).value||"";
+          const work=siteWorkName();
           pushMedia({kind:"photo", ts:new Date().toISOString(), work:work, data:out, gps:gps||""});
         });
       }
@@ -3505,7 +3571,7 @@ function startScan(camera) {
   }
   function savePlan(){
     const c=document.getElementById("planPad");
-    const work=(document.getElementById("dWork")||{}).value||"";
+    const work=siteWorkName();
     pushMedia({kind:"plan", ts:new Date().toISOString(), work:work, data:c.toDataURL("image/jpeg",0.55), gps:""});
     alert("સ્કેચ Profileમાં સેવ");
   }
@@ -3551,7 +3617,7 @@ function startScan(camera) {
         gpsEl.textContent = gps || "GPS નથી";
         stamp(reader.result, gps, function(out){
           img.src=out;
-          const work=(document.getElementById("dWork")||{}).value||"";
+          const work=siteWorkName();
           pushMedia({kind:"photo", ts:new Date().toISOString(), work:work, data:out, gps:gps||""});
         });
       }
