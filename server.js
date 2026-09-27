@@ -336,7 +336,9 @@ async function writeAndRespond(req, res, wb, d, prefix, areas, kind) {
       village: d.village, taluka: d.taluka, jilla: d.jilla,
       work_name: d.work_name || "",
       fund_head: d.fund_head || d.grant || "",
-      amounting: Number(d.amounting || d.ts_amount || 0),
+      amounting: Number(d.net || d.amounting || d.ts_amount || 0),
+      net: Number(d.net || 0),
+      day: d.day || new Date().toISOString().slice(0,10),
       length_m: Lm, width_m: Wm, area: areaM,
       brass: (kind === "estimate_paver" || kind === "bill_paver") ? areaM * 10.7584 / 100 : 0,
       prepared_by: d.prepared_by || "",
@@ -601,6 +603,24 @@ app.get("/api/stats", (_req, res) => {
     total, cc, paver, amount, today: todayN, talukas,
     recent: recent.reverse().slice(0, 8)
   });
+});
+
+
+app.get("/api/bills", (req, res) => {
+  try {
+    const day = String(req.query.day || req.query.date || "").slice(0, 10);
+    const file = global.DB_BILL || DB_EST;
+    let rows = dbRead(file, 500).filter(function (r) { return r.kind === "bill" || String(r.kind||"").indexOf("bill")>=0; });
+    if (day) {
+      rows = rows.filter(function (r) {
+        const d = String(r.day || r.ts || "").slice(0, 10);
+        return d === day;
+      });
+    }
+    res.json({ ok: true, bills: rows.slice(-80).reverse() });
+  } catch (e) {
+    res.json({ ok: false, bills: [], error: String(e.message || e) });
+  }
 });
 
 app.get("/api/logs", (_req, res) => {
