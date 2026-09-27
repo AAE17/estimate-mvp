@@ -99,7 +99,7 @@ function applyOnePage(wb, areas) {
     const lastR = Number(m[4]);
 
     ws.pageSetup.paperSize = 9;
-    ws.pageSetup.orientation = "portrait";
+    ws.pageSetup.orientation = lastC > 10 ? "landscape" : "portrait";
     ws.pageSetup.fitToPage = true;
     ws.pageSetup.fitToWidth = 1;
     ws.pageSetup.fitToHeight = 1;
@@ -1513,7 +1513,7 @@ app.post("/api/mb", async (req, res) => {
       return null;
     }
     const ws = type === "cc"
-      ? (findWs(["cc","road"]) || wb.worksheets[1])
+      ? (wb.getWorksheet("mb-cc road") || findWs(["cc","road"]) || wb.worksheets[1])
       : (findWs(["paver"]) || wb.worksheets[0]);
     if (!ws) throw new Error("mb sheet missing: " + wb.worksheets.map(function(w){return w.name;}).join(", "));
 
