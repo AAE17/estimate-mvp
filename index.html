@@ -1499,7 +1499,7 @@
         Object.keys(meta).forEach(function(w){
           const m=meta[w]||{};
           if(m.rows && m.rows.length){
-            raw.unshift({work_name:w, taluka:m.taluka, fund_head:m.grant, contractor:m.contractor, rows:m.rows, amounting:m.amounting||0});
+            raw.unshift({work_name:w, taluka:m.taluka, village:m.village||"", type:m.type||"", fund_head:m.grant, contractor:m.contractor, rows:m.rows, amounting:m.amounting||0, test_qty:m.test_qty, plate:m.plate});
           }
         });
       }
@@ -1569,20 +1569,41 @@
     if(typeof syncBillQtyLabels==="function") syncBillQtyLabels();
     set("billAmt", it.amounting||it.amount||it.ts_amount||"");
     const L=Number(it.length_m||it.L||0), W=Number(it.width_m||it.W||0), area=Number(it.area||0)||(L*W);
+    const meta=metaFor(it.work_name||"");
+    set("billGam", it.village||it.gam||meta.village||(diaryEst&&diaryEst.village)||"");
+    set("billTal", it.taluka || meta.taluka || "");
     if(window.__billMode===2){
-      const rows=it.rows||(metaFor(it.work_name||"").rows)||[];
-      let areaR=0,Lsum=0,Wavg=0;
-      rows.forEach(function(r){ const l=parseFloat(r.l)||0,w=parseFloat(r.w)||0; areaR+=l*w; Lsum+=l; });
-      if(areaR){ set("billQ1",(areaR*0.2).toFixed(2)); set("billQ2",(Math.floor((areaR*0.1)/1.5)*1.5).toFixed(2)); set("billQ3",areaR.toFixed(2)); set("billQ4",(2*Lsum+2*(Lsum?areaR/Lsum:0)).toFixed(2)); }
-      else {
-        set("billQ1", it.box_qty || (area?area*0.2:""));
-        set("billQ2", it.mur_qty || (area?Math.floor((area*0.1)/1.5)*1.5:""));
-        set("billQ3", it.area || area || "");
-        set("billQ4", it.vata || ((L&&W)?(2*L+2*W):""));
+      const rows=it.rows||meta.rows||[];
+      const typ=String((document.getElementById("billType")||{}).value||it.type||"").toLowerCase();
+      const cc=typ.indexOf("cc")>=0;
+      let areaR=0,Lsum=0,box=0,ccVol=0;
+      rows.forEach(function(r){
+        const l=parseFloat(String(r.l||r.L||"").split("+").reduce(function(a,b){return a+(parseFloat(b)||0);},0))||parseFloat(r.l)||0;
+        const w=parseFloat(String(r.w||r.W||"").split("+").reduce(function(a,b){return a+(parseFloat(b)||0);},0))||parseFloat(r.w)||0;
+        const d=parseFloat(r.d||r.D)||0.10;
+        areaR+=l*w; Lsum+=l; box+=l*w*0.30; ccVol+=l*w*d;
+      });
+      const test=it.test_qty!=null?it.test_qty:(meta.test_qty||0);
+      const plate=it.plate!=null?it.plate:(meta.plate||0);
+      if(cc){
+        const metal0=areaR*0.12, metal=metal0+metal0*0.15, metalQty=Math.floor(metal/1.5+1e-9)*1.5;
+        const bindQty=Math.floor((metalQty*0.25)/1.5+1e-9)*1.5;
+        set("billQ1", box.toFixed(2));
+        set("billQ2", metalQty.toFixed(2));
+        set("billQ3", bindQty.toFixed(2));
+        set("billQ4", metalQty.toFixed(2));
+        set("billQ5", bindQty.toFixed(2));
+        set("billQ6", ccVol.toFixed(2));
+        set("billQ7", test);
+        set("billQ8", plate);
+      } else if(areaR){
+        set("billQ1",(areaR*0.2).toFixed(2));
+        set("billQ2",(Math.floor((areaR*0.1)/1.5)*1.5).toFixed(2));
+        set("billQ3",areaR.toFixed(2));
+        set("billQ4",(2*Lsum+2*(Lsum?areaR/Lsum:0)).toFixed(2));
+        set("billQ5", test);
+        set("billQ6", plate);
       }
-      set("billQ5", it.test_qty==null?"":it.test_qty);
-      set("billQ6", it.plate||"");
-      set("billTal", it.taluka || metaFor(it.work_name||"").taluka || "");
     }
     liveBill();
   }
@@ -2579,6 +2600,11 @@ function onLetterDate(){
       taluka:(document.getElementById("dTaluka")||{}).value||"",
       grant:(typeof siteFundHead==="function"?siteFundHead():(document.getElementById("dGrant")||{}).value||""),
       contractor:(document.getElementById("dContractor")||{}).value||"",
+      village:(document.getElementById("dGam")||{}).value||(diaryEst&&(diaryEst.village||diaryEst.gam))||"",
+      type:type,
+      amounting:estAmt,
+      test_qty:Number((document.getElementById("kTest")||{}).value||0),
+      plate:Number((document.getElementById("kPlate")||{}).value||0),
       rows:DIARY
     });
     fetch(API+"/api/db/site",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
@@ -2592,7 +2618,7 @@ function onLetterDate(){
       fund_head:(document.getElementById("dGrant")||{}).value||"",
       grant:(typeof siteFundHead==="function"?siteFundHead():(document.getElementById("dGrant")||{}).value||""),
       contractor:(document.getElementById("dContractor")||{}).value||"",
-      village:(diaryEst&&(diaryEst.village||diaryEst.gam))||""
+      village:(document.getElementById("dGam")||{}).value||(diaryEst&&(diaryEst.village||diaryEst.gam))||""
     })}).catch(function(){});
   }
   function saveSiteOnly(){
