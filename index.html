@@ -762,7 +762,8 @@
             </div>
             <div class="actions" style="margin-top:8px">
               <button type="button" class="btn btn-g" onclick="workIsDone()">Check, કામ ખરેખર પૂરું થયું?</button>
-              <button type="button" class="btn btn-s hidden" id="btnKachu" onclick="showKachu()">કાચું બિલ</button>
+              <button type="button" class="btn btn-s hidden" id="btnKachu" onclick="showKachu()">📄 કાચું બિલ Excel</button>
+              <button type="button" class="btn btn-s hidden" id="btnKachuPdf" onclick="pdfKachu()">📄 કાચું બીલ PDF</button>
             </div>
             <div class="actions" style="margin-top:6px">
               <button type="button" class="btn btn-s" onclick="togglePlan()">Site Plan</button>
@@ -782,10 +783,7 @@
                   <div id="kachuMeas" class="mini"></div>
                 </div>
               </div>
-              <div class="actions">
-                <button type="button" class="btn btn-g" onclick="saveKachu()">Excel</button>
-                <button type="button" class="btn btn-s" onclick="pdfKachu()">PDF</button>
-              </div>
+              <div class="actions"></div>
             </div>
             <input id="sitePhotoFile" type="file" accept="image/*" capture="environment" class="hidden">
             <div id="planBox" class="hidden" style="margin-top:8px">
@@ -2346,8 +2344,7 @@ function onLetterDate(){
     const box=document.getElementById("dBill");
     if (box) box.innerHTML = (box.innerHTML||"") + "<div class='mb-cmp'>"+html+"</div>";
     saveSitePayload(type, estAmt, area, L, W, true);
-    const kb=document.getElementById("btnKachu");
-    if (kb) kb.classList.remove("hidden");
+    ["btnKachu","btnKachuPdf"].forEach(function(id){ const b=document.getElementById(id); if(b) b.classList.remove("hidden"); });
   }
   function kachuBody(output){
     return {
