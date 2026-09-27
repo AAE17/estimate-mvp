@@ -710,14 +710,14 @@
         <p id="lenHint" class="hidden">લંબાઈ અને પહોળાઈ બદલી શકાય</p>
         <div class="field full"><label>સાઇટ વિગત</label>
           <table id="segTable" class="est-lw">
-            <thead><tr><th>Sr</th><th>લંબાઈ</th><th>પહોળાઈ</th><th>Excavation (m)</th><th></th></tr></thead>
+            <thead><tr><th>Sr</th><th>Length</th><th>Width</th><th>Excavation (m)</th><th></th></tr></thead>
             <tbody id="segBox"></tbody>
           </table>
           <input id="length_m" type="hidden" value="40">
           <input id="width_m" type="hidden" value="3">
         </div>
         <div class="est-l3 cc-only">
-          <div class="field"><label>Metal 40-63 mm</label><input id="bt_thick_m" type="number" step="0.01" value="0.12"></div>
+          <div class="field"><label>Metal 40-63 mm Thickness (m)</label><input id="bt_thick_m" type="number" step="0.01" value="0.12"></div>
           <div class="field"><label>Voids %</label><input id="voids" type="number" step="0.01" value="0.15"></div>
           <div class="field"><label>Binding material %</label><input id="murrum_pct" type="number" step="0.01" value="25"></div>
         </div>
@@ -801,11 +801,11 @@
           </div>
           <div class="work">
             <p class="muted" style="margin:0 0 8px">વર્કિંગ સ્પેસ — ખાલી માપ લખો</p>
-            <div id="dHead" class="map-row head"><span>Sr</span><span>લંબાઈ</span><span>પહોળાઈ</span><span id="dHeadD">જાડાઈ</span><span></span></div>
+            <div id="dHead" class="map-row head"><span>Sr</span><span>Length</span><span>Width</span><span id="dHeadD">જાડાઈ</span><span></span></div>
             <div id="dRows"></div>
             <div class="head" id="kTestRow" style="margin-top:8px">
-              <div class="field"><label>ખોદકામ / બોક્સ જાડાઈ</label><input id="dExcD" type="number" step="0.01" value="0.20" oninput="liveMbBill()"></div>
-              <div class="field"><label>બાઈન્ડિંગ જાડાઈ</label><input id="dDustD" type="number" step="0.01" value="0.10" oninput="liveMbBill()"></div>
+              <div class="field" id="wrapExcD"><label>ખોદકામ / બોક્સ જાડાઈ</label><input id="dExcD" type="number" step="0.01" value="0.20" oninput="liveMbBill()"></div>
+              <div class="field" id="wrapDustD"><label>બાઈન્ડિંગ જાડાઈ</label><input id="dDustD" type="number" step="0.01" value="0.10" oninput="liveMbBill()"></div>
               <div class="field hidden" id="wrapCcT"><label>CC જાડાઈ</label><input id="dCcT" type="number" step="0.01" value="0.10" oninput="liveMbBill()"></div>
               <div class="field"><label>Test</label><input id="kTest" type="number" min="0" max="1" value="1"></div>
               <div class="field"><label>તકતી</label><input id="kPlate" type="number" min="0" max="1" value="0"></div>
@@ -2141,6 +2141,10 @@ function onLetterDate(){
     if (a) a.textContent="Area: "+(Math.round(area*100)/100)+" SMT";
     const w=document.getElementById("wrapCcT");
     if (w) w.classList.toggle("hidden", diaryType()!=="cc");
+    const we=document.getElementById("wrapExcD");
+    const wd=document.getElementById("wrapDustD");
+    if (we) we.classList.toggle("hidden", diaryType()==="cc");
+    if (wd) wd.classList.toggle("hidden", diaryType()==="cc");
     const ex=document.getElementById("dExcD");
     if (ex && !ex.dataset.touch){
       /* keep user value */
