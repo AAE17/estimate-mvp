@@ -1247,7 +1247,8 @@ app.post("/api/bill/paver", async (req, res) => {
     if (/city|district|જિલ્લો|ahmedabad city/i.test(tal) && d.taluka_real) tal = String(d.taluka_real);
     const talLabel = tal ? ("તા. " + tal) : "";
     const agency = d.agency || "સરપંચ શ્રી ગ્રામ પંચાયત";
-    const wo = d.work_order || d.as_details || "";
+    const wo = d.work_order || "";
+    const asDet = d.as_details || d.as_detail || "";
     const tsDet = d.ts_details || "";
     const tsAmt = Number(d.ts_amount || d.amounting || 0);
     const startDate = d.start_date || "";
@@ -1312,7 +1313,7 @@ app.post("/api/bill/paver", async (req, res) => {
     setVal(comp, "C3", work);
     setVal(comp, "C4", tsDet);
     setVal(comp, "C5", tsAmt);
-    setVal(comp, "C6", wo);
+    setVal(comp, "C6", asDet);
     setVal(comp, "C7", tsAmt);
     setVal(comp, "C8", agency);
     setVal(comp, "F8", gam);
@@ -1355,7 +1356,8 @@ app.post("/api/bill/cc", async (req, res) => {
     let tal = String(d.taluka || "").trim().replace(/^તા\.\s*/, "");
     const talLabel = tal ? ("તા. " + tal) : "";
     const agency = d.agency || "સરપંચ શ્રી ગ્રામ પંચાયત";
-    const wo = d.work_order || d.as_details || "";
+    const wo = d.work_order || "";
+    const asDet = d.as_details || d.as_detail || "";
     const tsDet = d.ts_details || "";
     const tsAmt = Number(d.ts_amount || d.amounting || 0);
     const startDate = d.start_date || "";
@@ -1412,7 +1414,7 @@ app.post("/api/bill/cc", async (req, res) => {
     setVal(comp, "C3", work);
     setVal(comp, "C4", tsDet);
     setVal(comp, "C5", tsAmt);
-    setVal(comp, "C6", wo);
+    setVal(comp, "C6", asDet);
     setVal(comp, "C7", tsAmt);
     setVal(comp, "C8", agency);
     setVal(comp, "F8", gam);
