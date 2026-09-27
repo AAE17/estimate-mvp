@@ -28,6 +28,22 @@ function logEvent(kind, payload, req) {
   fs.appendFileSync(LOG_FILE, JSON.stringify(rec) + "\n");
 }
 
+
+function unshareFormulas(wb) {
+  (wb.worksheets || []).forEach(function (ws) {
+    ws.eachRow(function (row) {
+      row.eachCell(function (cell) {
+        try {
+          if (cell.formula && String(cell.formulaType || "") === "shared") {
+            const f = cell.formula;
+            cell.value = { formula: f };
+          }
+        } catch (_e) {}
+      });
+    });
+  });
+}
+
 function setVal(ws, addr, v) {
   if (!ws) return;
   ws.getCell(addr).value = v;
@@ -1476,6 +1492,7 @@ app.post("/api/mb", async (req, res) => {
     let file = found[0];
     let wb = new ExcelJS.Workbook();
     await wb.xlsx.readFile(file);
+    unshareFormulas(wb);
     function hasCc(wbb){
       return (wbb.worksheets||[]).some(function(w){ return /cc/i.test(String(w.name||"")); });
     }
@@ -1542,8 +1559,10 @@ app.post("/api/mb", async (req, res) => {
     const prefix = type === "cc" ? "MB_CC" : "MB_PAVER";
     const areas = {};
     areas[ws.name] = type === "cc" ? "A1:P20" : "A1:M32";
-    wb.worksheets.forEach(function (w) {
-      if (w !== ws) w.state = "hidden";
+    wb.worksheets.slice().forEach(function (w) {
+      if (w && ws && w.id !== ws.id) {
+        try { wb.removeWorksheet(w.id); } catch (_e) { w.state = "hidden"; }
+      }
     });
     await writeAndRespond(req, res, wb, Object.assign({}, d, { output: d.output || "xlsx" }), prefix, areas, "bill_mb");
   } catch (err) {
