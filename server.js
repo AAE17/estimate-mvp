@@ -1471,10 +1471,21 @@ app.post("/api/mb", async (req, res) => {
     const type = String(d.type || "paver").toLowerCase().indexOf("cc") >= 0 ? "cc" : "paver";
     const rows = Array.isArray(d.rows) ? d.rows : [];
     const files = ["skeleton-mb.xlsx","skeleton-mb-paver-cc.xlsx","skeleton-mb-paver.xlsx"];
-    let file = files.map(function(n){ return path.join(__dirname, n); }).find(function(f){ return require("fs").existsSync(f); });
-    if (!file) throw new Error("skeleton-mb.xlsx missing on server");
-    const wb = new ExcelJS.Workbook();
+    const found = files.map(function(n){ return path.join(__dirname, n); }).filter(function(f){ return require("fs").existsSync(f); });
+    if (!found.length) throw new Error("skeleton-mb.xlsx missing on server");
+    let file = found[0];
+    let wb = new ExcelJS.Workbook();
     await wb.xlsx.readFile(file);
+    function hasCc(wbb){
+      return (wbb.worksheets||[]).some(function(w){ return /cc/i.test(String(w.name||"")); });
+    }
+    if (!hasCc(wb)) {
+      for (let i=1;i<found.length;i++){
+        const w2 = new ExcelJS.Workbook();
+        await w2.xlsx.readFile(found[i]);
+        if (hasCc(w2)) { wb = w2; file = found[i]; break; }
+      }
+    }
     function findWs(keys){
       const all = wb.worksheets || [];
       for (let i=0;i<keys.length;i++){
@@ -1505,7 +1516,7 @@ app.post("/api/mb", async (req, res) => {
         const r = 3 + i;
         setVal(ws, "G" + r, s.L);
         setVal(ws, "H" + r, s.W);
-        setVal(ws, "I" + r, excD);
+        if (i === 0) setVal(ws, "I3", excD);
       });
       setVal(ws, "C6", Number(d.test_qty == null ? 1 : d.test_qty));
       setVal(ws, "C7", Number(d.name_plate == null ? 0 : d.name_plate));
@@ -1518,10 +1529,12 @@ app.post("/api/mb", async (req, res) => {
         const r = 3 + i;
         setVal(ws, "G" + r, s.L);
         setVal(ws, "H" + r, s.W);
-        setVal(ws, "I" + r, s.d || boxT);
         setVal(ws, "L" + r, s.L);
         setVal(ws, "M" + r, s.W);
-        setVal(ws, "N" + r, ccT);
+        if (i === 0) {
+          setVal(ws, "I3", s.d || boxT);
+          setVal(ws, "N3", ccT);
+        }
       });
       setVal(ws, "C8", Number(d.test_qty == null ? 0 : d.test_qty));
       setVal(ws, "C9", Number(d.name_plate == null ? 0 : d.name_plate));
