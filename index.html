@@ -1713,7 +1713,7 @@ function onLetterDate(){
   function syncBillQtyLabels(){
     const cc=isCcBill();
     const map=cc
-      ?[["1. Box cutting — Cmt"],["2. Metal 40-63 — Cmt"],["3. Murrum — Cmt"],["4. Spreading metal — Cmt"],["5. Spreading murrum — Cmt"],["6. CC 1:2:4 — Cmt"],["7. Test Reports — Job"],["8. Name plate — Job"]]
+      ?[["1. Box cutting — Cmt"],["2. Metal 40-63 — Cmt"],["3. Binding Material — Cmt"],["4. Spreading metal — Cmt"],["5. Spreading Binding Material — Cmt"],["6. CC 1:2:4 — Cmt"],["7. Test Reports — Job"],["8. Name plate — Job"]]
       :[["1. Excavation — Cmt"],["2. Binding material — Cmt"],["3. Paver Block — Smt"],["4. Vata — Rmt"],["5. Test Reports — Job"],["6. Name Plate — Job"]];
     map.forEach(function(lab,i){ const el=document.getElementById("lq"+(i+1)); if(el) el.textContent=lab[0]; });
     const w7=document.getElementById("wrapQ7"), w8=document.getElementById("wrapQ8");
@@ -1741,7 +1741,7 @@ function onLetterDate(){
     const no=(document.getElementById("billNo")||{}).value||"—";
     const q=billQtyFromLW();
     const rows=isCcBill()
-      ?[["1 Box",q.box,158.12],["2 Metal",q.metal,684.6],["3 Murrum",q.murum,173.51],["4 Spread M",q.spreadM,249.75],["5 Spread μ",q.spreadU,147.47],["6 CC",q.cc,4915.01],["7 Test",q.test,2656],["8 Plate",q.plate,306.14]]
+      ?[["1 Box",q.box,158.12],["2 Metal",q.metal,684.6],["3 Binding",q.murum,173.51],["4 Spread M",q.spreadM,249.75],["5 Spread Bind",q.spreadU,147.47],["6 CC",q.cc,4915.01],["7 Test",q.test,2656],["8 Plate",q.plate,306.14]]
       :[["1 Excavation",q.box,156.56],["2 Binding",q.murum,210.42],["3 Paver",q.paver,740.51],["4 Vata",q.vata,23.68],["5 Testing",q.test,608],["6 Name plate",q.plate,306.14]];
     let sub=0,h="<b>બિલ — લાઈવ</b>";
     rows.forEach(function(r){ const amt=Number(r[1])*r[2]; sub+=amt; h+="<div class='mini'><span>"+r[0]+"</span><b>"+Number(r[1]).toFixed(2)+" → ₹ "+Math.round(amt)+"</b></div>"; });
