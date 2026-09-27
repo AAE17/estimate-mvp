@@ -758,13 +758,8 @@
 
       
 
-      <div id="ongBox">
-        <div class="head site-l3">
-          <div class="field"><label>ગામ</label><input id="fGam" oninput="renderSiteList()"></div>
-          <div class="field"><label>Grant Head</label><select id="fGrant" onchange="renderSiteList()"><option value="">— Grant Head —</option></select></div>
-          <div class="field"><label>વર્ષ</label><select id="fYear" onchange="renderSiteList()"><option value="">— Year —</option></select></div>
-        </div>
-        <div id="siteList" class="mini"></div>
+      <div id="ongBox" class="hidden">
+        <div id="siteList" class="mini hidden"></div>
       </div>
       <div id="doneBox" class="hidden">
         <p class="muted">કોન્ટ્રાક્ટરે કેટલું કામ — Brass / ₹ ચેક · એડિટ.</p>
@@ -782,7 +777,8 @@
               <div class="field"><label>ગામ</label><input id="dGam" oninput="liveMbBill()"></div>
               <div class="field"><label>તાલુકો</label><input id="dTaluka" oninput="liveMbBill()"></div>
             </div>
-            <div class="field"><label>2. કામનું નામ</label><select id="dWork" onchange="pickSiteWork();liveMbBill()"><option value="">— કામ પસંદ —</option></select></div>
+            <div class="field" id="wrapWorkSel"><label>2. કામનું નામ</label><select id="dWork" onchange="pickSiteWork();liveMbBill()"><option value="">— કામ પસંદ —</option></select></div>
+            <div class="field hidden" id="wrapWorkTxt"><label>2. કામનું નામ</label><input id="dWorkTxt" oninput="liveMbBill()" placeholder="નવું કામ લખો"></div>
             <div class="head site-l3">
               <div class="field"><label>3. Grant Head</label>
                 <select id="dGrant" onchange="onSiteGrant();liveMbBill()"><option value="">— પસંદ —</option></select>
@@ -2262,11 +2258,20 @@ function onLetterDate(){
     fillSiteWorkSelect();
   }
   function siteWorkName(){
+    const txt=document.getElementById("dWorkTxt");
+    const wrap=document.getElementById("wrapWorkTxt");
+    if(wrap && !wrap.classList.contains("hidden") && txt) return (txt.value||"").trim();
     const s=document.getElementById("dWork");
     if(!s) return "";
     const o=s.options[s.selectedIndex];
     if(!o) return "";
     return (o.getAttribute("data-name")||o.textContent||"").split(" · ")[0];
+  }
+  function siteWorkMode(mode){
+    const sel=document.getElementById("wrapWorkSel");
+    const txt=document.getElementById("wrapWorkTxt");
+    if(sel) sel.classList.toggle("hidden", mode==="new");
+    if(txt) txt.classList.toggle("hidden", mode!=="new");
   }
   function fillSiteWorkSelect(){
     const sel=document.getElementById("dWork");
@@ -2609,9 +2614,9 @@ function onLetterDate(){
     const wrap=document.getElementById("diaryWrap");
     if (ong) ong.classList.toggle("hidden", which!=="ong");
     if (done) done.classList.toggle("hidden", which!=="done");
-    if (which==="new") { if (ong) ong.classList.add("hidden"); if (done) done.classList.add("hidden"); openDiary(null); }
+    if (which==="new") { if (ong) ong.classList.add("hidden"); if (done) done.classList.add("hidden"); siteWorkMode("new"); openDiary(null); }
     else if (wrap && which!=="new") { /* keep diary if already open */ }
-    if (which==="ong") { renderSiteList(); openDiary(null); }
+    if (which==="ong") { siteWorkMode("ong"); renderSiteList(); openDiary(null); }
     if (which==="done") renderDoneList();
   }
   function renderDoneList(){
