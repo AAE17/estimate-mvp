@@ -519,6 +519,26 @@
     table.mb-live th{background:#f1f5f9;font-weight:600}
     table.mb-live tr.sum td{font-weight:700;border-top:1px solid #cbd5e1}
     table.mb-live tr.net td{font-weight:700;color:#1e3a5f}
+    .est-l3,.est-l2{display:grid;gap:8px;width:100%;grid-column:1/-1}
+    .est-l3{grid-template-columns:repeat(3,minmax(0,1fr))}
+    .est-l2{grid-template-columns:1fr 1fr}
+    .est-form .field{min-width:0}
+    @media(max-width:800px){ .est-l3,.est-l2{grid-template-columns:1fr} }
+    .diary .work .map-row{display:grid;grid-template-columns:36px 1fr 1fr 1fr 80px;gap:0;align-items:center;margin:8px auto;max-width:560px;background:#eef2f7;border-radius:14px;padding:8px 10px}
+    .diary .work .map-row.head{background:transparent;font-weight:700;font-size:14px;padding:0 10px}
+    .diary .work .map-row input{
+      text-align:center;font-size:16px;width:100%;padding:8px 4px;
+      background:transparent;border:0;color:#0f172a
+    }
+    .diary .work .map-row.head span:nth-child(4):empty + span{ }
+    .est-map{display:grid;grid-template-columns:40px 1fr 1fr 88px;gap:8px;align-items:center;background:#eef2f7;border-radius:14px;padding:8px 10px;margin:6px 0}
+    .est-map.head{background:transparent;font-weight:700;font-size:13px;padding:0 10px}
+    .est-map input{width:100%;text-align:center;border:0;background:transparent;font-size:16px;padding:8px 4px}
+    .est-seg{display:grid;grid-template-columns:40px minmax(0,1fr) minmax(0,1fr) 36px 36px;gap:8px;align-items:center;margin:6px 0;width:100%}
+    .est-seg.head{font-size:13px;font-weight:600;color:#64748b}
+    .est-seg.head span:nth-child(1){text-align:center}
+    .est-seg span:first-child{text-align:center;font-weight:700}
+    .est-seg input{width:100%;min-width:0;padding:10px 12px;border:1px solid #e2e8f0;border-radius:10px;background:#fff;box-sizing:border-box}
 </style>
 </head>
 <body>
@@ -628,53 +648,66 @@
 
     <section id="s-form" class="card hidden">
       <h2 id="formTitle">CC Road — ફોર્મ</h2>
-      <div class="grid">
-        <div class="field full"><label>જિલ્લા પંચાયત</label>
-          <select id="jilla"><option value="">— જિલ્લો પસંદ કરો —</option></select>
-        </div>
-        <div class="field"><label>તાલુકો</label>
-          <select id="taluka" disabled><option value="">— પહેલા જિલ્લો —</option></select>
-        </div>
-        <div class="field"><label>મોજે (ગામ)</label>
-          <select id="village" disabled><option value="">— પહેલા તાલુકો —</option></select>
+      <div class="grid est-form">
+        <div class="est-l3">
+          <div class="field"><label>1. જિલ્લો</label>
+            <select id="jilla"><option value="">— જિલ્લો —</option></select>
+          </div>
+          <div class="field"><label>તાલુકો</label>
+            <select id="taluka" disabled><option value="">— તાલુકો —</option></select>
+          </div>
+          <div class="field"><label>ગામ</label>
+            <select id="village" disabled><option value="">— ગામ —</option></select>
+          </div>
         </div>
         <div class="field full hidden" id="villageOtherWrap">
-          <label>ગામનું નામ લખો (યાદીમાં ન હોય તો)</label>
+          <label>ગામનું નામ લખો</label>
           <input id="village_other" placeholder="ગામનું નામ">
         </div>
-        <div class="field cc-only"><label>R & B Division</label><input id="division" value="NADIAD"></div>
-        <div class="field"><label>Sub-div એડ્રેસ</label><input id="subdiv_address" value="DAKOR"></div>
-        <div class="field"><label>Nani Sinchai એડ્રેસ</label><input id="nani_address" value="DAKOR"></div>
-        <div class="field"><label>Grant Head</label>
-          <select id="grant_head"><option value="">— પસંદ કરો —</option></select>
+        <div class="est-l3">
+          <div class="field cc-only"><label>2. R&amp;B Div.</label><input id="division" value="NADIAD"></div>
+          <div class="field"><label>R&amp;B Sub-Div.</label><input id="subdiv_address" value="DAKOR"></div>
+          <div class="field"><label>Nani Sinchai Sub-Div.</label><input id="nani_address" value="DAKOR"></div>
         </div>
-        <div class="field"><label>Year</label>
-          <select id="fy_year"><option value="">— પસંદ કરો —</option></select>
+        <div class="est-l3">
+          <div class="field"><label>3. Grant Head</label>
+            <select id="grant_head"><option value="">— પસંદ —</option></select>
+          </div>
+          <div class="field"><label>વર્ષ</label>
+            <select id="fy_year"><option value="">— Year —</option></select>
+          </div>
+          <div class="field"><label>રકમ</label><input id="amounting" type="number" value="100000"></div>
         </div>
         <div class="field full hidden" id="grantOtherWrap">
           <label>અન્ય Grant Head — પોતાનું લખો</label>
           <input id="grant_other" placeholder="Grant Head">
         </div>
-        <div class="field full"><label>કામનું નામ</label><input id="work_name" value=""></div>
-        <div class="field"><label>Amounting to Rs.</label><input id="amounting" type="number" value="100000"></div>
+        <div class="field full"><label>4. કામનું નામ</label><input id="work_name" value=""></div>
+        <div class="est-l3">
+          <div class="field"><label>5. Prepared by</label><input id="prepared_by" value="MR.V.A.THAKOR. A.A.E."></div>
+          <div class="field"><label>SS વિગત</label><input id="ss_details" value=""></div>
+          <div class="field"><label>Sr No</label><input id="sr_no" value="6"></div>
+        </div>
         <p id="lenHint" class="hidden">લંબાઈ અને પહોળાઈ બદલી શકાય</p>
-        <div class="field"><label>Prepared by</label><input id="prepared_by" value="MR.V.A.THAKOR. A.A.E."></div>
-        <div class="field"><label>Sr No</label><input id="sr_no" value="6"></div>
-        <div class="field full"><label>SS વિગત</label><input id="ss_details" value=""></div>
-        <div class="field full"><label>સાઇટ માપ</label>
-          <div id="segHead" class="seg"><span></span><span>લંબાઈ</span><span>પહોળાઈ</span><span></span></div>
+        <div class="field full"><label>સાઇટ વિગત</label>
+          <div id="segHead" class="est-seg head"><span>Sr</span><span>લંબાઈ</span><span>પહોળાઈ</span><span></span><span></span></div>
           <div id="segBox"></div>
-          <button type="button" class="btn btn-w" onclick="addSeg()">Add</button>
           <input id="length_m" type="hidden" value="40">
           <input id="width_m" type="hidden" value="3">
         </div>
-        <div class="field"><label>Box જાડાઈ (m)</label><input id="box_thick_m" type="number" step="0.01" value="0.3"></div>
-        <div class="field cc-only"><label>BT જાડાઈ (m)</label><input id="bt_thick_m" type="number" step="0.01" value="0.12"></div>
-        <div class="field cc-only"><label>Voids (0.15 = 15%)</label><input id="voids" type="number" step="0.01" value="0.15"></div>
-        <div class="field cc-only"><label>મુરમ %</label><input id="murrum_pct" type="number" step="0.01" value="25"></div>
-        <div class="field cc-only"><label>CC જાડાઈ (m)</label><input id="cc_thick_m" type="number" step="0.01" value="0.1"></div>
-        <div class="field cc-only"><label>Sevaliya → તાલુકો km</label><input id="lead_sevaliya_to_taluka_km" type="number" step="0.1" value="15"></div>
-        <div class="field cc-only"><label>તાલુકો → સાઇટ km</label><input id="lead_taluka_to_site_km" type="number" step="0.1" value="15"></div>
+        <div class="est-l3 cc-only">
+          <div class="field"><label>1. Excavation (m)</label><input id="box_thick_m" type="number" step="0.01" value="0.3"></div>
+          <div class="field"><label>2. Metal 40-63 mm</label><input id="bt_thick_m" type="number" step="0.01" value="0.12"></div>
+          <div class="field"><label>3. Voids</label><input id="voids" type="number" step="0.01" value="0.15"></div>
+        </div>
+        <div class="est-l2 cc-only">
+          <div class="field"><label>Binding material %</label><input id="murrum_pct" type="number" step="0.01" value="25"></div>
+          <div class="field"><label>C.C. Road Thickness (m)</label><input id="cc_thick_m" type="number" step="0.01" value="0.1"></div>
+        </div>
+        <div class="est-l2 cc-only">
+          <div class="field"><label>Lead — Sevaliya → તાલુકો km</label><input id="lead_sevaliya_to_taluka_km" type="number" step="0.1" value="15"></div>
+          <div class="field"><label>તાલુકો → સાઇટ km</label><input id="lead_taluka_to_site_km" type="number" step="0.1" value="15"></div>
+        </div>
       </div>
       <div class="live">
         <span>ડેટા પ્રમાણે કુલ રકમ (18% GST સહિત)</span>
@@ -749,10 +782,8 @@
           </div>
           <div class="work">
             <p class="muted" style="margin:0 0 8px">વર્કિંગ સ્પેસ — ખાલી માપ લખો</p>
-            <table>
-              <thead id="dHead"></thead>
-              <tbody id="dRows"></tbody>
-            </table>
+            <div id="dHead" class="map-row head"><span>Sr</span><span>લંબાઈ</span><span>પહોળાઈ</span><span id="dHeadD">જાડાઈ</span><span></span></div>
+            <div id="dRows"></div>
             <div class="head" id="kTestRow" style="margin-top:8px">
               <div class="field"><label>ખોદકામ / બોક્સ જાડાઈ</label><input id="dExcD" type="number" step="0.01" value="0.20" oninput="liveMbBill()"></div>
               <div class="field"><label>બાઈન્ડિંગ જાડાઈ</label><input id="dDustD" type="number" step="0.01" value="0.10" oninput="liveMbBill()"></div>
@@ -1967,7 +1998,7 @@ function onLetterDate(){
   let SEGS = [{l:40,w:3,d:0.1}];
   function syncSegToLW() {
     let area = 0, Lsum = 0;
-    SEGS.forEach((s) => { const a=Number(s.l||0)*Number(s.w||0); area+=a; Lsum+=Number(s.l||0); });
+    SEGS.forEach((s) => { const L=parseMix(s.l), W=parseMix(s.w); const a=L*W; area+=a; Lsum+=L; });
     const W = Lsum ? (area/Lsum) : 3;
     const L = Lsum || 40;
     const lm=document.getElementById("length_m");
@@ -1984,15 +2015,15 @@ function onLetterDate(){
     box.innerHTML="";
     SEGS.forEach((s,i)=>{
       const row=document.createElement("div");
-      row.className="seg";
+      row.className="map-row";
       row.innerHTML='<span>'+(i+1)+'</span>'+
-        '<input type="number" step="0.01" value="'+s.l+'" data-k="l" data-i="'+i+'">'+
-        '<input type="number" step="0.01" value="'+s.w+'" data-k="w" data-i="'+i+'">'+
-        '<button type="button" class="btn btn-w" data-del="'+i+'">×</button>';
+        '<input type="text" inputmode="decimal" placeholder="40+10" value="'+(s.l||"")+'" data-k="l" data-i="'+i+'">'+
+        '<input type="text" inputmode="decimal" placeholder="3+3.5" value="'+(s.w||"")+'" data-k="w" data-i="'+i+'">'+
+        '<span class="map-act"><button type="button" class="pm add" onclick="addSeg()">+</button><button type="button" class="pm" data-del="'+i+'">−</button></span>';
       box.appendChild(row);
     });
     box.querySelectorAll("input").forEach((inp)=>{
-      inp.oninput=function(){ const i=+this.dataset.i; SEGS[i][this.dataset.k]=Number(this.value||0); syncSegToLW(); liveF24(); };
+      inp.oninput=function(){ const i=+this.dataset.i; SEGS[i][this.dataset.k]=this.value; syncSegToLW(); liveF24(); };
     });
     box.querySelectorAll("[data-del]").forEach((b)=>{
       b.onclick=function(){ if(SEGS.length<2) return; SEGS.splice(+this.dataset.del,1); renderSegs(); syncSegToLW(); liveF24(); };
@@ -2025,19 +2056,22 @@ function onLetterDate(){
     const th=document.getElementById("dHead");
     if (!tb) return;
     const paver = diaryType()==="paver";
-    if (th) th.innerHTML = paver
-      ? "<tr><th>Sr</th><th>લંબાઈ</th><th>પહોળાઈ</th><th></th></tr>"
-      : "<tr><th>Sr</th><th>લંબાઈ</th><th>પહોળાઈ</th><th>જાડાઈ</th><th></th></tr>";
+    const hd=document.getElementById("dHeadD");
+    if (th) {
+      /* header labels stay in html */
+    }
+    if (hd) hd.textContent = paver ? "" : "જાડાઈ";
     tb.innerHTML="";
     DIARY.forEach((s,i)=>{
-      const tr=document.createElement("tr");
-      let html='<td>'+(i+1)+'</td>'+
-        '<td><input type="text" inputmode="decimal" placeholder="10+15" value="'+(s.l||"")+'" data-k="l" data-i="'+i+'"></td>'+
-        '<td><input type="text" inputmode="decimal" placeholder="3+3.5" value="'+(s.w||"")+'" data-k="w" data-i="'+i+'"></td>';
-      if (!paver) html += '<td><input type="number" step="0.01" value="'+(s.d||"")+'" data-k="d" data-i="'+i+'" placeholder="0.10"></td>';
-      html += '<td class="map-act"><button type="button" class="pm add" onclick="addDiaryRow()">+</button><button type="button" class="pm" onclick="delDiaryRow('+i+')">−</button></td>';
-      tr.innerHTML=html;
-      tb.appendChild(tr);
+      const row=document.createElement("div");
+      row.className="seg";
+      let html='<span>'+(i+1)+'</span>'+
+        '<input type="text" inputmode="decimal" placeholder="10+15" value="'+(s.l||"")+'" data-k="l" data-i="'+i+'">'+
+        '<input type="text" inputmode="decimal" placeholder="3+3.5" value="'+(s.w||"")+'" data-k="w" data-i="'+i+'">';
+      if (!paver) html += '<input type="number" step="0.01" value="'+(s.d||"")+'" data-k="d" data-i="'+i+'" placeholder="0.10">';
+      html += '<span class="map-act"><button type="button" class="pm add" onclick="addDiaryRow()">+</button><button type="button" class="pm" onclick="delDiaryRow('+i+')">−</button></span>';
+      row.innerHTML=html;
+      tb.appendChild(row);
     });
     tb.querySelectorAll("input").forEach((inp)=>{
       inp.oninput=function(){ DIARY[+this.dataset.i][this.dataset.k]=this.value; refreshDiaryLive(); };
