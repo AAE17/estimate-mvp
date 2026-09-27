@@ -1470,14 +1470,24 @@ app.post("/api/mb", async (req, res) => {
     }
     const type = String(d.type || "paver").toLowerCase().indexOf("cc") >= 0 ? "cc" : "paver";
     const rows = Array.isArray(d.rows) ? d.rows : [];
-    const file = path.join(__dirname, "skeleton-mb.xlsx");
-    const fileOld = path.join(__dirname, "skeleton-mb-paver.xlsx");
+    const files = ["skeleton-mb.xlsx","skeleton-mb-paver-cc.xlsx","skeleton-mb-paver.xlsx"];
+    let file = files.map(function(n){ return path.join(__dirname, n); }).find(function(f){ return require("fs").existsSync(f); });
+    if (!file) throw new Error("skeleton-mb.xlsx missing on server");
     const wb = new ExcelJS.Workbook();
-    await wb.xlsx.readFile(require("fs").existsSync(file) ? file : fileOld);
+    await wb.xlsx.readFile(file);
+    function findWs(keys){
+      const all = wb.worksheets || [];
+      for (let i=0;i<keys.length;i++){
+        const k=keys[i];
+        const hit=all.find(function(w){ return String(w.name||"").toLowerCase().indexOf(k)>=0; });
+        if (hit) return hit;
+      }
+      return null;
+    }
     const ws = type === "cc"
-      ? (wb.getWorksheet("mb-cc road") || wb.getWorksheet("mb-cc") || wb.worksheets[1])
-      : (wb.getWorksheet("mb-paver") || wb.worksheets[0]);
-    if (!ws) throw new Error("mb sheet missing");
+      ? (findWs(["cc","road"]) || wb.worksheets[1])
+      : (findWs(["paver"]) || wb.worksheets[0]);
+    if (!ws) throw new Error("mb sheet missing: " + wb.worksheets.map(function(w){return w.name;}).join(", "));
 
     const segs = [];
     rows.forEach(function (r) {
