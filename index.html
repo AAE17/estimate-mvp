@@ -1472,6 +1472,14 @@
     }
     set("billGam", it.village||it.gam||"");
     set("billTal", it.taluka||"");
+    const typ=String(it.type||it.kind||"").toLowerCase();
+    const bt=document.getElementById("billType");
+    if(bt){
+      if(typ.indexOf("cc")>=0) bt.value="cc";
+      else if(typ.indexOf("paver")>=0) bt.value="paver";
+      else if(/સી\s*સી|સીસી|cc road/.test(String(it.work_name||"").toLowerCase())) bt.value="cc";
+    }
+    if(typeof syncBillQtyLabels==="function") syncBillQtyLabels();
     set("billAmt", it.amounting||it.amount||it.ts_amount||"");
     const L=Number(it.length_m||it.L||0), W=Number(it.width_m||it.W||0), area=Number(it.area||0)||(L*W);
     if(window.__billMode===2){
