@@ -2482,7 +2482,7 @@ function onLetterDate(){
       type: diaryType(),
       contractor:(document.getElementById("dContractor")||{}).value||"",
       aae:(document.getElementById("dAAE")||{}).value||"",
-      cc_t:Number((document.getElementById("dCcT")||{}).value||0.1),
+      cc_t:(function(){var r=DIARY&&DIARY[0]; return Number((r&&(r.d||r.D))||(document.getElementById("dCcT")||{}).value||0.1);})(),
       grant:(typeof siteFundHead==="function"?siteFundHead():(document.getElementById("dGrant")||{}).value||""),
       taluka:(document.getElementById("dTaluka")||{}).value||(diaryEst&&diaryEst.taluka)||"",
       amounting:Number((document.getElementById("dAmtIn")||{}).value||0),
@@ -2540,7 +2540,6 @@ function onLetterDate(){
       .then(function(d){
         if (!d.ok) throw new Error(d.error||"fail");
         if (d.xlsx) window.open(API+d.xlsx,"_blank");
-        if (d.pdf) window.open(API+d.pdf,"_blank");
         if (typeof fillKachuPreview==="function" && d.preview) fillKachuPreview(d.preview);
         return fetch(API+"/api/db/kachu",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
           type:"paver",
@@ -2561,11 +2560,10 @@ function onLetterDate(){
   }
   function pdfKachu(){
     if (typeof setBusy==="function") setBusy(true);
-    fetch(API+"/api/mb",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(kachuBody("both"))})
+    fetch(API+"/api/mb",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(kachuBody("pdf"))})
       .then(function(r){return r.json();})
       .then(function(d){
         if (!d.ok) throw new Error(d.error||"fail");
-        if (d.xlsx) window.open(API+d.xlsx,"_blank");
         if (d.pdf) window.open(API+d.pdf,"_blank");
       })
       .catch(function(e){ alert(e.message); })
