@@ -544,6 +544,12 @@
     #s-form .est-seg input{flex:1 1 0;min-width:0;width:auto !important;display:inline-block !important;
       text-align:center;border:0;background:transparent;padding:8px 4px;font-size:16px}
     #s-form .est-seg .pm{flex:0 0 32px}
+    #s-form table.est-lw{width:100%;border-collapse:separate;border-spacing:0 6px}
+    #s-form table.est-lw th{text-align:center;font-size:13px;color:#64748b;padding:0 8px}
+    #s-form table.est-lw td{background:#eef2f7;padding:6px 8px;vertical-align:middle}
+    #s-form table.est-lw td:first-child{border-radius:12px 0 0 12px;width:36px;text-align:center;font-weight:700}
+    #s-form table.est-lw td:last-child{border-radius:0 12px 12px 0;width:80px}
+    #s-form table.est-lw input{width:100%;border:0;background:transparent;text-align:center;font-size:16px;padding:8px}
 </style>
 </head>
 <body>
@@ -695,8 +701,10 @@
         </div>
         <p id="lenHint" class="hidden">લંબાઈ અને પહોળાઈ બદલી શકાય</p>
         <div class="field full"><label>સાઇટ વિગત</label>
-          <div id="segHead" class="est-seg head"><span>Sr</span><span>લંબાઈ</span><span>પહોળાઈ</span><span></span><span></span></div>
-          <div id="segBox"></div>
+          <table id="segTable" class="est-lw">
+            <thead><tr><th>Sr</th><th>લંબાઈ</th><th>પહોળાઈ</th><th></th></tr></thead>
+            <tbody id="segBox"></tbody>
+          </table>
           <input id="length_m" type="hidden" value="40">
           <input id="width_m" type="hidden" value="3">
         </div>
@@ -2019,12 +2027,8 @@ function onLetterDate(){
     if (!box) return;
     box.innerHTML="";
     SEGS.forEach((s,i)=>{
-      const row=document.createElement("div");
-      row.className="map-row";
-      row.innerHTML='<span>'+(i+1)+'</span>'+
-        '<input type="text" inputmode="decimal" placeholder="40+10" value="'+(s.l||"")+'" data-k="l" data-i="'+i+'">'+
-        '<input type="text" inputmode="decimal" placeholder="3+3.5" value="'+(s.w||"")+'" data-k="w" data-i="'+i+'">'+
-        '<span class="map-act"><button type="button" class="pm add" onclick="addSeg()">+</button><button type="button" class="pm" data-del="'+i+'">−</button></span>';
+      const row=document.createElement("tr");
+      row.innerHTML='<td>'+(i+1)+'</td><td><input type="text" value="'+(s.l||"")+'" data-k="l" data-i="'+i+'"></td><td><input type="text" value="'+(s.w||"")+'" data-k="w" data-i="'+i+'"></td><td><button type="button" class="pm add" onclick="addSeg()">+</button><button type="button" class="pm" data-del="'+i+'">−</button></td>';
       box.appendChild(row);
     });
     box.querySelectorAll("input").forEach((inp)=>{
