@@ -2342,9 +2342,9 @@ function onLetterDate(){
       html += row("Estimate =", "", inr(estAmt));
       html += row(da>=0?"વધારે":"ઓછું", "", (da>=0?"+":"-")+inr(Math.abs(da)));
     }
+    liveMbBill();
     const box=document.getElementById("dBill");
-    box.innerHTML=html;
-    box.classList.remove("hidden");
+    if (box) box.innerHTML = (box.innerHTML||"") + "<div class='mb-cmp'>"+html+"</div>";
     saveSitePayload(type, estAmt, area, L, W, true);
     const kb=document.getElementById("btnKachu");
     if (kb) kb.classList.remove("hidden");
@@ -2352,7 +2352,11 @@ function onLetterDate(){
   function kachuBody(output){
     return {
       work_name:(document.getElementById("dWork")||{}).value||"",
-      village:(diaryEst&&diaryEst.village)||"",
+      village:(document.getElementById("dGam")||{}).value||(diaryEst&&diaryEst.village)||"",
+      type: diaryType(),
+      contractor:(document.getElementById("dContractor")||{}).value||"",
+      aae:(document.getElementById("dAAE")||{}).value||"",
+      cc_t:Number((document.getElementById("dCcT")||{}).value||0.1),
       grant:(typeof siteFundHead==="function"?siteFundHead():(document.getElementById("dGrant")||{}).value||""),
       taluka:(document.getElementById("dTaluka")||{}).value||(diaryEst&&diaryEst.taluka)||"",
       amounting:Number((document.getElementById("dAmtIn")||{}).value||0),
@@ -2404,7 +2408,7 @@ function onLetterDate(){
   }
   function saveKachu(){
     const body=kachuBody("xlsx");
-    fetch(API+"/api/mb/paver",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)})
+    fetch(API+"/api/mb",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)})
       .then(function(r){return r.json();})
       .then(function(d){
         if (!d.ok) throw new Error(d.error||"fail");
@@ -2426,7 +2430,7 @@ function onLetterDate(){
       .catch(function(e){ alert(e.message); });
   }
   function pdfKachu(){
-    fetch(API+"/api/mb/paver",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(kachuBody("both"))})
+    fetch(API+"/api/mb",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(kachuBody("both"))})
       .then(function(r){return r.json();})
       .then(function(d){
         if (d.xlsx) window.open(API+d.xlsx,"_blank");
