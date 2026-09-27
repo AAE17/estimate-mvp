@@ -1541,14 +1541,28 @@ app.post("/api/mb", async (req, res) => {
     } else {
       const boxT = Number(d.exc_d || 0.3);
       const ccT = Number(d.cc_t || d.dust_d || 0.1);
+      for (let r = 3; r <= 10; r++) {
+        ["G","H","I","J","L","M","N","O","P"].forEach(function (col) {
+          const c = ws.getCell(col + r);
+          if (c) { c.value = (r === 3 && col === "I") ? boxT : (r === 3 && col === "N") ? ccT : 0; }
+        });
+      }
+      const m2 = ws.getCell("M2");
+      if (m2) { m2.numFmt = "@"; m2.value = ""; }
       segs.forEach(function (s, i) {
         if (i > 7) return;
         const r = 3 + i;
         setVal(ws, "G" + r, s.L);
         setVal(ws, "H" + r, s.W);
+        setVal(ws, "L" + r, s.L);
+        setVal(ws, "M" + r, s.W);
+        setVal(ws, "N" + r, s.d || ccT);
+        setVal(ws, "O" + r, s.L * s.W * (s.d || ccT));
+        setVal(ws, "P" + r, s.L * s.W);
+        setVal(ws, "J" + r, s.L * s.W * boxT);
         if (i === 0) {
-          setVal(ws, "I3", s.d || boxT);
-          setVal(ws, "N3", ccT);
+          setVal(ws, "I3", boxT);
+          setVal(ws, "N3", s.d || ccT);
         }
       });
       setVal(ws, "C8", Number(d.test_qty == null ? 0 : d.test_qty));
