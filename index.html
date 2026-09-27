@@ -2336,7 +2336,7 @@ function onLetterDate(){
         (dq>=0?("+"):"")+dq.toFixed(2)+" Brass",
         (da>=0?("+"):"")+inr(Math.abs(da)));
     } else {
-      const bill = scanF24("cc", L, W, ccT);
+      const bill = mbCcTotals().tot;
       const da = bill - estAmt;
       html += row("Site =", (Math.round(area*100)/100)+" SMT", inr(bill));
       html += row("Estimate =", "", inr(estAmt));
