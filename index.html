@@ -498,6 +498,27 @@
     .bill-r5{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
     .bill-r5 input{min-width:0;width:100%;font-size:13px}
     @media(max-width:800px){ .bill-r5{grid-template-columns:1fr 1fr} }
+    .diary .site-l1,.diary .site-l3,.diary .site-l4{display:grid;gap:8px;width:100%}
+    .diary .site-l1{grid-template-columns:repeat(4,minmax(0,1fr)) !important}
+    .diary .site-l3{grid-template-columns:repeat(3,minmax(0,1fr)) !important}
+    .diary .site-l4{grid-template-columns:1fr 1fr !important}
+    .diary .site-l1 .field,.diary .site-l3 .field,.diary .site-l4 .field{min-width:0;margin:0}
+    .diary .site-l1 input,.diary .site-l1 select,.diary .site-l3 input,.diary .site-l3 select{width:100%;min-width:0}
+    @media(max-width:800px){
+      .diary .site-l1{grid-template-columns:1fr 1fr !important}
+      .diary .site-l3,.diary .site-l4{grid-template-columns:1fr !important}
+    }
+    #dBill{background:#fff;color:#111;border:1px solid #e2e8f0;border-radius:12px;padding:10px;margin-top:10px}
+    #dBill .mini{display:flex;justify-content:space-between;gap:8px;font-size:13px;padding:3px 0;border-bottom:1px dashed #eee}
+    td.map-act{white-space:nowrap;width:72px}
+    .pm{width:32px;height:32px;border:0;border-radius:8px;background:#e2e8f0;font-size:18px;font-weight:700;cursor:pointer;margin-left:4px}
+    .pm.add{background:#1e3a5f;color:#fff}
+    table.mb-live{width:100%;border-collapse:collapse;font-size:13px}
+    table.mb-live th,table.mb-live td{padding:5px 6px;text-align:right;border-bottom:1px solid #edf2f7}
+    table.mb-live th:first-child,table.mb-live td:first-child{text-align:left}
+    table.mb-live th{background:#f1f5f9;font-weight:600}
+    table.mb-live tr.sum td{font-weight:700;border-top:1px solid #cbd5e1}
+    table.mb-live tr.net td{font-weight:700;color:#1e3a5f}
 </style>
 </head>
 <body>
@@ -699,26 +720,31 @@
         <div class="diary">
           <h3>સાઇટ માપ પત્રક</h3>
           <div class="auto">
-            <p class="muted" style="margin:0 0 8px">ઓટો ડેટા</p>
-            <div class="head">
-              <div class="field"><label>તારીખ</label><input id="dDate"></div>
+            <div class="head site-l1">
+              <div class="field"><label>1. તારીખ</label><input id="dDate" type="date" onchange="liveMbBill()"></div>
               <div class="field"><label>પ્રકાર</label>
-                <select id="dType"><option value="cc">CC Road</option><option value="paver">Paver Block</option></select>
+                <select id="dType" onchange="renderDiaryRows();liveMbBill()"><option value="cc">CC Road</option><option value="paver">Paver Block</option></select>
               </div>
-              <div class="field" style="grid-column:1/-1"><label>કામનું નામ</label><input id="dWork"></div>
-              <div class="field"><label>તાલુકો</label><input id="dTaluka"></div>
-              <div class="field"><label>Grant Head</label>
-                <select id="dGrant" onchange="onSiteGrant()"><option value="">— પસંદ —</option></select>
+              <div class="field"><label>ગામ</label><input id="dGam" oninput="liveMbBill()"></div>
+              <div class="field"><label>તાલુકો</label><input id="dTaluka" oninput="liveMbBill()"></div>
+            </div>
+            <div class="field"><label>2. કામનું નામ</label><input id="dWork" oninput="liveMbBill()"></div>
+            <div class="head site-l3">
+              <div class="field"><label>3. Grant Head</label>
+                <select id="dGrant" onchange="onSiteGrant();liveMbBill()"><option value="">— પસંદ —</option></select>
               </div>
               <div class="field"><label>વર્ષ</label>
-                <select id="dYear"><option value="">— Year —</option></select>
+                <select id="dYear" onchange="liveMbBill()"><option value="">— Year —</option></select>
               </div>
-              <div class="field hidden" id="dGrantOtherWrap" style="grid-column:1/-1">
-                <label>અન્ય Grant Head — પોતાનું લખો</label>
-                <input id="dGrantOther">
-              </div>
-              <div class="field"><label>એસ્ટિમેટ ₹</label><input id="dAmtIn" type="number"></div>
-              <div class="field"><label>કોન્ટ્રાક્ટર</label><input id="dContractor" placeholder="નામ"></div>
+              <div class="field"><label>એસ્ટિમેટ ₹</label><input id="dAmtIn" type="number" oninput="liveMbBill()"></div>
+            </div>
+            <div class="field hidden" id="dGrantOtherWrap">
+              <label>અન્ય Grant Head — પોતાનું લખો</label>
+              <input id="dGrantOther">
+            </div>
+            <div class="head site-l4">
+              <div class="field"><label>4. કોન્ટ્રાક્ટર</label><input id="dContractor" placeholder="નામ"></div>
+              <div class="field"><label>AAE નામ</label><input id="dAAE" placeholder="નામ"></div>
             </div>
           </div>
           <div class="work">
@@ -728,13 +754,13 @@
               <tbody id="dRows"></tbody>
             </table>
             <div class="head" id="kTestRow" style="margin-top:8px">
-              <div class="field"><label>ખોદકામ D</label><input id="dExcD" type="number" step="0.01" value="0.20"></div>
-              <div class="field"><label>ડસ્ટ D</label><input id="dDustD" type="number" step="0.01" value="0.10"></div>
+              <div class="field"><label>ખોદકામ / બોક્સ જાડાઈ</label><input id="dExcD" type="number" step="0.01" value="0.20" oninput="liveMbBill()"></div>
+              <div class="field"><label>બાઈન્ડિંગ જાડાઈ</label><input id="dDustD" type="number" step="0.01" value="0.10" oninput="liveMbBill()"></div>
+              <div class="field hidden" id="wrapCcT"><label>CC જાડાઈ</label><input id="dCcT" type="number" step="0.01" value="0.10" oninput="liveMbBill()"></div>
               <div class="field"><label>Test</label><input id="kTest" type="number" min="0" max="1" value="1"></div>
               <div class="field"><label>તકતી</label><input id="kPlate" type="number" min="0" max="1" value="0"></div>
             </div>
             <div class="actions" style="margin-top:8px">
-              <button type="button" class="btn btn-w" onclick="addDiaryRow()">Add</button>
               <button type="button" class="btn btn-g" onclick="workIsDone()">Check, કામ ખરેખર પૂરું થયું?</button>
               <button type="button" class="btn btn-s hidden" id="btnKachu" onclick="showKachu()">કાચું બિલ</button>
             </div>
@@ -744,7 +770,7 @@
               <button type="button" class="btn btn-g" onclick="saveSiteOnly()">Save</button>
             </div>
             <p class="muted" id="dAreaLine">Area: 0 SMT</p>
-            <div id="dBill" class="live hidden" style="margin-top:10px"></div>
+            <div id="dBill" class="live" style="margin-top:10px"></div>
             <div id="kachuBox" class="hidden" style="margin-top:10px;text-align:left">
               <div class="head" style="grid-template-columns:1fr 1fr;gap:10px">
                 <div>
@@ -2002,8 +2028,8 @@ function onLetterDate(){
     if (!tb) return;
     const paver = diaryType()==="paver";
     if (th) th.innerHTML = paver
-      ? "<tr><th>Sr</th><th>લંબાઈ</th><th>પહોળાઈ</th></tr>"
-      : "<tr><th>Sr</th><th>લંબાઈ</th><th>પહોળાઈ</th><th>જાડાઈ</th></tr>";
+      ? "<tr><th>Sr</th><th>લંબાઈ</th><th>પહોળાઈ</th><th></th></tr>"
+      : "<tr><th>Sr</th><th>લંબાઈ</th><th>પહોળાઈ</th><th>જાડાઈ</th><th></th></tr>";
     tb.innerHTML="";
     DIARY.forEach((s,i)=>{
       const tr=document.createElement("tr");
@@ -2011,6 +2037,7 @@ function onLetterDate(){
         '<td><input type="text" inputmode="decimal" placeholder="10+15" value="'+(s.l||"")+'" data-k="l" data-i="'+i+'"></td>'+
         '<td><input type="text" inputmode="decimal" placeholder="3+3.5" value="'+(s.w||"")+'" data-k="w" data-i="'+i+'"></td>';
       if (!paver) html += '<td><input type="number" step="0.01" value="'+(s.d||"")+'" data-k="d" data-i="'+i+'" placeholder="0.10"></td>';
+      html += '<td class="map-act"><button type="button" class="pm add" onclick="addDiaryRow()">+</button><button type="button" class="pm" onclick="delDiaryRow('+i+')">−</button></td>';
       tr.innerHTML=html;
       tb.appendChild(tr);
     });
@@ -2018,6 +2045,11 @@ function onLetterDate(){
       inp.oninput=function(){ DIARY[+this.dataset.i][this.dataset.k]=this.value; refreshDiaryLive(); };
     });
     refreshDiaryLive();
+  }
+  function delDiaryRow(i){
+    if (DIARY.length<=1){ DIARY[0]={l:"",w:"",d:""}; renderDiaryRows(); return; }
+    DIARY.splice(i,1);
+    renderDiaryRows();
   }
   function addDiaryRow(){
     if (DIARY.length>=10) return;
@@ -2060,8 +2092,69 @@ function onLetterDate(){
     const a=document.getElementById("dAreaLine");
     const area=diaryArea();
     if (a) a.textContent="Area: "+(Math.round(area*100)/100)+" SMT";
+    const w=document.getElementById("wrapCcT");
+    if (w) w.classList.toggle("hidden", diaryType()!=="cc");
+    const ex=document.getElementById("dExcD");
+    if (ex && !ex.dataset.touch){
+      /* keep user value */
+    }
+    liveMbBill();
     const kb=document.getElementById("kachuBox");
     if (kb && !kb.classList.contains("hidden")) renderKachuSheets();
+  }
+  function mbCcTotals(){
+    const boxT=Number((document.getElementById("dExcD")||{}).value||0.3);
+    const bindT=Number((document.getElementById("dDustD")||{}).value||0.10);
+    const ccT=Number((document.getElementById("dCcT")||{}).value||0.10);
+    let box=0, area=0, cc=0;
+    DIARY.forEach(function(s){
+      const L=parseMix(s.l), W=parseMix(s.w);
+      const d=parseMix(s.d)||boxT;
+      area += L*W;
+      box += L*W*d;
+      cc += L*W*(parseMix(s.d)||ccT);
+    });
+    const metal0=area*0.12;
+    const metal=metal0+metal0*0.15;
+    const boxesM=Math.floor(metal/1.5+1e-9);
+    const metalQty=boxesM*1.5;
+    const bind0=metalQty*0.25;
+    const boxesB=Math.floor(bind0/1.5+1e-9);
+    const bindQty=boxesB*1.5;
+    const testQ=Number((document.getElementById("kTest")||{}).value||0);
+    const plateQ=Number((document.getElementById("kPlate")||{}).value||0);
+    const items=[
+      ["1 BOX CUTTING",box,158.12],
+      ["2 40-63",metalQty,684.6],
+      ["3 Binding",bindQty,173.51],
+      ["4 Spreading",metalQty,249.75],
+      ["5 Murrum",bindQty,147.47],
+      ["6 CC 1:2:4",cc,4915.01],
+      ["7 Test Reports",testQ,2656],
+      ["8 Name plate",plateQ,306.14]
+    ];
+    let sub=0;
+    items.forEach(function(it){ it.push(it[1]*it[2]); sub+=it[3]; });
+    const gst=sub*0.18, tot=sub+gst, net=Math.floor(tot);
+    const est=Number((document.getElementById("dAmtIn")||{}).value||0);
+    return {items,sub,gst,tot,net,est,area};
+  }
+  function liveMbBill(){
+    const box=document.getElementById("dBill");
+    if(!box) return;
+    const paver=diaryType()==="paver";
+    const x=paver?mbPaverTotals():mbCcTotals();
+    const items=x.items||[];
+    let h="<table class='mb-live'><thead><tr><th>આઇટમ</th><th>Qty</th><th>Rate</th><th>Amount</th></tr></thead><tbody>";
+    items.forEach(function(it){
+      h+="<tr><td>"+it[0]+"</td><td>"+Number(it[1]||0).toFixed(2)+"</td><td>"+Number(it[2]||0)+"</td><td>"+Math.round(it[3]||0).toLocaleString("en-IN")+"</td></tr>";
+    });
+    h+="<tr><td colspan='3'>18% GST</td><td>"+Math.round(x.gst||0).toLocaleString("en-IN")+"</td></tr>";
+    h+="<tr class='sum'><td colspan='3'>કુલ રકમ</td><td>"+Math.round(x.tot||0).toLocaleString("en-IN")+"</td></tr>";
+    h+="<tr class='net'><td colspan='3'>ચોખ્ખી રકમ</td><td>"+Math.floor(x.tot||0).toLocaleString("en-IN")+"</td></tr>";
+    h+="</tbody></table>";
+    box.innerHTML=h;
+    box.classList.remove("hidden");
   }
 
 
