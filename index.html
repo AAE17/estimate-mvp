@@ -495,6 +495,9 @@
       height:40px;border:1px solid #cbd5e1;border-radius:10px;padding:8px 10px;background:#fff
     }
     .bill-vigat{font-weight:700;font-size:15px;padding:6px 0 2px;color:#1e3a5f}
+    .bill-r5{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+    .bill-r5 input{min-width:0;width:100%;font-size:13px}
+    @media(max-width:800px){ .bill-r5{grid-template-columns:1fr 1fr} }
 </style>
 </head>
 <body>
@@ -859,10 +862,12 @@
         <div class="field"><label>4. AAE નામ</label><input id="billAAE"></div>
         <div class="field"><label>Work order Details & Date:</label><input id="billWO" placeholder="વશી / તારીખ"></div>
       </div>
-      <div class="field"><label>5. TS Details</label><input id="billTS"></div>
-      <div class="field"><label>TS Amount</label><input id="billTSAmt" type="number" oninput="liveBill()"></div>
-      <div class="field"><label>AS Details & Date:</label><input id="billASDet" placeholder="હુકમ / તારીખ"></div>
-      <div class="field"><label>AS Amount</label><input id="billAmt" type="number" oninput="liveBill()"></div>
+      <div class="span2 bill-r5">
+        <div class="field"><label>5. TS Details</label><input id="billTS"></div>
+        <div class="field"><label>TS Amount</label><input id="billTSAmt" type="number" oninput="liveBill()"></div>
+        <div class="field"><label>AS Details & Date:</label><input id="billASDet" placeholder="હુકમ / તારીખ"></div>
+        <div class="field"><label>AS Amount</label><input id="billAmt" type="number" oninput="liveBill()"></div>
+      </div>
       <div class="bill-r2 span2">
         <div class="field"><label>6. કામ શરૂ તારીખ</label><input id="billStart"></div>
         <div class="field"><label>કામ પૂર્ણ તારીખ</label><input id="billDate" oninput="liveBill()"></div>
@@ -870,9 +875,10 @@
       <div class="field"><label>7. MB નંબર</label><input id="billNo" oninput="liveBill()"></div>
       <div class="field"><label>પેજ થી</label><input id="billPg1"></div>
       <div class="field"><label>પેજ સુધી</label><input id="billPg2"></div>
-      <div class="span2"><div class="bill-vigat">બિલની વિગત</div></div>
       <div class="span2 bill-qty-live">
-        <div class="bill-qty">
+        <div>
+          <div class="bill-vigat">બિલની વિગત</div>
+          <div class="bill-qty">
           <div class="field"><label id="lq1">1. Excavation — Cmt</label><input id="billQ1" type="number" step="0.01" oninput="onBillQty()"></div>
           <div class="field"><label id="lq2">2. Binding material — Cmt</label><input id="billQ2" type="number" step="0.01" oninput="onBillQty()"></div>
           <div class="field"><label id="lq3">3. Paver Block — Smt</label><input id="billQ3" type="number" step="0.01" oninput="onBillQty()"></div>
@@ -881,6 +887,7 @@
           <div class="field"><label id="lq6">6. Name Plate — Job</label><input id="billQ6" type="number" step="1" oninput="onBillQty()"></div>
           <div class="field hidden" id="wrapQ7"><label id="lq7">7. Testing — Job</label><input id="billQ7" type="number" step="1" oninput="liveBill()"></div>
           <div class="field hidden" id="wrapQ8"><label id="lq8">8. Name plate — Job</label><input id="billQ8" type="number" step="1" oninput="liveBill()"></div>
+          </div>
         </div>
         <div id="liveBillBox" class="card" style="background:#fff;color:#111;min-height:220px"></div>
       </div>
@@ -1475,6 +1482,7 @@
     }
     set("billGam", it.village||it.gam||"");
     set("billTal", it.taluka||"");
+    set("billAAE", it.prepared_by||it.aae||it.aae_name||(typeof prGet==="function"&&prGet().name)||"");
     const typ=String(it.type||it.kind||"").toLowerCase();
     const bt=document.getElementById("billType");
     if(bt){
@@ -1547,17 +1555,29 @@
     if(!el) return;
     const ds=(di && di.value) || "";
     if(!ds){ el.innerHTML="<div class='ltr-row'>પહેલાં તારીખ પસંદ કરો</div>"; el._rows=[]; return; }
-    const all=loadLocalBills();
-    const rows=all.filter(function(b){ return String(b.day||b.ts||"").slice(0,10)===ds; });
-    if(!rows.length){ el.innerHTML="<div class='ltr-row'>આ તારીખે બિલ નથી</div>"; el._rows=[]; const c0=document.getElementById("letterCount"); if(c0) c0.textContent=""; return; }
-    el.classList.remove("muted");
-    el.innerHTML=rows.map(function(b,i){
-      return "<label class='ltr-row'><input type='checkbox' class='letterPick' data-i='"+i+"' checked onchange='letterCountSel()'><div class='ltr-no'>"+(i+1)+"</div><div class='ltr-main'><div class='ltr-title'>"+(b.work_name||"કામ")+"</div><div class='ltr-sub'>"+(b.village||"ગામ નથી")+(b.taluka?(" · "+b.taluka):"")+" · MB "+(b.mb_no||"—")+"</div></div><select class='letterOff' data-i='"+i+"' onclick='event.preventDefault()'><option value='rb'>DEE R&amp;B (પં)</option><option value='nani'>DEE નાની સિંચાઈ (પં)</option></select><input class='letterAddr' data-i='"+i+"' placeholder='ઓફિસ એડ્રેસ' onclick='event.preventDefault()'><div class='ltr-amt'>₹ "+Number(letterAmt(b)||0).toLocaleString("en-IN")+"</div></label>";
-    }).join("");
-    el._rows=rows;
-    letterCountSel();
+    const local=loadLocalBills().filter(function(b){ return String(b.day||b.ts||"").slice(0,10)===ds; });
+    function paint(rows){
+      const seen={};
+      const uniq=[];
+      rows.forEach(function(b){
+        const k=(b.work_name||"")+"|"+(b.mb_no||"")+"|"+(b.village||"");
+        if(seen[k]) return; seen[k]=1; uniq.push(b);
+      });
+      if(!uniq.length){ el.innerHTML="<div class='ltr-row'>આ તારીખે બિલ નથી</div>"; el._rows=[]; return; }
+      el.innerHTML=uniq.map(function(b,i){
+        return "<label class='ltr-row'><input type='checkbox' class='letterPick' data-i='"+i+"' checked onchange='letterCountSel()'><div class='ltr-no'>"+(i+1)+"</div><div class='ltr-main'><div class='ltr-title'>"+(b.work_name||"કામ")+"</div><div class='ltr-sub'>"+(b.village||"ગામ નથી")+(b.taluka?(" · "+b.taluka):"")+" · MB "+(b.mb_no||"—")+"</div></div><select class='letterOff' data-i='"+i+"' onclick='event.preventDefault()'><option value='rb'>DEE R&amp;B (પં)</option><option value='nani'>DEE નાની સિંચાઈ (પં)</option></select><input class='letterAddr' data-i='"+i+"' placeholder='ઓફિસ એડ્રેસ' onclick='event.preventDefault()'><div class='ltr-amt'>₹ "+Number(letterAmt(b)||0).toLocaleString("en-IN")+"</div></label>";
+      }).join("");
+      el._rows=uniq;
+      letterCountSel();
+    }
+    paint(local);
+    const base=(typeof API!=="undefined"?API:"");
+    fetch(base+"/api/bills?day="+encodeURIComponent(ds)).then(function(r){return r.json();}).then(function(d){
+      const remote=(d && d.bills)||[];
+      paint(remote.concat(local));
+    }).catch(function(){});
   }
-  function onLetterDate(){
+function onLetterDate(){
     const ds=(document.getElementById("letterDate")||{}).value||"";
     const view=document.getElementById("letterDateView");
     if(view) view.textContent=ds;
@@ -1710,6 +1730,7 @@
           as_amount: Number(val("billAmt")||0),
           fund_head: (typeof billFundHead==="function"?billFundHead():"")
         });
+        body.net=liveNet||0; body.day=todayStr(); body.amounting=liveNet||Number(val("billAmt")||0);
       }catch(e){}
       if(data.xlsx) window.open(base+data.xlsx,"_blank");
       if(data.pdf) window.open(base+data.pdf,"_blank");
