@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
-  <title>ParaState MVP</title>
+  <title>SO+</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     :root { --g:#1B5D45; --s:#C45C26; --p:#F3EEE4; --i:#14211A; --l:#d7d0c4; }
@@ -565,7 +565,7 @@
 <body>
   <div id="authGate" class="toast">
     <div class="box" style="max-width:400px;width:100%">
-      <b id="authTitle">Co-Pilot Login</b>
+      <b id="authTitle">SO+ Login</b>
       <p class="muted">ઈમેલ + પાસવર્ડ. OTP નહીં.</p>
       <div class="field"><label>ઈમેલ</label><input id="authEmail" type="email" placeholder="you@gmail.com"></div>
       <div class="field"><label>પાસવર્ડ</label><input id="authPass" type="password" placeholder="ઓછામાં 6 અક્ષર"></div>
@@ -593,7 +593,7 @@
   <header class="topbar">
     <div class="topbar-row">
       <button type="button" class="mbtn" onclick="toggleMobMenu()" aria-label="Menu">☰</button>
-      <div class="brand"><span class="logo">🏗</span><span>Co-Pilot<small>WORKS &amp; ESTIMATES</small></span></div>
+      <div class="brand" role="button" onclick="show('s-hi')" style="cursor:pointer"><span class="logo">🏗</span><span>SO+<small>WORKS &amp; ESTIMATES</small></span></div>
       <nav class="hnav">
         <button type="button" id="tab-dash" class="on" onclick="show('s-hi')"><span class="ic">▦</span>Dashboard</button>
         <button type="button" id="tab-est" onclick="goTypes()"><span class="ic">▤</span>Estimate</button>
@@ -847,7 +847,7 @@
               <p class="muted" id="photoGps"></p>
             </div>
           </div>
-          <div class="brand">Co-Pilot Estimate</div>
+          <div class="brand">SO+</div>
         </div>
 
       </div>
@@ -858,7 +858,7 @@
         <div class="diary" style="min-height:auto;text-align:center;padding:40px 16px 28px;background:#8B4513;color:#f3e6c8">
           <div style="font-size:42px;font-weight:800;letter-spacing:.08em">2026</div>
           <h2 style="margin:24px 0 8px;color:#f3e6c8">Tour Diary</h2>
-          <p style="opacity:.9">Co-Pilot Estimate</p>
+          <p style="opacity:.9">SO+</p>
           <p class="muted" style="color:#e8d7b0">Taluka Panchayat AAE</p>
           <div class="actions" style="justify-content:center;margin-top:22px">
             <button class="btn btn-g" onclick="tourPage('person')">ખોલો</button>
@@ -916,7 +916,7 @@
       </div>
       <div class="field span2" id="billWorkWrap"><label>1. કામનું નામ</label><input id="billWork" oninput="liveBill()"></div>
       <div class="field"><label>2. પ્રકાર</label>
-        <select id="billType" onchange="syncBillQtyLabels();liveBill()"><option value="paver">Paver Block</option><option value="cc">CC Road</option></select>
+        <select id="billType" onchange="syncBillQtyLabels();liveBill()"><option value="cc">CC Road</option><option value="paver">Paver Block</option></select>
       </div>
       <div class="field"><label>Grant Head</label>
         <select id="billGrant" onchange="onBillGrant();liveBill()"><option value="">— પસંદ કરો —</option></select>
@@ -1281,7 +1281,10 @@
       sbClient=window.supabase.createClient(cfg.url, cfg.anon);
       const { data }=await sbClient.auth.getSession();
       if(data&&data.session){ onAuthed(data.session); }
-      else { document.getElementById("authGate").classList.remove("hidden"); }
+      else {
+        document.getElementById("authGate").classList.remove("hidden");
+        if(typeof show==="function") show("s-hi");
+      }
       sbClient.auth.onAuthStateChange(function(_e, session){
         if(session) onAuthed(session); else {
           document.getElementById("authGate").classList.remove("hidden");
@@ -1348,7 +1351,7 @@
     document.getElementById("authExtra").classList.toggle("hidden", !on);
     document.getElementById("authLoginRow").classList.toggle("hidden", on);
     document.getElementById("authSignRow").classList.toggle("hidden", !on);
-    document.getElementById("authTitle").textContent=on?"નવું અકાઉન્ટ":"Co-Pilot Login";
+    document.getElementById("authTitle").textContent=on?"નવું અકાઉન્ટ":"SO+ Login";
     document.getElementById("authMsg").textContent="";
   }
   function authErr(s){
