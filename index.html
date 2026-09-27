@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
-  <title>ParaState MVP</title>
+  <title>SO+ MVP</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     :root { --g:#1B5D45; --s:#C45C26; --p:#F3EEE4; --i:#14211A; --l:#d7d0c4; }
@@ -524,11 +524,11 @@
     .est-l2{grid-template-columns:1fr 1fr}
     .est-form .field{min-width:0}
     @media(max-width:800px){ .est-l3,.est-l2{grid-template-columns:1fr} }
-    .diary .work .map-row{display:grid;grid-template-columns:36px 1fr 1fr 1fr 80px;gap:0;align-items:center;margin:8px auto;max-width:560px;background:#eef2f7;border-radius:14px;padding:8px 10px}
-    .diary .work .map-row.head{background:transparent;font-weight:700;font-size:14px;padding:0 10px}
+    .diary .work .map-row{display:grid;grid-template-columns:36px 1fr 1fr 1fr 80px;gap:8px;align-items:center;margin:8px auto;max-width:560px;background:transparent;padding:4px 0}
+    .diary .work .map-row.head{font-weight:700;font-size:14px}
     .diary .work .map-row input{
-      text-align:center;font-size:16px;width:100%;padding:8px 4px;
-      background:transparent;border:0;color:#0f172a
+      text-align:center;font-size:16px;width:100%;padding:6px 2px;
+      background:transparent;border:0;border-bottom:1px solid #334155;color:#0f172a;border-radius:0
     }
     .diary .work .map-row.head span:nth-child(4):empty + span{ }
     .est-map{display:grid;grid-template-columns:40px 1fr 1fr 88px;gap:8px;align-items:center;background:#eef2f7;border-radius:14px;padding:8px 10px;margin:6px 0}
@@ -2217,7 +2217,7 @@ function onLetterDate(){
     const seen={};
     const out=[];
     (loc||[]).concat(remote||[]).forEach(function(x){
-      const k=String(x.id||"")+"|"+String(x.work_name||"")+"|"+String(x.ts||"").slice(0,16);
+      const k=String(x.type||"").toLowerCase()+"|"+String(x.village||x.gam||"").toLowerCase()+"|"+String(x.work_name||"").replace(/\s+/g," ").trim().toLowerCase()+"|"+String(x.ts||"").slice(0,10);
       if(seen[k]) return;
       seen[k]=1;
       out.push(x);
@@ -2305,6 +2305,10 @@ function onLetterDate(){
     document.getElementById("dWork").value = est && est.work_name ? est.work_name : "";
     document.getElementById("dTaluka").value = (est && (est.taluka||"")) || "";
     document.getElementById("dContractor").value = (est && (est.contractor||"")) || "";
+    const gamEl=document.getElementById("dGam");
+    if (gamEl) gamEl.value = (est && (est.village||est.gam||"")) || "";
+    const aaeEl=document.getElementById("dAAE");
+    if (aaeEl) aaeEl.value = (est && (est.prepared_by||est.aae||est.aae_name||"")) || (typeof prGet==="function" && prGet().name) || "";
     (function(){
       const work=(est && est.work_name)||"";
       const m=metaFor(work)||{};
@@ -2481,9 +2485,11 @@ function onLetterDate(){
     fetch(API+"/api/mb",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(kachuBody("both"))})
       .then(function(r){return r.json();})
       .then(function(d){
+        if (!d.ok) throw new Error(d.error||"fail");
         if (d.xlsx) window.open(API+d.xlsx,"_blank");
         if (d.pdf) window.open(API+d.pdf,"_blank");
-      });
+      })
+      .catch(function(e){ alert(e.message); });
   }
   function saveSitePayload(type, estAmt, area, L, W, done){
     const ccT=(function(){let v=0;DIARY.forEach(function(r){v+=Number(r.l||0)*Number(r.w||0)*Number(r.d||0.1);}); return area?v/area:0.1;})();
