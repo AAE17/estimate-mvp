@@ -1499,7 +1499,7 @@
         Object.keys(meta).forEach(function(w){
           const m=meta[w]||{};
           if(m.rows && m.rows.length){
-            raw.unshift({work_name:w, taluka:m.taluka, village:m.village||"", type:m.type||"", fund_head:m.grant, contractor:m.contractor, rows:m.rows, amounting:m.amounting||0, test_qty:m.test_qty, plate:m.plate});
+            raw.unshift({work_name:w, taluka:m.taluka, village:m.village||"", year:m.year||"", type:m.type||"", fund_head:m.grant, contractor:m.contractor, rows:m.rows, amounting:m.amounting||0, test_qty:m.test_qty, plate:m.plate});
           }
         });
       }
@@ -1546,15 +1546,18 @@
       const g="૦૧૨૩૪૫૬૭૮૯";
       return String(s).replace(/[૦-૯]/g,function(ch){return String(g.indexOf(ch));});
     }
-    const rawEn=fromGu(raw);
-    let yearHit="";
+    const rawEn=fromGu(raw+" "+(it.year||metaFor(it.work_name||"").year||""));
+    let yearHit=fromGu(it.year||metaFor(it.work_name||"").year||"");
     const ym=rawEn.match(/(20\d{2}-\d{2})/);
-    if(ym) yearHit=ym[1];
+    if(!yearHit && ym) yearHit=ym[1];
+    if(yearHit && yearHit.length===4) yearHit=yearHit+"-"+String(Number(yearHit)+1).slice(-2);
     const ysel=document.getElementById("billYear");
     if(ysel && yearHit){
+      let ok=false;
       for(let i=0;i<ysel.options.length;i++){
-        if(ysel.options[i].value===yearHit){ set("billYear", yearHit); break; }
+        if(ysel.options[i].value===yearHit || fromGu(ysel.options[i].value)===yearHit){ set("billYear", ysel.options[i].value); ok=true; break; }
       }
+      if(!ok) set("billYear", yearHit);
     }
     set("billGam", it.village||it.gam||"");
     set("billTal", it.taluka||"");
@@ -1581,7 +1584,7 @@
         const l=parseFloat(String(r.l||r.L||"").split("+").reduce(function(a,b){return a+(parseFloat(b)||0);},0))||parseFloat(r.l)||0;
         const w=parseFloat(String(r.w||r.W||"").split("+").reduce(function(a,b){return a+(parseFloat(b)||0);},0))||parseFloat(r.w)||0;
         const d=parseFloat(r.d||r.D)||0.10;
-        areaR+=l*w; Lsum+=l; box+=l*w*0.30; ccVol+=l*w*d;
+        areaR+=l*w; Lsum+=l; box+=l*w*(d||0.10); ccVol+=l*w*(d||0.10);
       });
       const test=it.test_qty!=null?it.test_qty:(meta.test_qty||0);
       const plate=it.plate!=null?it.plate:(meta.plate||0);
@@ -1775,6 +1778,22 @@ function onLetterDate(){
     box.innerHTML=h;
   }
   async function genBillPaver(fmt){
+    const val0=function(id){return String((document.getElementById(id)||{}).value||"").trim();};
+    const need=["billWork","billGrant","billYear","billGam","billTal","billAAE","billWO","billTS","billTSAmt","billAmt","billStart","billDate","billNo","billPg1","billPg2"];
+    const nQ=isCcBill()?8:6;
+    for(let i=1;i<=nQ;i++) need.push("billQ"+i);
+    const miss=need.filter(function(id){
+      const el=document.getElementById(id);
+      if(!el || el.closest && el.closest(".hidden")) return false;
+      if(el.disabled) return false;
+      return !val0(id);
+    });
+    if(miss.length){
+      alert("બિલ બનાવવા બધા ખાના ભરો.");
+      const f=document.getElementById(miss[0]);
+      if(f && f.focus) f.focus();
+      return;
+    }
     const q=billQtyFromLW();
     const val=function(id){return (document.getElementById(id)||{}).value||"";};
     const body={
@@ -2601,6 +2620,7 @@ function onLetterDate(){
       grant:(typeof siteFundHead==="function"?siteFundHead():(document.getElementById("dGrant")||{}).value||""),
       contractor:(document.getElementById("dContractor")||{}).value||"",
       village:(document.getElementById("dGam")||{}).value||(diaryEst&&(diaryEst.village||diaryEst.gam))||"",
+      year:(document.getElementById("dYear")||{}).value||"",
       type:type,
       amounting:estAmt,
       test_qty:Number((document.getElementById("kTest")||{}).value||0),
