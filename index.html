@@ -2124,11 +2124,11 @@ function onLetterDate(){
     const testQ=Number((document.getElementById("kTest")||{}).value||0);
     const plateQ=Number((document.getElementById("kPlate")||{}).value||0);
     const items=[
-      ["1 BOX CUTTING",box,158.12],
-      ["2 40-63",metalQty,684.6],
-      ["3 Binding",bindQty,173.51],
-      ["4 Spreading",metalQty,249.75],
-      ["5 Murrum",bindQty,147.47],
+      ["1 Box cutting",box,158.12],
+      ["2 Metal 40-63 mm",metalQty,684.6],
+      ["3 Binding material",bindQty,173.51],
+      ["4 Spreading Metal 40-63 mm",metalQty,249.75],
+      ["5 Spreading binding material",bindQty,147.47],
       ["6 CC 1:2:4",cc,4915.01],
       ["7 Test Reports",testQ,2656],
       ["8 Name plate",plateQ,306.14]
@@ -2401,10 +2401,10 @@ function onLetterDate(){
   }
   function fillKachuPreview(p){ renderKachuSheets(); }
   function showKachu(){
-    if (diaryType()!=="paver") { alert("CC MB હજુ બાકી"); return; }
     const kb=document.getElementById("kachuBox");
     if (kb) kb.classList.remove("hidden");
-    renderKachuSheets();
+    liveMbBill();
+    saveKachu();
   }
   function saveKachu(){
     const body=kachuBody("xlsx");
@@ -2412,7 +2412,9 @@ function onLetterDate(){
       .then(function(r){return r.json();})
       .then(function(d){
         if (!d.ok) throw new Error(d.error||"fail");
-        fillKachuPreview(d.preview);
+        if (d.xlsx) window.open(API+d.xlsx,"_blank");
+        if (d.pdf) window.open(API+d.pdf,"_blank");
+        if (typeof fillKachuPreview==="function" && d.preview) fillKachuPreview(d.preview);
         return fetch(API+"/api/db/kachu",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
           type:"paver",
           work_name:body.work_name,
