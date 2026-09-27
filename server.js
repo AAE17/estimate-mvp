@@ -1529,8 +1529,6 @@ app.post("/api/mb", async (req, res) => {
         const r = 3 + i;
         setVal(ws, "G" + r, s.L);
         setVal(ws, "H" + r, s.W);
-        setVal(ws, "L" + r, s.L);
-        setVal(ws, "M" + r, s.W);
         if (i === 0) {
           setVal(ws, "I3", s.d || boxT);
           setVal(ws, "N3", ccT);
