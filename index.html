@@ -1655,6 +1655,16 @@
       try{
         const pick=document.getElementById("billPick");
         const pickName=pick && pick.options[pick.selectedIndex] ? pick.options[pick.selectedIndex].textContent : "";
+        const liveNet=(function(){
+          const q=billQtyFromLW();
+          let sub=0;
+          if(isCcBill()){
+            [[q.box,158.12],[q.metal,684.6],[q.murum,173.51],[q.spreadM,249.75],[q.spreadU,147.47],[q.cc,4915.01],[q.test,2656],[q.plate,306.14]].forEach(function(p){ sub+=Number(p[0]||0)*p[1]; });
+          } else {
+            [[q.box,156.56],[q.murum,210.42],[q.paver,740.51],[q.vata,23.68],[q.test,608],[q.plate,306.14]].forEach(function(p){ sub+=Number(p[0]||0)*p[1]; });
+          }
+          return Math.floor(sub*1.18);
+        })();
         pushLocalBill({
           ts:new Date().toISOString(),
           day:todayStr(),
@@ -1663,7 +1673,8 @@
           taluka:val("billTal"),
           mb_no:val("billNo"),
           subdiv:val("billSub"),
-          amounting:Number(val("billAmt")||0),
+          amounting: liveNet || Number(val("billAmt")||0),
+          as_amount: Number(val("billAmt")||0),
           fund_head: (typeof billFundHead==="function"?billFundHead():"")
         });
       }catch(e){}
