@@ -1496,6 +1496,14 @@
       let raw=(url.indexOf("estimates")>=0?mergeEstLists(d.items||[]):(d.items||[]));
       if(mode===2){
         const meta=loadSiteMeta();
+        raw=raw.map(function(it){
+          const m=meta[it.work_name||it.work||""]||{};
+          if((!it.rows||!it.rows.length)&&m.rows) it.rows=m.rows;
+          if(!it.village && m.village) it.village=m.village;
+          if(!it.year && m.year) it.year=m.year;
+          if(!it.type && m.type) it.type=m.type;
+          return it;
+        });
         Object.keys(meta).forEach(function(w){
           const m=meta[w]||{};
           if(m.rows && m.rows.length){
@@ -1576,7 +1584,8 @@
     set("billGam", it.village||it.gam||meta.village||(diaryEst&&diaryEst.village)||"");
     set("billTal", it.taluka || meta.taluka || "");
     if(window.__billMode===2){
-      const rows=it.rows||meta.rows||[];
+      const rows=(it.rows&&it.rows.length)?it.rows:(meta.rows||[]);
+      if(rows.length && typeof console!=="undefined") {}
       const typ=String((document.getElementById("billType")||{}).value||it.type||"").toLowerCase();
       const cc=typ.indexOf("cc")>=0;
       let areaR=0,Lsum=0,box=0,ccVol=0;
@@ -2631,7 +2640,7 @@ function onLetterDate(){
       type:type, work_name:siteWorkName(),
       amounting:estAmt, rows:DIARY, area:area,
       brass: type==="paver" ? area*10.7584/100 : 0,
-      bill: type==="paver" ? scanF24("paver", L, W) : scanF24("cc", L, W, ccT),
+      bill: (type==="paver" ? mbPaverTotals() : mbCcTotals()).tot,
       estimate_id: diaryEst && diaryEst.id || "",
       done: !!done,
       taluka:(document.getElementById("dTaluka")||{}).value||"",
@@ -2679,7 +2688,16 @@ function onLetterDate(){
       });
       const inr0=function(x){return "₹ "+Number(x||0).toLocaleString("en-IN",{maximumFractionDigits:0});};
       el.innerHTML = rec.length ? rec.map(function(r,i){
-        return "<div class='work-row' data-done='"+i+"'><span>"+String(r.ts||"").slice(0,10)+" · "+(r.work_name||"")+"<br>એસ્ટિમેટ "+inr0(r.amounting)+" · બિલ "+inr0(r.bill)+
+        const billShow=(function(){
+          if(r.rows&&r.rows.length&&typeof mbPaverTotals==="function"){
+            const keep=window.DIARY; window.DIARY=r.rows;
+            const x=(String(r.type||"").toLowerCase().indexOf("cc")>=0)?mbCcTotals():mbPaverTotals();
+            window.DIARY=keep;
+            if(x&&x.tot) return x.tot;
+          }
+          return r.bill;
+        })();
+        return "<div class='work-row' data-done='"+i+"'><span>"+String(r.ts||"").slice(0,10)+" · "+(r.work_name||"")+"<br>એસ્ટિમેટ "+inr0(r.amounting)+" · બિલ "+inr0(billShow)+
           "</span><span><button type='button' class='btn btn-w' data-done='"+i+"' title='જોવું / એડિટ'>👁</button> "+
           "<button type='button' class='btn btn-w' data-del='"+i+"' title='ડિલીટ'>🗑</button></span></div>";
       }).join("") : "<div>હજુ Work Done નથી</div>";
