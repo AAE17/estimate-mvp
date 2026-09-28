@@ -520,7 +520,7 @@
     table.mb-live tr.sum td{font-weight:700;border-top:1px solid #cbd5e1}
     table.mb-live tr.net td{font-weight:700;color:#1e3a5f}
     .est-l3,.est-l2{display:grid;gap:8px;width:100%;grid-column:1/-1}
-    .est-l3{grid-template-columns:repeat(3,minmax(0,1fr))}
+    .est-l2.est-l3,.est-l3{grid-template-columns:repeat(3,minmax(0,1fr))}
     .est-l2{grid-template-columns:1fr 1fr}
     .est-form .field{min-width:0}
     @media(max-width:800px){ .est-l3,.est-l2{grid-template-columns:1fr} }
@@ -802,11 +802,12 @@
             <div id="dHead" class="map-row head"><span>Sr</span><span>Length</span><span>Width</span><span id="dHeadD">C.C.Road Thickness</span><span></span></div>
             <div id="dRows"></div>
             <div class="head" id="kTestRow" style="margin-top:8px">
-              <div class="field" id="wrapExcD"><label>ખોદકામ / બોક્સ જાડાઈ</label><input id="dExcD" type="number" step="0.01" value="0.20" oninput="liveMbBill()"></div>
-              <div class="field" id="wrapDustD"><label>બાઈન્ડિંગ જાડાઈ</label><input id="dDustD" type="number" step="0.01" value="0.10" oninput="liveMbBill()"></div>
-              <div class="est-l2" id="lineCc3"><input type="hidden" id="dCcT" value="0.10">
-                <div class="field"><label>Test Reports</label><input id="kTest" type="number" min="0" max="1" value="1"></div>
-                <div class="field"><label>Name Plate</label><input id="kPlate" type="number" min="0" max="1" value="0"></div>
+              <div class="field" id="wrapExcD"><label>ખોદકામ જાડાઈ</label><input id="dExcD" type="number" step="0.01" placeholder="0.20" oninput="liveMbBill()"></div>
+              <div class="field" id="wrapDustD"><label>બાઈન્ડિંગ જાડાઈ</label><input id="dDustD" type="number" step="0.01" placeholder="0.10" oninput="liveMbBill()"></div>
+              <div class="est-l2" id="lineCc3" class="est-l2 est-l3">
+                <div class="field"><label>C.C. Road Thickness (m)</label><input id="dCcT" type="number" step="0.01" placeholder="0.10" oninput="liveMbBill()"></div>
+                <div class="field"><label>Test Reports (Job)</label><input id="kTest" type="number" min="0" max="1" value="1"></div>
+                <div class="field"><label>Name Plate (Job)</label><input id="kPlate" type="number" min="0" max="1" value="0"></div>
               </div>
             </div>
             <div class="actions" style="margin-top:8px">
@@ -1593,7 +1594,7 @@
         const l=parseFloat(String(r.l||r.L||"").split("+").reduce(function(a,b){return a+(parseFloat(b)||0);},0))||parseFloat(r.l)||0;
         const w=parseFloat(String(r.w||r.W||"").split("+").reduce(function(a,b){return a+(parseFloat(b)||0);},0))||parseFloat(r.w)||0;
         const d=parseFloat(r.d||r.D)||0.10;
-        areaR+=l*w; Lsum+=l; box+=l*w*(d||0.10); ccVol+=l*w*(d||0.10);
+        areaR+=l*w; Lsum+=l; box+=l*w*(d||0); ccVol+=l*w*((it.cc_t||meta.cc_t)||0);
       });
       const test=it.test_qty!=null?it.test_qty:(meta.test_qty||0);
       const plate=it.plate!=null?it.plate:(meta.plate||0);
@@ -2107,6 +2108,12 @@ function onLetterDate(){
     const el=document.getElementById("dType");
     return (el && el.value==="paver") ? "paver" : "cc";
   }
+  
+  function ccThick(){
+    const v=parseFloat((document.getElementById("dCcT")||{}).value);
+    return isNaN(v)?0:v;
+  }
+
   function parseMix(v){
     const parts=String(v||"").split("+").map(function(x){return parseFloat(String(x).trim());}).filter(function(n){return !isNaN(n);});
     if (!parts.length) return 0;
@@ -2126,7 +2133,13 @@ function onLetterDate(){
     if (th) {
       /* header labels stay in html */
     }
-    if (hd) hd.textContent = paver ? "" : "C.C. Road Thickness";
+    if (hd) hd.textContent = paver ? "" : "Box cutting";
+    const we=document.getElementById("wrapExcD");
+    const wd=document.getElementById("wrapDustD");
+    const lc=document.getElementById("lineCc3");
+    if(we) we.style.display = paver ? "" : "none";
+    if(wd) wd.style.display = paver ? "" : "none";
+    if(lc) lc.style.display = paver ? "none" : "";
     tb.innerHTML="";
     DIARY.forEach((s,i)=>{
       const row=document.createElement("div");
@@ -2134,7 +2147,7 @@ function onLetterDate(){
       let html='<span>'+(i+1)+'</span>'+
         '<input type="text" inputmode="decimal" placeholder="10+15" value="'+(s.l||"")+'" data-k="l" data-i="'+i+'">'+
         '<input type="text" inputmode="decimal" placeholder="3+3.5" value="'+(s.w||"")+'" data-k="w" data-i="'+i+'">';
-      if (!paver) html += '<input type="number" step="0.01" value="'+(s.d||"")+'" data-k="d" data-i="'+i+'" placeholder="0.10">';
+      if (!paver) html += '<input type="number" step="0.01" value="'+(s.d||"0.30")+'" data-k="d" data-i="'+i+'" placeholder="0.30">';
       html += '<span class="map-act"><button type="button" class="pm add" onclick="addDiaryRow()">+</button><button type="button" class="pm" onclick="delDiaryRow('+i+')">−</button></span>';
       row.innerHTML=html;
       tb.appendChild(row);
@@ -2152,7 +2165,7 @@ function onLetterDate(){
   function addDiaryRow(){
     if (DIARY.length>=10) return;
     const last=DIARY[DIARY.length-1]||{};
-    DIARY.push({l:last.l||"",w:"",d:last.d||""});
+    DIARY.push({l:last.l||"",w:"",d:last.d||(diaryType()==="cc"?"0.30":"")});
     renderDiaryRows();
   }
   function mbPaverTotals(){
@@ -2205,16 +2218,14 @@ function onLetterDate(){
     if (kb && !kb.classList.contains("hidden")) renderKachuSheets();
   }
   function mbCcTotals(){
-    const boxT=Number((document.getElementById("dExcD")||{}).value||0.3);
-    const bindT=Number((document.getElementById("dDustD")||{}).value||0.10);
-    const ccT=Number((document.getElementById("dCcT")||{}).value||0.10);
+    const ccT=ccThick();
     let box=0, area=0, cc=0;
     DIARY.forEach(function(s){
       const L=parseMix(s.l), W=parseMix(s.w);
-      const d=parseMix(s.d)||boxT;
+      const boxD=parseMix(s.d);
       area += L*W;
-      box += L*W*d;
-      cc += L*W*(parseMix(s.d)||ccT);
+      box += L*W*(boxD||0);
+      cc += L*W*(ccT||0);
     });
     const metal0=area*0.12;
     const metal=metal0+metal0*0.15;
@@ -2534,7 +2545,7 @@ function onLetterDate(){
       type: diaryType(),
       contractor:(document.getElementById("dContractor")||{}).value||"",
       aae:(document.getElementById("dAAE")||{}).value||"",
-      cc_t:(function(){var r=DIARY&&DIARY[0]; return Number((r&&(r.d||r.D))||(document.getElementById("dCcT")||{}).value||0.1);})(),
+      cc_t:ccThick(), exc_d:0,
       grant:(typeof siteFundHead==="function"?siteFundHead():(document.getElementById("dGrant")||{}).value||""),
       taluka:(document.getElementById("dTaluka")||{}).value||(diaryEst&&diaryEst.taluka)||"",
       amounting:Number((document.getElementById("dAmtIn")||{}).value||0),
@@ -2634,6 +2645,7 @@ function onLetterDate(){
       amounting:estAmt,
       test_qty:Number((document.getElementById("kTest")||{}).value||0),
       plate:Number((document.getElementById("kPlate")||{}).value||0),
+      cc_t:ccThick(),
       rows:DIARY
     });
     fetch(API+"/api/db/site",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
