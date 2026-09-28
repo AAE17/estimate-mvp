@@ -1528,12 +1528,16 @@ app.post("/api/mb", async (req, res) => {
     if (type === "paver") {
       const excD = Number(d.exc_d || 0.2);
       const dustD = Number(d.dust_d || 0.1);
+      for (let r = 3; r <= 14; r++) {
+        setVal(ws, "G" + r, 0);
+        setVal(ws, "H" + r, 0);
+      }
+      setVal(ws, "I3", excD);
       segs.forEach(function (s, i) {
         if (i > 11) return;
         const r = 3 + i;
         setVal(ws, "G" + r, s.L);
         setVal(ws, "H" + r, s.W);
-        if (i === 0) setVal(ws, "I3", excD);
       });
       setVal(ws, "C6", Number(d.test_qty == null ? 1 : d.test_qty));
       setVal(ws, "C7", Number(d.name_plate == null ? 0 : d.name_plate));
