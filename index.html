@@ -544,7 +544,20 @@
     #s-form .est-seg input{flex:1 1 0;min-width:0;width:auto !important;display:inline-block !important;
       text-align:center;border:0;background:transparent;padding:8px 4px;font-size:16px}
     #s-form .est-seg .pm{flex:0 0 32px}
-    #s-form table.est-lw{width:100%;border-collapse:separate;border-spacing:8px 6px}
+    #s-form table
+    .g-kicker{font-weight:800;font-size:13px;margin:4px 0 8px;color:#1B5D45}
+    .g-sec{font-weight:700;font-size:13px;margin:10px 0 4px}
+    .g-tbl{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:6px}
+    .g-tbl th{background:#eef3ef;padding:5px 6px;text-align:left;font-weight:700}
+    .g-tbl td{padding:4px 6px;border-bottom:1px solid #e5e7eb;vertical-align:middle}
+    .g-tbl td:first-child{width:28px;text-align:center;font-weight:700}
+    .g-tbl input{width:100%;min-width:0;padding:5px 6px;border:1px solid #d1d5db;border-radius:6px}
+    .g-tbl .pm{display:flex;gap:4px}
+    .g-tbl .pm button{width:28px;height:28px;border:1px solid #c5d0c8;border-radius:6px;background:#fff;font-weight:800;cursor:pointer}
+    .g-two{display:grid;grid-template-columns:1.4fr .6fr;gap:12px}
+    @media(max-width:700px){.g-two{grid-template-columns:1fr}}
+
+    .est-lw{width:100%;border-collapse:separate;border-spacing:8px 6px}
     #s-form table.est-lw th{text-align:left;font-size:13px;color:#334155;font-weight:600;padding:0 4px}
     #s-form table.est-lw td{background:transparent;padding:0;vertical-align:middle}
     #s-form table.est-lw td:first-child{width:36px;text-align:center;font-weight:700;background:#fff;color:#0f172a}
@@ -659,7 +672,7 @@
       <div class="choice">
         <button onclick="goForm('cc')">CC Road</button>
         <button onclick="goForm('paver')">Paver Block</button>
-        <button onclick="soon('Gutter line')">Gutter line</button>
+        <button onclick="goForm('gutter')">Gutter line</button>
         <button onclick="soon('Pipe Line')">Pipe Line</button>
         <button type="button" onclick="soon('Scan SS letter')">📷 Scan SS letter</button>
         <button type="button" onclick="soon('File upload')">📁 File upload</button>
@@ -704,13 +717,54 @@
           <input id="grant_other" placeholder="Grant Head">
         </div>
         <div class="field full"><label>4. કામનું નામ</label><input id="work_name" value=""></div>
+
+        <div class="gutter-only hidden" id="gutterBox">
+          <div class="g-kicker">લેઇંગ ડાયામીટરની R.C.C. Pipe NP2</div>
+          <div class="g-sec">1. Excavation</div>
+          <table class="g-tbl" id="gExTable">
+            <thead><tr><th>Sr</th><th>Dia.</th><th>Length</th><th>Width</th><th>Dia</th><th></th></tr></thead>
+            <tbody id="gExBody"></tbody>
+          </table>
+          <div class="g-sec">2. Demolition of CC Road, if need on site</div>
+          <table class="g-tbl">
+            <thead><tr><th>Sr</th><th>Length</th><th>Width</th><th>Dia</th><th></th></tr></thead>
+            <tbody id="gDeBody"></tbody>
+          </table>
+          <div class="est-l3 hidden" id="gBedRow">
+            <div class="field"><label>CC Bed Width (m)</label><input id="gBedW" type="number" step="0.01" value="0.45" oninput="liveF24()"></div>
+            <div class="field"><label>CC Bed Thickness (m)</label><input id="gBedT" type="number" step="0.01" value="0.05" oninput="liveF24()"></div>
+            <div class="field"></div>
+          </div>
+          <div class="g-two">
+            <div>
+              <div class="g-sec">3. Chambers</div>
+              <table class="g-tbl">
+                <thead><tr><th>Sr</th><th>Size</th><th>No</th></tr></thead>
+                <tbody>
+                  <tr><td>1</td><td>0.60×0.60</td><td><input id="gCh60" type="number" step="1" value="0" oninput="liveF24()"></td></tr>
+                  <tr><td>2</td><td>0.90×0.90</td><td><input id="gCh90" type="number" step="1" value="0" oninput="liveF24()"></td></tr>
+                  <tr><td>3</td><td>1.30×0.90</td><td><input id="gCh139" type="number" step="1" value="0" oninput="liveF24()"></td></tr>
+                  <tr><td>4</td><td>1.30×1.30</td><td><input id="gCh1313" type="number" step="1" value="0" oninput="liveF24()"></td></tr>
+                </tbody>
+              </table>
+            </div>
+            <div>
+              <div class="g-sec">4. Name Plate</div>
+              <table class="g-tbl">
+                <thead><tr><th>No</th></tr></thead>
+                <tbody><tr><td><input id="gPlate" type="number" step="1" value="1" oninput="liveF24()"></td></tr></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
         <div class="est-l3">
           <div class="field"><label>5. Prepared by</label><input id="prepared_by" value="MR.V.A.THAKOR. A.A.E."></div>
           <div class="field"><label>SS વિગત</label><input id="ss_details" value=""></div>
           <div class="field"><label>Sr No</label><input id="sr_no" value="6"></div>
         </div>
         <p id="lenHint" class="hidden">લંબાઈ અને પહોળાઈ બદલી શકાય</p>
-        <div class="field full"><label>સાઇટ વિગત</label>
+        <div class="field full road-only"><label>સાઇટ વિગત</label>
           <table id="segTable" class="est-lw">
             <thead><tr><th>Sr</th><th>Length</th><th>Width</th><th>Excavation (m)</th><th></th></tr></thead>
             <tbody id="segBox"></tbody>
@@ -2849,7 +2903,25 @@ function onLetterDate(){
 
   function goForm(type) {
     applyProfileToForm();
-    currentType = type === "paver" ? "paver" : "cc";
+    currentType = type === "paver" ? "paver" : (type === "gutter" ? "gutter" : "cc");
+    document.body.classList.toggle("paver-on", currentType==="paver");
+    document.body.classList.toggle("gutter-on", currentType==="gutter");
+    const titles={cc:"CC Road — ફોર્મ",paver:"Paver Block — ફોર્મ",gutter:"Gutter line — ફોર્મ"};
+    const ft=document.getElementById("formTitle");
+    if(ft) ft.textContent=titles[currentType]||"ફોર્મ";
+    document.querySelectorAll(".cc-only").forEach(function(el){ el.classList.toggle("hidden", currentType!=="cc"); });
+    document.querySelectorAll(".paver-only").forEach(function(el){ el.classList.toggle("hidden", currentType!=="paver"); });
+    document.querySelectorAll(".gutter-only").forEach(function(el){ el.classList.toggle("hidden", currentType!=="gutter"); });
+    document.querySelectorAll(".road-only").forEach(function(el){ el.classList.toggle("hidden", currentType==="gutter"); });
+    if(typeof renderGutterTables==="function") renderGutterTables();
+    toggleGutterDemo();
+    show("s-form");
+    if(typeof renderSegs==="function") renderSegs();
+    if(typeof onAmount==="function" && currentType!=="gutter") onAmount();
+    if(typeof liveF24==="function") liveF24();
+    return;
+  }
+  function _goFormRest(){
     document.body.classList.toggle("paver-on", currentType==="paver");
   
   function mediaKey(){ return "copilot_site_media"; }
@@ -3472,7 +3544,96 @@ function startScan(camera) {
   function trunc2(x) { return Math.trunc(x * 100) / 100; }
   function inr(x) { return "₹ " + Number(x || 0).toLocaleString("en-IN", { maximumFractionDigits: 2, minimumFractionDigits: 2 }); }
 
+  var GEX=[{dia:225,l:"",w:"0.45",d:"0.825",extra:false},{dia:300,l:"",w:"0.45",d:"0.90",extra:false},{dia:450,l:"",w:"0.75",d:"1.15",extra:false},{dia:600,l:"",w:"0.90",d:"1.35",extra:false},{dia:900,l:"",w:"1.20",d:"1.80",extra:false},{dia:1200,l:"",w:"1.50",d:"2.20",extra:false}];
+  var GDE=[{l:"",w:"0.45",d:"0.10"}];
+  function gDef(dia){
+    const m={225:["0.45","0.825"],300:["0.45","0.90"],450:["0.75","1.15"],600:["0.90","1.35"],900:["1.20","1.80"],1200:["1.50","2.20"]};
+    return m[dia]||["0.45","0.10"];
+  }
+  function renderGutterTables(){
+    const body=document.getElementById("gExBody");
+    if(!body) return;
+    let sr=0;
+    body.innerHTML=GEX.map(function(r,i){
+      const extra=!!r.extra;
+      if(!extra) sr++;
+      const num=extra?"":String(sr);
+      const dia=extra?"":(r.dia+" mm");
+      const minus=extra?("<button type=button onclick=\"gExDel("+i+")\">-</button>"):"";
+      return "<tr>"
+        +"<td>"+num+"</td><td>"+dia+"</td>"
+        +"<td><input type=number step=0.01 value=\""+(r.l||"")+\"" oninput=\"GEX["+i+"].l=this.value;liveF24()\"></td>"
+        +"<td><input type=number step=0.01 value=\""+(r.w||"")+\"" oninput=\"GEX["+i+"].w=this.value;liveF24()\"></td>"
+        +"<td><input type=number step=0.01 value=\""+(r.d||"")+\"" oninput=\"GEX["+i+"].d=this.value;liveF24()\"></td>"
+        +"<td class=pm><button type=button onclick=\"gExAdd("+i+")\">+</button>"+minus+"</td></tr>";
+    }).join("");
+    const db=document.getElementById("gDeBody");
+    if(db){
+      db.innerHTML=GDE.map(function(r,i){
+        const extra=i>0;
+        return "<tr><td>"+(extra?"":(i+1))+"</td>"
+          +"<td><input type=number step=0.01 value=\""+(r.l||"")+\"" oninput=\"GDE["+i+"].l=this.value;toggleGutterDemo();liveF24()\"></td>"
+          +"<td><input type=number step=0.01 value=\""+(r.w||"")+\"" oninput=\"GDE["+i+"].w=this.value;liveF24()\"></td>"
+          +"<td><input type=number step=0.01 value=\""+(r.d||"")+\"" oninput=\"GDE["+i+"].d=this.value;liveF24()\"></td>"
+          +"<td class=pm><button type=button onclick=\"gDeAdd()\">+</button>"+(extra?"<button type=button onclick=\"gDeDel("+i+")\">-</button>":"")+"</td></tr>";
+      }).join("");
+    }
+    toggleGutterDemo();
+  }
+  function gExAdd(i){
+    const src=GEX[i];
+    const d=gDef(src.dia);
+    GEX.splice(i+1,0,{dia:src.dia,l:"",w:src.w||d[0],d:src.d||d[1],extra:true});
+    renderGutterTables(); liveF24();
+  }
+  function gExDel(i){
+    if(!GEX[i] || !GEX[i].extra) return;
+    GEX.splice(i,1);
+    renderGutterTables(); liveF24();
+  }
+  function gDeAdd(){ GDE.push({l:"",w:"0.45",d:"0.10"}); renderGutterTables(); liveF24(); }
+  function gDeDel(i){ if(GDE.length<=1){ GDE=[{l:"",w:"0.45",d:"0.10"}]; } else GDE.splice(i,1); renderGutterTables(); liveF24(); }
+  function toggleGutterDemo(){
+    const L=GDE.reduce(function(s,r){return s+Number(r.l||0);},0);
+    const row=document.getElementById("gBedRow");
+    if(row) row.classList.toggle("hidden", !(L>0));
+  }
+  function gutterLive(){
+    const dias=[225,300,450,600,900,1200];
+    const pRate=[421,672,817,1331,2476,4121];
+    const lRate=[88,119,171,228,340,440];
+    const od=[0.30,0.35,0.50,0.65,1.00,1.30];
+    let pipeL=0,exc=0,pipeAmt=0,layAmt=0,pipeVol=0;
+    (GEX||[]).forEach(function(r){
+      const i=dias.indexOf(Number(r.dia));
+      const L=Number(r.l||0), W=Number(r.w||0), D=Number(r.d||0);
+      pipeL+=L; exc+=L*W*D;
+      if(i>=0){ pipeAmt+=L*pRate[i]; layAmt+=L*lRate[i]; pipeVol+=0.785*od[i]*od[i]*L; }
+    });
+    const demoL=(GDE||[]).reduce(function(s,r){return s+Number(r.l||0);},0);
+    const demoQty=(GDE||[]).reduce(function(s,r){return s+Number(r.l||0)*Number(r.w||0)*Number(r.d||0);},0);
+    const ch=[Number((document.getElementById("gCh60")||{}).value||0),Number((document.getElementById("gCh90")||{}).value||0),Number((document.getElementById("gCh139")||{}).value||0),Number((document.getElementById("gCh1313")||{}).value||0)];
+    const chAmt=ch[0]*5138+ch[1]*7343+ch[2]*8882+ch[3]*10698;
+    const refill=Math.max(0, Math.ceil(exc)-pipeVol);
+    let bed=0;
+    if(demoL>0){
+      const bw=Number((document.getElementById("gBedW")||{}).value||0.45);
+      const bt=Number((document.getElementById("gBedT")||{}).value||0.05);
+      bed=pipeL*bw*bt;
+    }
+    const plate=Number((document.getElementById("gPlate")||{}).value||1);
+    const raw=demoQty*1030.81 + Math.ceil(exc)*89 + pipeAmt + layAmt + chAmt + refill*22 + (ch[0]+ch[1]+ch[2]+ch[3])*(1121+1173) + bed*3652.31 + plate*306.14;
+    return raw*1.18;
+  }
   function liveF24() {
+    if (currentType === "gutter") {
+      const f24=gutterLive();
+      const el=document.getElementById("liveAmt");
+      if(el) el.textContent = "₹ " + Number(f24||0).toLocaleString("en-IN",{maximumFractionDigits:0});
+      const br=document.getElementById("liveBrass");
+      if(br) br.textContent="";
+      return;
+    }
     const L = num("length_m"), W = num("width_m");
     const area = L * W;
     let f24 = 0;
@@ -3539,9 +3700,14 @@ function startScan(camera) {
       murrum_pct: num("murrum_pct"),
       cc_thick_m: num("cc_thick_m"),
       lead_sevaliya_to_taluka_km: num("lead_sevaliya_to_taluka_km"),
-      lead_taluka_to_site_km: num("lead_taluka_to_site_km")
+      lead_taluka_to_site_km: num("lead_taluka_to_site_km"),
+      gEx: (typeof GEX!=="undefined"?GEX:[]),
+      gDe: (typeof GDE!=="undefined"?GDE:[]),
+      gCh60:num("gCh60"), gCh90:num("gCh90"), gCh139:num("gCh139"), gCh1313:num("gCh1313"),
+      gPlate:num("gPlate"),
+      gBedW:num("gBedW"), gBedT:num("gBedT")
     };
-    const url = currentType === "paver" ? "/api/estimate/paver" : "/api/estimate/cc";
+    const url = currentType === "paver" ? "/api/estimate/paver" : currentType === "gutter" ? "/api/estimate/gutter" : "/api/estimate/cc";
     try {
       const res = await fetch(API + url, {
         method: "POST",
