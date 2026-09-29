@@ -1020,6 +1020,107 @@ async function sbUpload(name, buf) {
   return SB_URL + "/storage/v1/object/public/site-media/" + name;
 }
 
+
+app.post("/api/estimate/gutter", async (req, res) => {
+  try {
+    const d = req.body || {};
+    const wb = new ExcelJS.Workbook();
+    await wb.xlsx.readFile(path.join(__dirname, "skeleton-gutter.xlsx"));
+    const face = wb.getWorksheet("Estimate");
+    const abs = wb.getWorksheet("Abstract");
+    const meas = wb.getWorksheet("Measurement");
+    const test = wb.getWorksheet("TEST-SITE");
+    if (!face || !abs || !meas) throw new Error("skeleton-gutter.xlsx sheets missing");
+
+    const n = (k) => Number(d[k] || 0);
+    const work = d.work_name || "";
+    const taluka = d.taluka || "";
+    const village = d.village || "";
+    const say = Number(d.amounting || 0);
+    const fund = d.fund_head || "";
+    const gEx = Array.isArray(d.gEx) ? d.gEx : [];
+    const gDe = Array.isArray(d.gDe) ? d.gDe : [];
+    const sumDia = (dia) => gEx.filter(r => Number(r.dia)===dia).reduce((a,r)=>a+Number(r.l||0),0);
+    const lastWD = (dia, dw, dd) => {
+      const arr=gEx.filter(r => Number(r.dia)===dia);
+      const r=arr[arr.length-1];
+      return {w:Number((r&&r.w)||dw), d:Number((r&&r.d)||dd)};
+    };
+
+    setVal(face, "F2", d.jilla || d.division || "");
+    setVal(face, "I2", d.jilla || "");
+    setVal(face, "F4", d.jilla || "");
+    setVal(face, "I4", d.jilla || "");
+    setVal(face, "F5", d.jilla || "");
+    setVal(face, "D8", fund);
+    setVal(face, "H18", taluka);
+    setVal(face, "C20", work);
+    setVal(face, "G21", say);
+    setVal(face, "D27", d.prepared_by || "");
+    setVal(face, "G40", taluka);
+
+    const wd225=lastWD(225,0.45,0.825), wd300=lastWD(300,0.45,0.90), wd450=lastWD(450,0.75,1.15);
+    const wd600=lastWD(600,0.90,1.35), wd900=lastWD(900,1.20,1.80), wd1200=lastWD(1200,1.50,2.20);
+    const rows = [
+      { L: sumDia(225), W: wd225.w, D: wd225.d, E: "E9", G: "G9", I: "I9" },
+      { L: sumDia(300), W: wd300.w, D: wd300.d, E: "E10", G: "G10", I: "I10" },
+      { L: sumDia(450), W: wd450.w, D: wd450.d, E: "E11", G: "G11", I: "I11" },
+      { L: sumDia(600), W: wd600.w, D: wd600.d, E: "E12", G: "G12", I: "I12" },
+      { L: sumDia(900), W: wd900.w, D: wd900.d, E: "E13", G: "G13", I: "I13" },
+      { L: sumDia(1200), W: wd1200.w, D: wd1200.d, E: "E14", G: "G14", I: "I14" }
+    ];
+    rows.forEach(function (r) {
+      setVal(meas, r.E, r.L);
+      setVal(meas, r.G, r.W);
+      setVal(meas, r.I, r.D);
+    });
+    const demoL = gDe.reduce((a,r)=>a+Number(r.l||0),0);
+    const demoW = Number((gDe[0]&&gDe[0].w)||0.45);
+    const demoD = Number((gDe[0]&&gDe[0].d)||0.10);
+    setVal(meas, "E5", demoL);
+    setVal(meas, "G5", demoW);
+    setVal(meas, "I5", demoD);
+    setVal(meas, "E35", n("gCh60"));
+    setVal(meas, "E36", n("gCh90"));
+    setVal(meas, "E37", n("gCh139"));
+    setVal(meas, "E38", n("gCh1313"));
+    setVal(meas, "E62", n("gPlate") || 1);
+    const pipeL = rows.reduce((a, r) => a + r.L, 0);
+    if (demoL > 0) {
+      setVal(meas, "G58", n("gBedW") || 0.45);
+      setVal(meas, "I58", n("gBedT") || 0.05);
+    } else {
+      setVal(meas, "G58", 0);
+      setVal(meas, "I58", 0);
+    }
+    setVal(meas, "C2", work);
+    setVal(abs, "C2", work);
+    if (test) setVal(test, "B1", work);
+
+    const outKind = String(d.out || d.output || "both");
+    const base = "GUTTER_" + String(village || taluka || "work").replace(/\s+/g, "_") + "_" + Date.now();
+    const xlsxName = base + ".xlsx";
+    const pdfName = base + ".pdf";
+    const xlsxPath = path.join("/tmp", xlsxName);
+    await wb.xlsx.writeFile(xlsxPath);
+    let files = [{ kind: "xlsx", name: xlsxName, path: xlsxPath }];
+    if (outKind !== "excel") {
+      const pdfPath = path.join("/tmp", pdfName);
+      await convertToPdf(xlsxPath, pdfPath);
+      files.push({ kind: "pdf", name: pdfName, path: pdfPath });
+    }
+    const want = files.filter(function (f) {
+      if (outKind === "excel") return f.kind === "xlsx";
+      if (outKind === "pdf") return f.kind === "pdf";
+      return true;
+    });
+    res.json({ ok: true, files: want.map(function (f) { return { name: f.name, url: "/download/" + path.basename(f.path) }; }) });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ ok: false, error: String(e.message || e) });
+  }
+});
+
 app.post("/api/db/estimate", (req, res) => {
   const b = req.body || {};
   const rec = dbAppend(DB_EST, {
