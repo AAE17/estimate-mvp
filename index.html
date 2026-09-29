@@ -710,7 +710,7 @@
           <div class="field"><label>વર્ષ</label>
             <select id="fy_year"><option value="">— Year —</option></select>
           </div>
-          <div class="field"><label>રકમ</label><input id="amounting" type="number" value="100000"></div>
+          <div class="field"><label>રકમ</label><input id="amounting" type="number" value="100000" oninput="if(currentType==='gutter'){liveF24();}else{onAmount();}"></div>
         </div>
         <div class="field full hidden" id="grantOtherWrap">
           <label>અન્ય Grant Head — પોતાનું લખો</label>
@@ -718,8 +718,14 @@
         </div>
         <div class="field full"><label>4. કામનું નામ</label><input id="work_name" value=""></div>
 
+        <div class="est-l3">
+          <div class="field"><label>5. Prepared by</label><input id="prepared_by" value="MR.V.A.THAKOR. A.A.E."></div>
+          <div class="field"><label>SS વિગત</label><input id="ss_details" value=""></div>
+          <div class="field"><label>Sr No</label><input id="sr_no" value="6"></div>
+        </div>
+
         <div class="gutter-only hidden" id="gutterBox">
-          <div class="g-kicker">લેઇંગ ડાયામીટરની R.C.C. Pipe NP2</div>
+          <div class="g-kicker">વિવિધ ડાયામીટરની R.C.C. NP2 PIPE</div>
           <div class="g-sec">1. Excavation</div>
           <table class="g-tbl" id="gExTable">
             <thead><tr><th>Sr</th><th>Dia.</th><th>Length</th><th>Width</th><th>Dia</th><th></th></tr></thead>
@@ -758,11 +764,6 @@
           </div>
         </div>
 
-        <div class="est-l3">
-          <div class="field"><label>5. Prepared by</label><input id="prepared_by" value="MR.V.A.THAKOR. A.A.E."></div>
-          <div class="field"><label>SS વિગત</label><input id="ss_details" value=""></div>
-          <div class="field"><label>Sr No</label><input id="sr_no" value="6"></div>
-        </div>
         <p id="lenHint" class="hidden">લંબાઈ અને પહોળાઈ બદલી શકાય</p>
         <div class="field full road-only"><label>સાઇટ વિગત</label>
           <table id="segTable" class="est-lw">
@@ -3392,8 +3393,11 @@ function startScan(camera) {
     renderSegs();
     const hint = document.getElementById("lenHint");
     if (hint) {
-      hint.classList.remove("hidden");
-      hint.textContent = "લંબાઈ અને પહોળાઈ બદલી શકાય";
+      if (currentType === "gutter") hint.classList.add("hidden");
+      else {
+        hint.classList.remove("hidden");
+        hint.textContent = "લંબાઈ અને પહોળાઈ બદલી શકાય";
+      }
     }
     liveF24();
   }
@@ -3628,10 +3632,16 @@ function startScan(camera) {
   function liveF24() {
     if (currentType === "gutter") {
       const f24=gutterLive();
-      const el=document.getElementById("liveAmt");
+      const el=document.getElementById("liveF24");
       if(el) el.textContent = "₹ " + Number(f24||0).toLocaleString("en-IN",{maximumFractionDigits:0});
+      const say=Number((document.getElementById("amounting")||{}).value||0);
+      const sy=document.getElementById("liveSay");
+      if(sy){
+        const diff=Math.round(f24)-Math.round(say);
+        sy.textContent = "Amounting (Say Rs): ₹ " + Number(say).toLocaleString("en-IN") + (!say ? "" : (diff===0 ? " · મેળ" : " · તફાવત ₹ " + Number(diff).toLocaleString("en-IN")));
+      }
       const br=document.getElementById("liveBrass");
-      if(br) br.textContent="";
+      if(br){ br.classList.add("hidden"); br.textContent=""; }
       return;
     }
     const L = num("length_m"), W = num("width_m");
