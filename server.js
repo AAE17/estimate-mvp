@@ -1097,24 +1097,12 @@ app.post("/api/estimate/gutter", async (req, res) => {
     setVal(abs, "C2", work);
     if (test) setVal(test, "B1", work);
 
-    const outKind = String(d.out || d.output || "both");
-    const base = "GUTTER_" + String(village || taluka || "work").replace(/\s+/g, "_") + "_" + Date.now();
-    const xlsxName = base + ".xlsx";
-    const pdfName = base + ".pdf";
-    const xlsxPath = path.join("/tmp", xlsxName);
-    await wb.xlsx.writeFile(xlsxPath);
-    let files = [{ kind: "xlsx", name: xlsxName, path: xlsxPath }];
-    if (outKind !== "excel") {
-      const pdfPath = path.join("/tmp", pdfName);
-      await convertToPdf(xlsxPath, pdfPath);
-      files.push({ kind: "pdf", name: pdfName, path: pdfPath });
-    }
-    const want = files.filter(function (f) {
-      if (outKind === "excel") return f.kind === "xlsx";
-      if (outKind === "pdf") return f.kind === "pdf";
-      return true;
-    });
-    res.json({ ok: true, files: want.map(function (f) { return { name: f.name, url: "/download/" + path.basename(f.path) }; }) });
+    await writeAndRespond(req, res, wb, d, "GUTTER", {
+      Estimate: "A1:I41",
+      Abstract: "A1:F46",
+      Measurement: "A1:K63",
+      "TEST-SITE": "A1:G36"
+    }, "estimate_gutter");
   } catch (e) {
     console.error(e);
     res.status(500).json({ ok: false, error: String(e.message || e) });
