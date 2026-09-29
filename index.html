@@ -3559,23 +3559,23 @@ function startScan(camera) {
       if(!extra) sr++;
       const num=extra?"":String(sr);
       const dia=extra?"":(r.dia+" mm");
-      const minus=extra?("<button type=button onclick=\"gExDel("+i+")\">-</button>"):"";
+      const minus=extra?("<button type=button onclick='gExDel("+i+")'>-</button>"):"";
       return "<tr>"
         +"<td>"+num+"</td><td>"+dia+"</td>"
-        +"<td><input type=number step=0.01 value=\""+(r.l||"")+\"" oninput=\"GEX["+i+"].l=this.value;liveF24()\"></td>"
-        +"<td><input type=number step=0.01 value=\""+(r.w||"")+\"" oninput=\"GEX["+i+"].w=this.value;liveF24()\"></td>"
-        +"<td><input type=number step=0.01 value=\""+(r.d||"")+\"" oninput=\"GEX["+i+"].d=this.value;liveF24()\"></td>"
-        +"<td class=pm><button type=button onclick=\"gExAdd("+i+")\">+</button>"+minus+"</td></tr>";
+        +"<td><input type=number step=0.01 value='"+(r.l||"")+"' oninput='GEX["+i+"].l=this.value;liveF24()'></td>"
+        +"<td><input type=number step=0.01 value='"+(r.w||"")+"' oninput='GEX["+i+"].w=this.value;liveF24()'></td>"
+        +"<td><input type=number step=0.01 value='"+(r.d||"")+"' oninput='GEX["+i+"].d=this.value;liveF24()'></td>"
+        +"<td class=pm><button type=button onclick='gExAdd("+i+")'>+</button>"+minus+"</td></tr>";
     }).join("");
     const db=document.getElementById("gDeBody");
     if(db){
       db.innerHTML=GDE.map(function(r,i){
         const extra=i>0;
         return "<tr><td>"+(extra?"":(i+1))+"</td>"
-          +"<td><input type=number step=0.01 value=\""+(r.l||"")+\"" oninput=\"GDE["+i+"].l=this.value;toggleGutterDemo();liveF24()\"></td>"
-          +"<td><input type=number step=0.01 value=\""+(r.w||"")+\"" oninput=\"GDE["+i+"].w=this.value;liveF24()\"></td>"
-          +"<td><input type=number step=0.01 value=\""+(r.d||"")+\"" oninput=\"GDE["+i+"].d=this.value;liveF24()\"></td>"
-          +"<td class=pm><button type=button onclick=\"gDeAdd()\">+</button>"+(extra?"<button type=button onclick=\"gDeDel("+i+")\">-</button>":"")+"</td></tr>";
+          +"<td><input type=number step=0.01 value='"+(r.l||"")+"' oninput='GDE["+i+"].l=this.value;toggleGutterDemo();liveF24()'></td>"
+          +"<td><input type=number step=0.01 value='"+(r.w||"")+"' oninput='GDE["+i+"].w=this.value;liveF24()'></td>"
+          +"<td><input type=number step=0.01 value='"+(r.d||"")+"' oninput='GDE["+i+"].d=this.value;liveF24()'></td>"
+          +"<td class=pm><button type=button onclick='gDeAdd()'>+</button>"+(extra?"<button type=button onclick='gDeDel("+i+")'>-</button>":"")+"</td></tr>";
       }).join("");
     }
     toggleGutterDemo();
