@@ -790,6 +790,19 @@
             </div>
           </div>
         </div>
+        <div class="pipe-only hidden" id="pipeBox">
+          <div class="g-kicker">વિવિધ ડાયામીટરની PVC PIPE (6 kg/cm²)</div>
+          <div class="g-sec">1. Excavation</div>
+          <table class="g-tbl"><thead><tr><th>Sr</th><th>Dia.</th><th>Length</th><th>Width</th><th>Depth</th><th></th></tr></thead>
+            <tbody id="pExBody"></tbody></table>
+          <div class="g-sec">2. Demolition of existing surface</div>
+          <table class="g-tbl"><thead><tr><th>Sr</th><th>Length</th><th>Width</th><th></th></tr></thead>
+            <tbody id="pDeBody"></tbody></table>
+          <div class="g-sec">3. Name Plate</div>
+          <table class="g-tbl"><thead><tr><th>Sr</th><th>Item</th><th>No</th></tr></thead>
+            <tbody><tr><td>1</td><td>Marble Name Plate</td><td><input id="pPlate" type="number" step="1" value="1" oninput="liveF24()"></td></tr></tbody>
+          </table>
+        </div>
 
         <p id="lenHint" class="hidden">લંબાઈ અને પહોળાઈ બદલી શકાય</p>
         <div class="field full road-only"><label>સાઇટ વિગત</label>
@@ -1847,9 +1860,13 @@ function onLetterDate(){
   }
     function isCcBill(){ return ((document.getElementById("billType")||{}).value||"") === "cc"; }
   function syncBillQtyLabels(){
-    const cc=isCcBill();
-    const map=cc
+    const bt=(document.getElementById("billType")||{}).value||"cc";
+    const map=bt==="cc"
       ?[["1. Box cutting — Cmt"],["2. Metal 40-63 — Cmt"],["3. Binding Material — Cmt"],["4. Spreading metal — Cmt"],["5. Spreading Binding Material — Cmt"],["6. CC 1:2:4 — Cmt"],["7. Test Reports — Job"],["8. Name plate — Job"]]
+      : bt==="gutter"
+      ?[["1. Demolition — Cmt"],["2. Excavation — Cmt"],["3. Pipe 225"],["4. Pipe 300"],["5. Pipe 450"],["6. Pipe 600"],["7. Pipe 900"],["8. Pipe 1200"],["9. Ch 0.60"],["10. Ch 0.90"],["11. Ch 1.30x0.90"],["12. Ch 1.30"],["13. Refill"],["14. CC Bed"],["15. Name Plate"]]
+      : bt==="pipe"
+      ?[["1. Demolition — Smt"],["2. Excavation — Cmt"],["3. PVC 63"],["4. PVC 75"],["5. PVC 90"],["6. PVC 110"],["7. Refill"],["8. Name Plate"]]
       :[["1. Excavation — Cmt"],["2. Binding material — Cmt"],["3. Paver Block — Smt"],["4. Vata — Rmt"],["5. Test Reports — Job"],["6. Name Plate — Job"]];
     map.forEach(function(lab,i){ const el=document.getElementById("lq"+(i+1)); if(el) el.textContent=lab[0]; });
     const w7=document.getElementById("wrapQ7"), w8=document.getElementById("wrapQ8");
@@ -1923,7 +1940,7 @@ function onLetterDate(){
       const base=(typeof API!=="undefined"?API:"");
             body.type=isCcBill()?"CC":"Paver";
       body.qty=isCcBill()?{box:q.box,metal:q.metal,murum:q.murum,spread_metal:q.spreadM,spread_mur:q.spreadU,cc:q.cc,test:q.test,plate:q.plate}:q;
-      const url=base+(isCcBill()?"/api/bill/cc":"/api/bill/paver");
+      const bt=(document.getElementById("billType")||{}).value||"cc"; const url=base+(bt==="cc"?"/api/bill/cc":bt==="gutter"?"/api/bill/gutter":bt==="pipe"?"/api/bill/pipe":"/api/bill/paver");
       const res=await fetch(url,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
       const data=await res.json();
       if(!data.ok) throw new Error(data.error||"fail");
@@ -2187,6 +2204,7 @@ function onLetterDate(){
       const row=document.createElement("tr");
       row.innerHTML='<td>'+(i+1)+'</td><td><input type="text" value="'+(s.l||"")+'" data-k="l" data-i="'+i+'"></td><td><input type="text" value="'+(s.w||"")+'" data-k="w" data-i="'+i+'"></td><td><input type="number" step="0.01" value="'+(s.exc|| (currentType==="paver"?0.2:0.3))+'" data-k="exc" data-i="'+i+'"></td><td><button type="button" class="pm add" onclick="addSeg()">+</button><button type="button" class="pm" data-del="'+i+'">−</button></td>';
       box.appendChild(row);
+      if(i===0){ const h=document.getElementById("box_thick_m"); if(h) h.value=String(s.exc|| (currentType==="paver"?0.2:0.3)); }
     });
     box.querySelectorAll("input").forEach((inp)=>{
       inp.oninput=function(){ const i=+this.dataset.i; SEGS[i][this.dataset.k]=this.value; if(this.dataset.k==='exc'){ const h=document.getElementById('box_thick_m'); if(h) h.value=this.value; } syncSegToLW(); liveF24(); };
@@ -2976,10 +2994,20 @@ function onLetterDate(){
     document.querySelectorAll(".road-only").forEach(function(el){ el.classList.toggle("hidden", currentType==="gutter"||currentType==="pipe"); });
     document.querySelectorAll(".pipe-only").forEach(function(el){ el.classList.toggle("hidden", currentType!=="pipe"); });
     if(typeof renderGutterTables==="function") renderGutterTables();
+    if(typeof renderPipeTables==="function") renderPipeTables();
     toggleGutterDemo();
+    if (currentType === "paver") {
+      const h=document.getElementById("box_thick_m"); if(h) h.value="0.2";
+      if (SEGS && SEGS[0]) SEGS[0].exc = 0.2;
+    } else if (currentType === "cc") {
+      const h=document.getElementById("box_thick_m"); if(h) h.value="0.3";
+      if (SEGS && SEGS[0]) SEGS[0].exc = 0.3;
+    }
     show("s-form");
     if(typeof renderSegs==="function") renderSegs();
-    if(typeof onAmount==="function" && currentType!=="gutter") onAmount();
+    const h2=document.getElementById("box_thick_m");
+    if(h2 && SEGS && SEGS[0] && SEGS[0].exc) h2.value=String(SEGS[0].exc);
+    if(typeof onAmount==="function" && currentType!=="gutter" && currentType!=="pipe") onAmount();
     if(typeof liveF24==="function") liveF24();
     return;
   }
@@ -3610,6 +3638,52 @@ function startScan(camera) {
   function trunc2(x) { return Math.trunc(x * 100) / 100; }
   function inr(x) { return "₹ " + Number(x || 0).toLocaleString("en-IN", { maximumFractionDigits: 2, minimumFractionDigits: 2 }); }
 
+  
+  var PEX=[{dia:63,l:"",w:"0.45",d:"0.90",extra:false},{dia:75,l:"",w:"0.45",d:"0.90",extra:false},{dia:90,l:"",w:"0.45",d:"0.90",extra:false},{dia:110,l:"",w:"0.45",d:"0.90",extra:false}];
+  var PDE=[{l:"",w:"0.45"}];
+  function renderPipeTables(){
+    const body=document.getElementById("pExBody");
+    if(!body) return;
+    let sr=0;
+    body.innerHTML=PEX.map(function(r,i){
+      const extra=!!r.extra;
+      if(!extra) sr++;
+      const num=extra?"":String(sr);
+      const dia=extra?"":(r.dia+" mm");
+      const minus=extra?("<button type=button onclick='pExDel("+i+")'>-</button>"):"";
+      return "<tr><td>"+num+"</td><td>"+dia+"</td>"
+        +"<td><input type=number step=0.01 value='"+(r.l||"")+"' oninput='PEX["+i+"].l=this.value;liveF24()'></td>"
+        +"<td><input type=number step=0.01 value='"+(r.w||"")+"' oninput='PEX["+i+"].w=this.value;liveF24()'></td>"
+        +"<td><input type=number step=0.01 value='"+(r.d||"")+"' oninput='PEX["+i+"].d=this.value;liveF24()'></td>"
+        +"<td class=pm><button type=button onclick='pExAdd("+i+")'>+</button>"+minus+"</td></tr>";
+    }).join("");
+    const db=document.getElementById("pDeBody");
+    if(db){
+      db.innerHTML=PDE.map(function(r,i){
+        const extra=i>0;
+        return "<tr><td>"+(extra?"":"1")+"</td>"
+          +"<td><input type=number step=0.01 value='"+(r.l||"")+"' oninput='PDE["+i+"].l=this.value;liveF24()'></td>"
+          +"<td><input type=number step=0.01 value='"+(r.w||"")+"' oninput='PDE["+i+"].w=this.value;liveF24()'></td>"
+          +"<td class=pm><button type=button onclick='pDeAdd()'>+</button>"+(extra?"<button type=button onclick='pDeDel("+i+")'>-</button>":"")+"</td></tr>";
+      }).join("");
+    }
+  }
+  function pExAdd(i){ const s=PEX[i]; PEX.splice(i+1,0,{dia:s.dia,l:"",w:s.w||"0.45",d:s.d||"0.90",extra:true}); renderPipeTables(); liveF24(); }
+  function pExDel(i){ if(!PEX[i]||!PEX[i].extra) return; PEX.splice(i,1); renderPipeTables(); liveF24(); }
+  function pDeAdd(){ PDE.push({l:"",w:"0.45"}); renderPipeTables(); liveF24(); }
+  function pDeDel(i){ if(i===0) return; PDE.splice(i,1); renderPipeTables(); liveF24(); }
+  function pipeLive(){
+    const sum=function(dia){return PEX.filter(function(r){return Number(r.dia)===dia;}).reduce(function(a,r){return a+Number(r.l||0);},0);};
+    const l63=sum(63), l75=sum(75), l90=sum(90), l110=sum(110);
+    let demoA=0; PDE.forEach(function(r){ demoA += Number(r.l||0)*Number(r.w||0); });
+    let exc=0; PEX.forEach(function(r){ exc += Number(r.l||0)*Number(r.w||0)*Number(r.d||0); });
+    const pipeVol=0.785*(0.065*0.065*l63+0.075*0.075*l75+0.09*0.09*l90+0.11*0.11*l110);
+    const refill=Math.max(0,exc-pipeVol);
+    const plate=Number((document.getElementById("pPlate")||{}).value||0);
+    const f22 = demoA*202.2 + exc*89 + l63*69 + l75*96 + l90*139 + l110*199 + l63*12 + l75*15 + l90*17 + l110*19 + refill*22 + plate*306.14;
+    return f22 + f22*0.18;
+  }
+
   var GEX=[{dia:225,l:"",w:"0.45",d:"0.825",extra:false},{dia:300,l:"",w:"0.45",d:"0.90",extra:false},{dia:450,l:"",w:"0.75",d:"1.15",extra:false},{dia:600,l:"",w:"0.90",d:"1.35",extra:false},{dia:900,l:"",w:"1.20",d:"1.80",extra:false},{dia:1200,l:"",w:"1.50",d:"2.20",extra:false}];
   var GDE=[{l:"",w:"0.45",d:"0.10"}];
   function gDef(dia){
@@ -3692,6 +3766,20 @@ function startScan(camera) {
     return raw*1.18;
   }
   function liveF24() {
+    if (currentType === "pipe") {
+      const f24=pipeLive();
+      const el=document.getElementById("liveF24");
+      if(el) el.textContent = "₹ " + Number(f24||0).toLocaleString("en-IN",{maximumFractionDigits:0});
+      const say=Number((document.getElementById("amounting")||{}).value||0);
+      const sy=document.getElementById("liveSay");
+      if(sy){
+        const diff=Math.round(f24)-Math.round(say);
+        sy.textContent = "Amounting (Say Rs): ₹ " + Number(say).toLocaleString("en-IN") + (!say ? "" : (diff===0 ? " · મેળ" : " · તફાવત ₹ " + Number(diff).toLocaleString("en-IN")));
+      }
+      const br=document.getElementById("liveBrass");
+      if(br){ br.classList.add("hidden"); br.textContent=""; }
+      return;
+    }
     if (currentType === "gutter") {
       const f24=gutterLive();
       const el=document.getElementById("liveF24");
@@ -3778,9 +3866,12 @@ function startScan(camera) {
       gDe: (typeof GDE!=="undefined"?GDE:[]),
       gCh60:num("gCh60"), gCh90:num("gCh90"), gCh139:num("gCh139"), gCh1313:num("gCh1313"),
       gPlate:num("gPlate"),
+      pEx: (typeof PEX!=="undefined"?PEX:[]),
+      pDe: (typeof PDE!=="undefined"?PDE:[]),
+      pPlate:num("pPlate"),
       gBedW:num("gBedW"), gBedT:num("gBedT")
     };
-    const url = currentType === "paver" ? "/api/estimate/paver" : currentType === "gutter" ? "/api/estimate/gutter" : "/api/estimate/cc";
+    const url = currentType === "paver" ? "/api/estimate/paver" : currentType === "gutter" ? "/api/estimate/gutter" : currentType === "pipe" ? "/api/estimate/pipe" : "/api/estimate/cc";
     try {
       const res = await fetch(API + url, {
         method: "POST",
