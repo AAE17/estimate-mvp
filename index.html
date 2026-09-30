@@ -668,20 +668,29 @@
 
     <section id="s-type" class="card hidden">
       <h2>એસ્ટિમેટ પ્રકાર</h2>
-      <p class="muted">CC અથવા Paver પસંદ કરો.</p>
+      <p class="muted">CC / Paver / Gutter / Pipe</p>
       <div class="choice">
         <button onclick="goForm('cc')">CC Road</button>
         <button onclick="goForm('paver')">Paver Block</button>
         <button onclick="goForm('gutter')">Gutter line</button>
-        <button onclick="soon('Pipe Line')">Pipe Line</button>
-        <button type="button" onclick="soon('Scan SS letter')">📷 Scan SS letter</button>
-        <button type="button" onclick="soon('File upload')">📁 File upload</button>
+        <button onclick="goForm('pipe')">Pipe Line</button>
       </div>
-      <div class="actions"><button class="btn btn-w" onclick="show('s-hi')">પાછા</button></div>
     </section>
 
     <section id="s-form" class="card hidden">
-      <h2 id="formTitle">CC Road — ફોર્મ</h2>
+      <div class="est-l3" style="align-items:end;margin-bottom:8px">
+        <div class="field"><label>કામનો પ્રકાર</label>
+          <select id="estKind" onchange="goForm(this.value)">
+            <option value="cc">CC Road</option>
+            <option value="paver">Paver Block</option>
+            <option value="gutter">Gutter Line</option>
+            <option value="pipe">Pipe Line</option>
+          </select>
+        </div>
+        <div class="field"></div>
+        <div class="field"></div>
+      </div>
+      <h2 id="formTitle" class="hidden">CC Road — ફોર્મ</h2>
       <div class="grid est-form">
         <div class="est-l3">
           <div class="field"><label>1. જિલ્લો</label>
@@ -699,7 +708,7 @@
           <input id="village_other" placeholder="ગામનું નામ">
         </div>
         <div class="est-l3">
-          <div class="field cc-only"><label>2. R&amp;B Div.</label><input id="division" value="NADIAD"></div>
+          <div class="field"><label>2. R&amp;B Div.</label><input id="division" value="NADIAD"></div>
           <div class="field"><label>R&amp;B Sub-Div.</label><input id="subdiv_address" value="DAKOR"></div>
           <div class="field"><label>Nani Sinchai Sub-Div.</label><input id="nani_address" value="DAKOR"></div>
         </div>
@@ -827,7 +836,7 @@
             <div class="head site-l1">
               <div class="field"><label>1. તારીખ</label><input id="dDate" type="date" onchange="liveMbBill()"></div>
               <div class="field"><label>પ્રકાર</label>
-                <select id="dType" onchange="renderDiaryRows();liveMbBill()"><option value="cc">CC Road</option><option value="paver">Paver Block</option></select>
+                <select id="dType" onchange="renderDiaryRows();liveMbBill()"><option value="cc">CC Road</option><option value="paver">Paver Block</option><option value="gutter">Gutter Line</option><option value="pipe">Pipe Line</option></select>
               </div>
               <div class="field"><label>ગામ</label><input id="dGam" oninput="liveMbBill()"></div>
               <div class="field"><label>તાલુકો</label><input id="dTaluka" oninput="liveMbBill()"></div>
@@ -972,7 +981,7 @@
       </div>
       <div class="field span2" id="billWorkWrap"><label>1. કામનું નામ</label><input id="billWork" oninput="liveBill()"></div>
       <div class="field"><label>2. પ્રકાર</label>
-        <select id="billType" onchange="syncBillQtyLabels();liveBill()"><option value="cc">CC Road</option><option value="paver">Paver Block</option></select>
+        <select id="billType" onchange="syncBillQtyLabels();liveBill()"><option value="cc">CC Road</option><option value="paver">Paver Block</option><option value="gutter">Gutter Line</option><option value="pipe">Pipe Line</option></select>
       </div>
       <div class="field"><label>Grant Head</label>
         <select id="billGrant" onchange="onBillGrant();liveBill()"><option value="">— પસંદ કરો —</option></select>
@@ -2904,16 +2913,20 @@ function onLetterDate(){
 
   function goForm(type) {
     applyProfileToForm();
-    currentType = type === "paver" ? "paver" : (type === "gutter" ? "gutter" : "cc");
+    currentType = (type==="paver"||type==="gutter"||type==="pipe") ? type : "cc";
     document.body.classList.toggle("paver-on", currentType==="paver");
     document.body.classList.toggle("gutter-on", currentType==="gutter");
-    const titles={cc:"CC Road — ફોર્મ",paver:"Paver Block — ફોર્મ",gutter:"Gutter line — ફોર્મ"};
+    document.body.classList.toggle("pipe-on", currentType==="pipe");
+    const ek=document.getElementById("estKind");
+    if(ek && ek.value!==currentType) ek.value=currentType;
+    const titles={cc:"CC Road — ફોર્મ",paver:"Paver Block — ફોર્મ",gutter:"Gutter Line — ફોર્મ",pipe:"Pipe Line — ફોર્મ"};
     const ft=document.getElementById("formTitle");
     if(ft) ft.textContent=titles[currentType]||"ફોર્મ";
     document.querySelectorAll(".cc-only").forEach(function(el){ el.classList.toggle("hidden", currentType!=="cc"); });
     document.querySelectorAll(".paver-only").forEach(function(el){ el.classList.toggle("hidden", currentType!=="paver"); });
     document.querySelectorAll(".gutter-only").forEach(function(el){ el.classList.toggle("hidden", currentType!=="gutter"); });
-    document.querySelectorAll(".road-only").forEach(function(el){ el.classList.toggle("hidden", currentType==="gutter"); });
+    document.querySelectorAll(".road-only").forEach(function(el){ el.classList.toggle("hidden", currentType==="gutter"||currentType==="pipe"); });
+    document.querySelectorAll(".pipe-only").forEach(function(el){ el.classList.toggle("hidden", currentType!=="pipe"); });
     if(typeof renderGutterTables==="function") renderGutterTables();
     toggleGutterDemo();
     show("s-form");
