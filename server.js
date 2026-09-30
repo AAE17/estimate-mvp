@@ -1817,6 +1817,162 @@ app.post("/api/letter/fwd", async (req, res) => {
 
 
 
+
+app.post("/api/estimate/pipe", async (req, res) => {
+  try {
+    const d = req.body || {};
+    const wb = new ExcelJS.Workbook();
+    await wb.xlsx.readFile(path.join(__dirname, "skeleton-pipe.xlsx"));
+    const face = wb.getWorksheet("Estimate");
+    const abs = wb.getWorksheet("Abstract");
+    const meas = wb.getWorksheet("Measurement");
+    const test = wb.getWorksheet("TEST-SITE");
+    if (!face || !abs || !meas) throw new Error("skeleton-pipe.xlsx sheets missing");
+    const work = d.work_name || "";
+    const taluka = d.taluka || "";
+    const village = d.village || "";
+    const say = Number(d.amounting || 0);
+    const fund = d.fund_head || "";
+    const pEx = Array.isArray(d.pEx) ? d.pEx : [];
+    const pDe = Array.isArray(d.pDe) ? d.pDe : [];
+    const sumDia = (dia) => pEx.filter(r => Number(r.dia)===dia).reduce((a,r)=>a+Number(r.l||0),0);
+    const lastWD = (dia, dw, dd) => {
+      const arr=pEx.filter(r => Number(r.dia)===dia);
+      const r=arr[arr.length-1];
+      return {w:Number((r&&r.w)||dw), d:Number((r&&r.d)||dd)};
+    };
+    setVal(face, "F2", d.division || d.jilla || "");
+    setVal(face, "I2", d.jilla || "");
+    setVal(face, "F4", d.subdiv_address || "");
+    setVal(face, "F5", d.subdiv_address || "");
+    setVal(face, "I4", d.nani_address || "");
+    setVal(face, "D8", fund);
+    setVal(face, "H18", taluka);
+    setVal(face, "C20", work);
+    setVal(face, "G21", say);
+    setVal(face, "D27", d.prepared_by || "");
+    setVal(face, "B34", d.sr_no || "");
+    setVal(face, "C34", d.ss_details || "");
+    setVal(face, "G40", taluka);
+    setVal(abs, "C2", work);
+    setVal(meas, "C2", work);
+    if (test) setVal(test, "B1", work);
+    const demoL = pDe.reduce((a,r)=>a+Number(r.l||0),0);
+    const demoW = Number((pDe[0]&&pDe[0].w)||0.45);
+    setVal(meas, "E5", demoL);
+    setVal(meas, "G5", demoW);
+    [[63,"E9","G9","I9",0.45,0.9],[75,"E10","G10","I10",0.45,0.9],[90,"E11","G11","I11",0.45,0.9],[110,"E12","G12","I12",0.45,0.9]].forEach(function(row){
+      const wd=lastWD(row[0], row[4], row[5]);
+      setVal(meas, row[1], sumDia(row[0]));
+      setVal(meas, row[2], wd.w);
+      setVal(meas, row[3], wd.d);
+    });
+    setVal(meas, "E40", Number(d.pPlate||1));
+    if (test) setVal(test, "C12", 1);
+    await writeAndRespond(req, res, wb, d, "PIPE", {
+      Estimate: "A1:I41", Abstract: "A1:F30", Measurement: "A1:K42", "TEST-SITE": "A1:G36"
+    }, "estimate_pipe");
+  } catch (e) {
+    res.status(500).json({ ok: false, error: String(e.message || e) });
+  }
+});
+
+function fillBillPaComp(pa, bill, comp, d){
+  const work = d.work_name || "";
+  const grant = d.fund_head || d.grant || "";
+  const gam = d.village || d.gam || "";
+  let tal = String(d.taluka || "").trim().replace(/^તા\.\s*/, "");
+  const agency = d.agency || "સરપંચ શ્રી ગ્રામ પંચાયત";
+  if (pa) {
+    setVal(pa, "G2", grant);
+    setVal(pa, "C7", work);
+    setVal(pa, "I7", tal ? ("તા. "+tal) : "");
+    setVal(pa, "G8", agency);
+    setVal(pa, "I8", gam);
+    setVal(pa, "H9", d.work_order || d.as_details || "");
+  }
+  if (bill) setVal(bill, "A1", work);
+  if (comp) {
+    setVal(comp, "C2", grant);
+    setVal(comp, "C3", work);
+    setVal(comp, "C4", d.ts_details || "");
+    setVal(comp, "C5", d.ts_amount || d.amounting || "");
+    setVal(comp, "C6", d.as_details || d.work_order || "");
+    setVal(comp, "C7", d.as_amount || d.amounting || "");
+    setVal(comp, "C8", agency);
+    setVal(comp, "F8", gam);
+    setVal(comp, "C9", d.start_date || "");
+    setVal(comp, "C10", d.meas_date || d.date || "");
+    setVal(comp, "C13", d.mb_no || "");
+    setVal(comp, "E13", d.page_from || "");
+    setVal(comp, "G13", d.page_to || "");
+  }
+}
+
+app.post("/api/bill/gutter", async (req, res) => {
+  try {
+    const d = req.body || {};
+    const wb = new ExcelJS.Workbook();
+    await wb.xlsx.readFile(path.join(__dirname, "skeleton-gutter-bill.xlsx"));
+    const pa = wb.getWorksheet("21 No. P.A. Form");
+    const bill = wb.getWorksheet("Bill");
+    const comp = wb.getWorksheet("COMP-14MU NAN");
+    if (!pa || !bill || !comp) throw new Error("gutter bill skeleton missing");
+    fillBillPaComp(pa, bill, comp, d);
+    const q = d.qty || {};
+    const n = (k, def) => Number(q[k] ?? q[k.toUpperCase()] ?? def ?? 0);
+    setVal(bill, "B4", n("q1", 0));
+    setVal(bill, "B5", n("q2", 0));
+    setVal(bill, "B7", n("q3", 0));
+    setVal(bill, "B8", n("q4", 0));
+    setVal(bill, "B9", n("q5", 0));
+    setVal(bill, "B10", n("q6", 0));
+    setVal(bill, "B11", n("q7", 0));
+    setVal(bill, "B12", n("q8", 0));
+    setVal(bill, "B21", n("q9", 0));
+    setVal(bill, "B22", n("q10", 0));
+    setVal(bill, "B23", n("q11", 0));
+    setVal(bill, "B24", n("q12", 0));
+    setVal(bill, "B25", n("q13", 0));
+    setVal(bill, "B29", n("q14", 0));
+    setVal(bill, "B30", n("q15", 1));
+    await writeAndRespond(req, res, wb, d, "BILL_GUTTER", {
+      "21 No. P.A. Form": "A1:I36", Bill: "A1:G40", "COMP-14MU NAN": "A1:H21"
+    }, "bill_gutter");
+  } catch (e) {
+    res.status(500).json({ ok: false, error: String(e.message || e) });
+  }
+});
+
+app.post("/api/bill/pipe", async (req, res) => {
+  try {
+    const d = req.body || {};
+    const wb = new ExcelJS.Workbook();
+    await wb.xlsx.readFile(path.join(__dirname, "skeleton-pipe-bill.xlsx"));
+    const pa = wb.getWorksheet("21 No. P.A. Form");
+    const bill = wb.getWorksheet("Bill");
+    const comp = wb.getWorksheet("COMP-14MU NAN");
+    if (!pa || !bill || !comp) throw new Error("pipe bill skeleton missing");
+    fillBillPaComp(pa, bill, comp, d);
+    const q = d.qty || {};
+    const n = (k, def) => Number(q[k] ?? def ?? 0);
+    setVal(bill, "B4", n("q1", 0));
+    setVal(bill, "B5", n("q2", 0));
+    setVal(bill, "B7", n("q3", 0));
+    setVal(bill, "B8", n("q4", 0));
+    setVal(bill, "B9", n("q5", 0));
+    setVal(bill, "B10", n("q6", 0));
+    setVal(bill, "B11", n("q7", 0));
+    setVal(bill, "B12", n("q8", 1));
+    await writeAndRespond(req, res, wb, d, "BILL_PIPE", {
+      "21 No. P.A. Form": "A1:I36", Bill: "A1:G40", "COMP-14MU NAN": "A1:H21"
+    }, "bill_pipe");
+  } catch (e) {
+    res.status(500).json({ ok: false, error: String(e.message || e) });
+  }
+});
+
+
 app.listen(PORT, () => {
   console.log("ParaState MVP on " + PORT);
 });
