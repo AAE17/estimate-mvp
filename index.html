@@ -243,7 +243,7 @@
     #s-hi.card{background:transparent;border:0;box-shadow:none;padding:8px 0}
 
     html,body{max-width:100%;overflow-x:hidden}
-    .wrap{padding:12px 12px 28px;max-width:1100px}
+    .wrap{padding:12px 12px 28px;max-width:1280px}
     @media (max-width:900px){
       header.topbar{padding:8px 10px calc(8px + env(safe-area-inset-top));}
       .topbar-row{gap:6px}
@@ -547,6 +547,21 @@
     #s-form table
     .g-kicker{font-weight:800;font-size:13px;margin:4px 0 8px;color:#1B5D45}
     .g-sec{font-weight:700;font-size:13px;margin:10px 0 4px}
+    
+    
+    .gutter-only.full,.pipe-only.full{grid-column:1/-1;width:100%}
+    .g-page{border:1px solid #1e3a5f;border-radius:8px;padding:10px 12px;margin:8px 0 4px;background:#fff;width:100%;box-sizing:border-box}
+    .g-tbl input{min-width:72px}
+    .g-split{align-items:start}
+
+    .g-page .g-kicker{text-align:center;font-weight:800;font-size:14px;margin:0 0 8px;color:#0f3d2e}
+    .g-split{display:grid;grid-template-columns:1.2fr 1fr;gap:10px}
+    @media(max-width:800px){.g-split{grid-template-columns:1fr}}
+    .g-box h4{margin:0 0 4px;font-size:13px}
+    .g-tbl th,.g-tbl td{font-size:11px}
+    .g-qty{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+    .g-tot{font-weight:800}
+
     .g-tbl{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:6px}
     .g-tbl th{background:#eef3ef;padding:5px 6px;text-align:left;font-weight:700}
     .g-tbl td{padding:4px 6px;border-bottom:1px solid #e5e7eb;vertical-align:middle}
@@ -751,59 +766,73 @@
           <div class="field"><label>Sr No</label><input id="sr_no" value="6"></div>
         </div>
 
-        <div class="gutter-only hidden" id="gutterBox">
-          <div class="g-kicker">વિવિધ ડાયામીટરની R.C.C. NP2 PIPE</div>
-          <div class="g-sec">1. Excavation</div>
-          <table class="g-tbl" id="gExTable">
-            <thead><tr><th>Sr</th><th>Dia.</th><th>Length</th><th>Width</th><th>Dia</th><th></th></tr></thead>
-            <tbody id="gExBody"></tbody>
-          </table>
-          <div class="g-sec">2. Demolition of CC Road, if need on site</div>
-          <table class="g-tbl">
-            <thead><tr><th>Sr</th><th>Length</th><th>Width</th><th>Dia</th><th></th></tr></thead>
-            <tbody id="gDeBody"></tbody>
-          </table>
-          <div class="est-l3 hidden" id="gBedRow">
-            <div class="field"><label>CC Bed Width (m)</label><input id="gBedW" type="number" step="0.01" value="0.45" oninput="liveF24()"></div>
-            <div class="field"><label>CC Bed Thickness (m)</label><input id="gBedT" type="number" step="0.01" value="0.05" oninput="liveF24()"></div>
-            <div class="field"></div>
-          </div>
-          <div class="g-two">
-            <div>
-              <div class="g-sec">3. Chambers</div>
-              <table class="g-tbl">
-                <thead><tr><th>Sr</th><th>Size</th><th>No</th></tr></thead>
-                <tbody>
-                  <tr><td>1</td><td>0.60×0.60</td><td><input id="gCh60" type="number" step="1" value="0" oninput="liveF24()"></td></tr>
-                  <tr><td>2</td><td>0.90×0.90</td><td><input id="gCh90" type="number" step="1" value="0" oninput="liveF24()"></td></tr>
-                  <tr><td>3</td><td>1.30×0.90</td><td><input id="gCh139" type="number" step="1" value="0" oninput="liveF24()"></td></tr>
-                  <tr><td>4</td><td>1.30×1.30</td><td><input id="gCh1313" type="number" step="1" value="0" oninput="liveF24()"></td></tr>
-                </tbody>
-              </table>
+        <div class="gutter-only hidden full" id="gutterBox">
+          <div class="g-page">
+            <div class="g-kicker">વિવિધ પ્રકારની R.C.C. NP2 PIPE.</div>
+            <div class="g-split">
+              <div class="g-box">
+                <h4>1 Excavation</h4>
+                <table class="g-tbl" id="gExTable">
+                  <thead><tr><th>Sr No.</th><th>Diameter</th><th>Length</th><th>Width</th><th>Depth</th><th>Qty</th><th></th></tr></thead>
+                  <tbody id="gExBody"></tbody>
+                </table>
+              </div>
+              <div class="g-box">
+                <h4>2 Demolition of existing C.C. Road, if needed on site.</h4>
+                <table class="g-tbl">
+                  <thead><tr><th>Sr No.</th><th>Length</th><th>Width</th><th>Thickness</th><th>Qty</th><th></th></tr></thead>
+                  <tbody id="gDeBody"></tbody>
+                </table>
+              </div>
             </div>
-            <div>
-              <div class="g-sec">4. Name Plate</div>
-              <table class="g-tbl">
-                <thead><tr><th>No</th></tr></thead>
-                <tbody><tr><td><input id="gPlate" type="number" step="1" value="1" oninput="liveF24()"></td></tr></tbody>
-              </table>
+            <div class="g-split" style="margin-top:8px">
+              <div class="g-box">
+                <h4>3 Chambers</h4>
+                <table class="g-tbl">
+                  <thead><tr><th>Sr No.</th><th>Size</th><th>Nos.</th></tr></thead>
+                  <tbody>
+                    <tr><td>1</td><td>0.60×0.60</td><td><input id="gCh60" type="number" step="1" value="0" oninput="liveF24()"></td></tr>
+                    <tr><td>2</td><td>0.90×0.90</td><td><input id="gCh90" type="number" step="1" value="0" oninput="liveF24()"></td></tr>
+                    <tr><td>3</td><td>1.30×0.90</td><td><input id="gCh139" type="number" step="1" value="0" oninput="liveF24()"></td></tr>
+                    <tr><td>4</td><td>1.30×1.30</td><td><input id="gCh1313" type="number" step="1" value="0" oninput="liveF24()"></td></tr>
+                  </tbody>
+                </table>
+                <input id="gPlate" type="hidden" value="1">
+              </div>
+              <div class="g-box">
+                <h4>4 New C.C. Road</h4>
+                <table class="g-tbl">
+                  <thead><tr><th>Sr No.</th><th>Length</th><th>Width</th><th>Thickness</th><th>Qty</th><th></th></tr></thead>
+                  <tbody id="gNrBody"></tbody>
+                </table>
+                <input id="gBedW" type="hidden" value="0.45">
+                <input id="gBedT" type="hidden" value="0.10">
+              </div>
             </div>
           </div>
         </div>
-        <div class="pipe-only hidden" id="pipeBox">
-          <div class="g-kicker">વિવિધ ડાયામીટરની PVC PIPE (6 kg/cm²)</div>
-          <div class="g-sec">1. Excavation</div>
-          <table class="g-tbl"><thead><tr><th>Sr</th><th>Dia.</th><th>Length</th><th>Width</th><th>Depth</th><th></th></tr></thead>
-            <tbody id="pExBody"></tbody></table>
-          <div class="g-sec">2. Demolition of existing surface</div>
-          <table class="g-tbl"><thead><tr><th>Sr</th><th>Length</th><th>Width</th><th></th></tr></thead>
-            <tbody id="pDeBody"></tbody></table>
-          <div class="g-sec">3. Name Plate</div>
-          <table class="g-tbl"><thead><tr><th>Sr</th><th>Item</th><th>No</th></tr></thead>
-            <tbody><tr><td>1</td><td>Marble Name Plate</td><td><input id="pPlate" type="number" step="1" value="1" oninput="liveF24()"></td></tr></tbody>
-          </table>
+        <div class="pipe-only hidden full" id="pipeBox">
+          <div class="g-page">
+            <div class="g-kicker">વિવિધ પ્રકારની PVC PIPE (6 kg/cm²)</div>
+            <div class="g-split">
+              <div class="g-box">
+                <h4>1 Excavation</h4>
+                <table class="g-tbl">
+                  <thead><tr><th>Sr No.</th><th>Diameter</th><th>Length</th><th>Width</th><th>Depth</th><th>Qty</th><th></th></tr></thead>
+                  <tbody id="pExBody"></tbody>
+                </table>
+              </div>
+              <div class="g-box">
+                <h4>2 Demolition of existing surface, if needed on site.</h4>
+                <table class="g-tbl">
+                  <thead><tr><th>Sr No.</th><th>Length</th><th>Width</th><th>Qty</th><th></th></tr></thead>
+                  <tbody id="pDeBody"></tbody>
+                </table>
+                <input id="pPlate" type="hidden" value="1">
+              </div>
+            </div>
+          </div>
         </div>
-
         <p id="lenHint" class="hidden">લંબાઈ અને પહોળાઈ બદલી શકાય</p>
         <div class="field full road-only"><label>સાઇટ વિગત</label>
           <table id="segTable" class="est-lw">
@@ -3645,27 +3674,33 @@ function startScan(camera) {
     const body=document.getElementById("pExBody");
     if(!body) return;
     let sr=0;
+    let exTot=0;
     body.innerHTML=PEX.map(function(r,i){
       const extra=!!r.extra;
       if(!extra) sr++;
       const num=extra?"":String(sr);
       const dia=extra?"":(r.dia+" mm");
+      const q=Number(r.l||0)*Number(r.w||0)*Number(r.d||0); exTot+=q;
       const minus=extra?("<button type=button onclick='pExDel("+i+")'>-</button>"):"";
       return "<tr><td>"+num+"</td><td>"+dia+"</td>"
         +"<td><input type=number step=0.01 value='"+(r.l||"")+"' oninput='PEX["+i+"].l=this.value;liveF24()'></td>"
         +"<td><input type=number step=0.01 value='"+(r.w||"")+"' oninput='PEX["+i+"].w=this.value;liveF24()'></td>"
         +"<td><input type=number step=0.01 value='"+(r.d||"")+"' oninput='PEX["+i+"].d=this.value;liveF24()'></td>"
-        +"<td class=pm><button type=button onclick='pExAdd("+i+")'>+</button>"+minus+"</td></tr>";
-    }).join("");
+        +"<td class=g-qty>"+(q?q.toFixed(2):"")+"</td>"
+        +"<td class=pm><button type=button onclick='pExAdd("+i+")'>+/−</button>"+minus+"</td></tr>";
+    }).join("")+"<tr class=g-tot><td colspan=5 style=text-align:right>Total Qty</td><td class=g-qty>"+exTot.toFixed(2)+"</td><td>Cmt</td></tr>";
     const db=document.getElementById("pDeBody");
     if(db){
+      let deTot=0;
       db.innerHTML=PDE.map(function(r,i){
         const extra=i>0;
-        return "<tr><td>"+(extra?"":"1")+"</td>"
+        const q=Number(r.l||0)*Number(r.w||0); deTot+=q;
+        return "<tr><td>"+(i+1)+"</td>"
           +"<td><input type=number step=0.01 value='"+(r.l||"")+"' oninput='PDE["+i+"].l=this.value;liveF24()'></td>"
-          +"<td><input type=number step=0.01 value='"+(r.w||"")+"' oninput='PDE["+i+"].w=this.value;liveF24()'></td>"
-          +"<td class=pm><button type=button onclick='pDeAdd()'>+</button>"+(extra?"<button type=button onclick='pDeDel("+i+")'>-</button>":"")+"</td></tr>";
-      }).join("");
+          +"<td><input type=number step=0.01 value='"+(r.w||"0.45")+"' oninput='PDE["+i+"].w=this.value;liveF24()'></td>"
+          +"<td class=g-qty>"+(q?q.toFixed(2):"")+"</td>"
+          +"<td class=pm><button type=button onclick='pDeAdd()'>+/−</button>"+(extra?"<button type=button onclick='pDeDel("+i+")'>-</button>":"")+"</td></tr>";
+      }).join("")+"<tr class=g-tot><td colspan=3 style=text-align:right>Total Qty</td><td class=g-qty>"+deTot.toFixed(2)+"</td><td>Smt</td></tr>";
     }
   }
   function pExAdd(i){ const s=PEX[i]; PEX.splice(i+1,0,{dia:s.dia,l:"",w:s.w||"0.45",d:s.d||"0.90",extra:true}); renderPipeTables(); liveF24(); }
@@ -3686,6 +3721,7 @@ function startScan(camera) {
 
   var GEX=[{dia:225,l:"",w:"0.45",d:"0.825",extra:false},{dia:300,l:"",w:"0.45",d:"0.90",extra:false},{dia:450,l:"",w:"0.75",d:"1.15",extra:false},{dia:600,l:"",w:"0.90",d:"1.35",extra:false},{dia:900,l:"",w:"1.20",d:"1.80",extra:false},{dia:1200,l:"",w:"1.50",d:"2.20",extra:false}];
   var GDE=[{l:"",w:"0.45",d:"0.10"}];
+  var GNR=[{l:"",w:"0.45",d:"0.10"}];
   function gDef(dia){
     const m={225:["0.45","0.825"],300:["0.45","0.90"],450:["0.75","1.15"],600:["0.90","1.35"],900:["1.20","1.80"],1200:["1.50","2.20"]};
     return m[dia]||["0.45","0.10"];
@@ -3694,31 +3730,59 @@ function startScan(camera) {
     const body=document.getElementById("gExBody");
     if(!body) return;
     let sr=0;
+    let exTot=0;
     body.innerHTML=GEX.map(function(r,i){
       const extra=!!r.extra;
       if(!extra) sr++;
       const num=extra?"":String(sr);
       const dia=extra?"":(r.dia+" mm");
+      const q=Number(r.l||0)*Number(r.w||0)*Number(r.d||0); exTot+=q;
       const minus=extra?("<button type=button onclick='gExDel("+i+")'>-</button>"):"";
       return "<tr>"
         +"<td>"+num+"</td><td>"+dia+"</td>"
         +"<td><input type=number step=0.01 value='"+(r.l||"")+"' oninput='GEX["+i+"].l=this.value;liveF24()'></td>"
         +"<td><input type=number step=0.01 value='"+(r.w||"")+"' oninput='GEX["+i+"].w=this.value;liveF24()'></td>"
         +"<td><input type=number step=0.01 value='"+(r.d||"")+"' oninput='GEX["+i+"].d=this.value;liveF24()'></td>"
-        +"<td class=pm><button type=button onclick='gExAdd("+i+")'>+</button>"+minus+"</td></tr>";
-    }).join("");
+        +"<td class=g-qty>"+(q?q.toFixed(2):"")+"</td>"
+        +"<td class=pm><button type=button onclick='gExAdd("+i+")'>+/−</button>"+minus+"</td></tr>";
+    }).join("")+"<tr class=g-tot><td colspan=5 style=text-align:right>Total Qty</td><td class=g-qty>"+exTot.toFixed(2)+"</td><td>Cmt</td></tr>";
     const db=document.getElementById("gDeBody");
     if(db){
+      let deTot=0;
       db.innerHTML=GDE.map(function(r,i){
-        const extra=i>0;
-        return "<tr><td>"+(extra?"":(i+1))+"</td>"
-          +"<td><input type=number step=0.01 value='"+(r.l||"")+"' oninput='GDE["+i+"].l=this.value;toggleGutterDemo();liveF24()'></td>"
-          +"<td><input type=number step=0.01 value='"+(r.w||"")+"' oninput='GDE["+i+"].w=this.value;liveF24()'></td>"
-          +"<td><input type=number step=0.01 value='"+(r.d||"")+"' oninput='GDE["+i+"].d=this.value;liveF24()'></td>"
-          +"<td class=pm><button type=button onclick='gDeAdd()'>+</button>"+(extra?"<button type=button onclick='gDeDel("+i+")'>-</button>":"")+"</td></tr>";
-      }).join("");
+        const q=Number(r.l||0)*Number(r.w||0)*Number(r.d||0); deTot+=q;
+        return "<tr><td>"+(i+1)+"</td>"
+          +"<td><input type=number step=0.01 value='"+(r.l||"")+"' oninput='GDE["+i+"].l=this.value;liveF24()'></td>"
+          +"<td><input type=number step=0.01 value='"+(r.w||"0.45")+"' oninput='GDE["+i+"].w=this.value;liveF24()'></td>"
+          +"<td><input type=number step=0.01 value='"+(r.d||"0.10")+"' oninput='GDE["+i+"].d=this.value;liveF24()'></td>"
+          +"<td class=g-qty>"+(q?q.toFixed(2):"")+"</td>"
+          +"<td class=pm><button type=button onclick='gDeAdd()'>+/−</button>"+(i>0?"<button type=button onclick='gDeDel("+i+")'>-</button>":"")+"</td></tr>";
+      }).join("")+"<tr class=g-tot><td colspan=4 style=text-align:right>Total Qty</td><td class=g-qty>"+deTot.toFixed(2)+"</td><td></td></tr>";
     }
-    toggleGutterDemo();
+    const nb=document.getElementById("gNrBody");
+    if(nb){
+      if(!window.GNR||!GNR.length) GNR=[{l:"",w:"0.45",d:"0.10"}];
+      let nTot=0;
+      nb.innerHTML=GNR.map(function(r,i){
+        const q=Number(r.l||0)*Number(r.w||0)*Number(r.d||0); nTot+=q;
+        return "<tr><td>"+(i+1)+"</td>"
+          +"<td><input type=number step=0.01 value='"+(r.l||"")+"' oninput='GNR["+i+"].l=this.value;syncGutterBed();liveF24()'></td>"
+          +"<td><input type=number step=0.01 value='"+(r.w||"0.45")+"' oninput='GNR["+i+"].w=this.value;syncGutterBed();liveF24()'></td>"
+          +"<td><input type=number step=0.01 value='"+(r.d||"0.10")+"' oninput='GNR["+i+"].d=this.value;syncGutterBed();liveF24()'></td>"
+          +"<td class=g-qty>"+(q?q.toFixed(2):"")+"</td>"
+          +"<td class=pm><button type=button onclick='gNrAdd()'>+/−</button>"+(i>0?"<button type=button onclick='gNrDel("+i+")'>-</button>":"")+"</td></tr>";
+      }).join("")+"<tr class=g-tot><td colspan=4 style=text-align:right>Total Qty</td><td class=g-qty>"+nTot.toFixed(2)+"</td><td></td></tr>";
+      syncGutterBed();
+    }
+  }
+  function gNrAdd(){ GNR.push({l:"",w:"0.45",d:"0.10"}); renderGutterTables(); liveF24(); }
+  function gNrDel(i){ if(i===0) return; GNR.splice(i,1); renderGutterTables(); liveF24(); }
+  function refreshGutterQty(){ if(typeof renderGutterTables==='function'){ const ae=document.activeElement; const id=ae&&ae.closest?null:null; renderGutterTables(); } }
+  function refreshPipeQty(){ if(typeof renderPipeTables==='function') renderPipeTables(); }
+  function syncGutterBed(){
+    const r=(GNR||[]).find(function(x){return Number(x.l||0)>0;}) || (GNR&&GNR[0]) || {w:0.45,d:0.10};
+    const w=document.getElementById("gBedW"); const th=document.getElementById("gBedT");
+    if(w) w.value=r.w||0.45; if(th) th.value=r.d||0.10;
   }
   function gExAdd(i){
     const src=GEX[i];
@@ -3756,11 +3820,7 @@ function startScan(camera) {
     const chAmt=ch[0]*5138+ch[1]*7343+ch[2]*8882+ch[3]*10698;
     const refill=Math.max(0, Math.ceil(exc)-pipeVol);
     let bed=0;
-    if(demoL>0){
-      const bw=Number((document.getElementById("gBedW")||{}).value||0.45);
-      const bt=Number((document.getElementById("gBedT")||{}).value||0.05);
-      bed=pipeL*bw*bt;
-    }
+    (GNR||[]).forEach(function(r){ bed += Number(r.l||0)*Number(r.w||0)*Number(r.d||0); });
     const plate=Number((document.getElementById("gPlate")||{}).value||1);
     const raw=demoQty*1030.81 + Math.ceil(exc)*89 + pipeAmt + layAmt + chAmt + refill*22 + (ch[0]+ch[1]+ch[2]+ch[3])*(1121+1173) + bed*3652.31 + plate*306.14;
     return raw*1.18;
@@ -3811,332 +3871,4 @@ function startScan(camera) {
       const murQty = metalTot * (num("murrum_pct") / 100);
       const ccQty = area * num("cc_thick_m");
       const tot = boxQty * 156.56 + metalTot * 677.83 + murQty * 171.8 + metalTot * 247.28 + murQty * 146.01 + ccQty * 4866.35 + 2656 + 306.14;
-      f24 = tot + tot * 0.18;
-    }
-    document.getElementById("liveF24").textContent = inr(f24);
-    document.getElementById("liveSay").textContent = "Amounting (Say Rs): " + inr(num("amounting"));
-    return f24;
-  }
-
-  document.addEventListener("input", function (e) {
-    if (!e.target || !e.target.closest || !e.target.closest("#s-form")) return;
-    if (e.target.id === "amounting") onAmount();
-    else liveF24();
-  });
-
-  async function submitForm(kind) {
-    const msg = document.getElementById("msg");
-    if (!val("jilla") || !val("taluka") || !villageName()) {
-      msg.textContent = "જિલ્લો, તાલુકો અને ગામ પસંદ કરો.";
-      return;
-    }
-    if (!fundHead()) {
-      msg.textContent = "Grant Head અને Year પસંદ કરો.";
-      return;
-    }
-    document.querySelectorAll(".dl").forEach((b) => { b.disabled = true; });
-    setBusy(true);
-    msg.textContent = kind === "pdf" ? "PDF બની રહ્યું છે…" : "બની રહ્યું છે…";
-    const body = {
-      output: kind || "xlsx",
-      type: currentType,
-      user_name: "Section Officer",
-      division: val("division"),
-      jilla: val("jilla"),
-      subdiv_address: val("subdiv_address"),
-      nani_address: val("nani_address"),
-      taluka: val("taluka"),
-      fund_head: fundHead(),
-      work_name: val("work_name"),
-      amounting: num("amounting"),
-      prepared_by: val("prepared_by"),
-      sr_no: val("sr_no"),
-      ss_details: val("ss_details"),
-      village: villageName(),
-      length_m: num("length_m"),
-      width_m: num("width_m"),
-      box_thick_m: num("box_thick_m"),
-      bt_thick_m: num("bt_thick_m"),
-      voids: num("voids"),
-      murrum_pct: num("murrum_pct"),
-      cc_thick_m: num("cc_thick_m"),
-      lead_sevaliya_to_taluka_km: num("lead_sevaliya_to_taluka_km"),
-      lead_taluka_to_site_km: num("lead_taluka_to_site_km"),
-      gEx: (typeof GEX!=="undefined"?GEX:[]),
-      gDe: (typeof GDE!=="undefined"?GDE:[]),
-      gCh60:num("gCh60"), gCh90:num("gCh90"), gCh139:num("gCh139"), gCh1313:num("gCh1313"),
-      gPlate:num("gPlate"),
-      pEx: (typeof PEX!=="undefined"?PEX:[]),
-      pDe: (typeof PDE!=="undefined"?PDE:[]),
-      pPlate:num("pPlate"),
-      gBedW:num("gBedW"), gBedT:num("gBedT")
-    };
-    const url = currentType === "paver" ? "/api/estimate/paver" : currentType === "gutter" ? "/api/estimate/gutter" : currentType === "pipe" ? "/api/estimate/pipe" : "/api/estimate/cc";
-    try {
-      const res = await fetch(API + url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body)
-      });
-      const data = await res.json();
-      if (!data.ok) throw new Error(data.error || "fail");
-      try{
-        if(typeof saveSiteMeta==="function") saveSiteMeta(val("work_name"),{
-          taluka:val("taluka"),
-          grant: (typeof fundHead==="function"?fundHead():""),
-          contractor:""
-        });
-        if(typeof pushLocalEst==="function") pushLocalEst({
-          id:"loc-"+Date.now(),
-          ts:new Date().toISOString(),
-          type: currentType==="paver"?"Paver":"CC",
-          village: villageName(),
-          taluka: val("taluka"),
-          jilla: val("jilla"),
-          work_name: val("work_name"),
-          fund_head: (typeof fundHead==="function"?fundHead():""),
-          amounting: num("amounting"),
-          length_m: num("length_m"),
-          width_m: num("width_m")
-        });
-      }catch(e){}
-      if (data.xlsx) window.open(API + data.xlsx, "_blank");
-      if (data.pdf) setTimeout(() => window.open(API + data.pdf, "_blank"), 500);
-      msg.textContent = data.pdf && data.xlsx
-        ? "Excel અને PDF ડાઉનલોડ."
-        : data.pdf
-          ? "PDF ડાઉનલોડ."
-          : "Excel ડાઉનલોડ." + (data.pdf_error ? " PDF: " + data.pdf_error : "");
-    } catch (e) {
-      msg.textContent = "ભૂલ: " + e.message;
-    }
-    document.querySelectorAll(".dl").forEach((b) => { b.disabled = false; });
-    setBusy(false);
-  }
-
-  fetch("gj-geo.json")
-    .then((r) => r.json())
-    .then((data) => {
-      GJ = data;
-      fillSelect(document.getElementById("jilla"), Object.keys(GJ), "— જિલ્લો પસંદ કરો —");
-    })
-    .catch(function () {});
-
-  fillSelect(document.getElementById("grant_head"), GRANTS, "— Grant Head —");
-  fillSelect(document.getElementById("fy_year"), fyYears(), "— Year —");
-  document.getElementById("grant_head").addEventListener("change", onGrant);
-  document.getElementById("jilla").addEventListener("change", onJilla);
-  document.getElementById("taluka").addEventListener("change", onTaluka);
-  document.getElementById("village").addEventListener("change", onVillage);
-  const _dt=document.getElementById("dType"); if(_dt) _dt.addEventListener("change", renderDiaryRows);
-  ["kTest","kPlate","dAmtIn","dContractor"].forEach(function(id){
-    const e=document.getElementById(id); if(e) e.addEventListener("input", refreshDiaryLive);
-  });
-  
-
-
-
-  function mediaKey(){ return "copilot_site_media"; }
-  function loadMedia(){ try { return JSON.parse(localStorage.getItem(mediaKey())||"[]"); } catch(e){ return []; } }
-  function pushMedia(item){
-    const all=loadMedia();
-    all.unshift(item);
-    localStorage.setItem(mediaKey(), JSON.stringify(all.slice(0,40)));
-    renderMedia();
-  }
-  function renderMedia(){
-    const el=document.getElementById("mediaList");
-    if (!el) return;
-    const all=loadMedia();
-    el.innerHTML = all.length ? all.map(function(m){
-      return "<div><span>"+(m.ts||"").slice(0,16)+" · "+m.kind+" · "+(m.work||"")+"</span><b>"+(m.gps||"")+"</b></div>";
-    }).join("") : "<div>હજુ સ્કેચ/ફોટો નથી</div>";
-  }
-  function togglePlan(){
-    const box=document.getElementById("planBox");
-    box.classList.toggle("hidden");
-    if (!box.classList.contains("hidden")) bindPlan();
-  }
-  function bindPlan(){
-    const c=document.getElementById("planPad");
-    if (!c || c._bound) return;
-    c._bound=true;
-    const ctx=c.getContext("2d");
-    ctx.strokeStyle="#1B5D45"; ctx.lineWidth=2.5; ctx.lineCap="round";
-    function pos(e){
-      const r=c.getBoundingClientRect();
-      const src=(e.touches&&e.touches[0])?e.touches[0]:e;
-      return {x:(src.clientX-r.left)*c.width/r.width, y:(src.clientY-r.top)*c.height/r.height};
-    }
-    let draw=false;
-    function down(e){ e.preventDefault(); draw=true; const p=pos(e); ctx.beginPath(); ctx.moveTo(p.x,p.y); }
-    function move(e){ if(!draw) return; e.preventDefault(); const p=pos(e); ctx.lineTo(p.x,p.y); ctx.stroke(); }
-    function up(){ draw=false; }
-    c.addEventListener("mousedown", down);
-    c.addEventListener("mousemove", move);
-    window.addEventListener("mouseup", up);
-    c.addEventListener("touchstart", down, {passive:false});
-    c.addEventListener("touchmove", move, {passive:false});
-    c.addEventListener("touchend", up);
-  }
-  function clearPlan(){
-    const c=document.getElementById("planPad");
-    if (c) c.getContext("2d").clearRect(0,0,c.width,c.height);
-  }
-  function savePlan(){
-    const c=document.getElementById("planPad");
-    const work=siteWorkName();
-    pushMedia({kind:"plan", ts:new Date().toISOString(), work:work, data:c.toDataURL("image/jpeg",0.55), gps:""});
-    alert("સ્કેચ Profileમાં સેવ");
-  }
-  function takeSitePhoto(){
-    const f=document.getElementById("sitePhotoFile");
-    f.value="";
-    f.onchange=onSitePhoto;
-    f.click();
-  }
-  function onSitePhoto(){
-    const f=document.getElementById("sitePhotoFile");
-    const file=f.files&&f.files[0];
-    if (!file) return;
-    const box=document.getElementById("photoBox");
-    box.classList.remove("hidden");
-    const img=document.getElementById("photoPrev");
-    const gpsEl=document.getElementById("photoGps");
-    const reader=new FileReader();
-    reader.onload=function(){
-      function stamp(src, gps, cb){
-        const im=new Image();
-        im.onload=function(){
-          const cv=document.createElement("canvas");
-          cv.width=im.width; cv.height=im.height;
-          const g=cv.getContext("2d");
-          g.drawImage(im,0,0);
-          if (gps) {
-            const fs=Math.max(18, Math.floor(im.width/28));
-            g.font="bold "+fs+"px sans-serif";
-            g.textAlign="left";
-            g.textBaseline="bottom";
-            const pad=Math.max(10, fs*0.4);
-            g.fillStyle="rgba(0,0,0,.45)";
-            g.fillRect(0, im.height-fs-pad*2, g.measureText(gps).width+pad*2, fs+pad*2);
-            g.fillStyle="#fff";
-            g.fillText(gps, pad, im.height-pad);
-          }
-          cb(cv.toDataURL("image/jpeg",0.7));
-        };
-        im.src=src;
-      }
-      function store(gps){
-        gpsEl.textContent = gps || "GPS નથી";
-        stamp(reader.result, gps, function(out){
-          img.src=out;
-          const work=siteWorkName();
-          pushMedia({kind:"photo", ts:new Date().toISOString(), work:work, data:out, gps:gps||""});
-        });
-      }
-      if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(
-          function(pos){ store(pos.coords.latitude.toFixed(6)+", "+pos.coords.longitude.toFixed(6)); },
-          function(){ store(""); },
-          {enableHighAccuracy:true, timeout:8000}
-        );
-      } else store("");
-    };
-    reader.readAsDataURL(file);
-  }
-
-
-  tourYM = {y:2026,m:8};
-function openTijori(){
-    const c=document.getElementById("mbClosed");
-    const o=document.getElementById("mbOpen");
-    const img=document.getElementById("mbOpenImg");
-    if (c) c.classList.add("hidden");
-    if (o) o.classList.remove("hidden");
-  }
-  function openTour(){ show("s-tour"); tourPage("cover"); }
-  function tourPage(which){
-    ["tourCover","tourPerson","tourMonth","tourDay"].forEach(function(id){
-      const el=document.getElementById(id); if(el) el.classList.toggle("hidden", id!=="tour"+which.charAt(0).toUpperCase()+which.slice(1) && !(which==="cover"&&id==="tourCover") && !(which==="person"&&id==="tourPerson") && !(which==="month"&&id==="tourMonth") && !(which==="day"&&id==="tourDay"));
-    });
-    if (which==="person") loadTourPerson();
-    if (which==="month") renderTourMonth();
-  }
-  function loadTourPerson(){
-    try{
-      const p=JSON.parse(localStorage.getItem("copilot_profile")||"{}");
-      const set=function(id,v){ const e=document.getElementById(id); if(e) e.value=v||""; };
-      set("tdName", p.name); set("tdOffice", p.office); set("tdMobile", p.mobile); set("tdEmail", p.email);
-    }catch(e){}
-  }
-  function saveTourPerson(){
-    const p={
-      name:(document.getElementById("tdName")||{}).value||"",
-      office:(document.getElementById("tdOffice")||{}).value||"",
-      mobile:(document.getElementById("tdMobile")||{}).value||"",
-      email:(document.getElementById("tdEmail")||{}).value||""
-    };
-    localStorage.setItem("copilot_profile", JSON.stringify(p));
-    tourPage("month");
-  }
-  function tourShift(d){
-    tourYM.m += d;
-    if (tourYM.m<0){ tourYM.m=11; tourYM.y--; }
-    if (tourYM.m>11){ tourYM.m=0; tourYM.y++; }
-    renderTourMonth();
-  }
-  function renderTourMonth(){
-    const names=["જાન્યુ","ફેબ","માર્ચ","એપ્રિલ","મે","જૂન","જુલાઈ","ઓગ","સપ્ટે","ઓક્ટો","નવે","ડિસે"];
-    const title=document.getElementById("tmTitle");
-    if (title) title.textContent = names[tourYM.m] + " " + tourYM.y;
-    const grid=document.getElementById("tmGrid");
-    if (!grid) return;
-    const first=new Date(tourYM.y, tourYM.m, 1);
-    const last=new Date(tourYM.y, tourYM.m+1, 0).getDate();
-    const skip=first.getDay();
-    let html="";
-    ["ર","સો","મં","બુ","ગુ","શુ","શ"].forEach(function(d){ html += "<div class='stat'><span>"+d+"</span><b></b></div>"; });
-    for (let i=0;i<skip;i++) html += "<div class='stat' style='opacity:.2'></div>";
-    for (let d=1;d<=last;d++){
-      const ds = tourYM.y + "-" + String(tourYM.m+1).padStart(2,"0") + "-" + String(d).padStart(2,"0");
-      html += "<div class='stat' onclick='openTourDay(\""+ds+"\")' style='cursor:pointer'><span>"+d+"</span><b></b></div>";
-    }
-    grid.innerHTML=html;
-  }
-  function openTourDay(ds){
-    tourPage("day");
-    const el=document.getElementById("tdTitle");
-    if (el) el.textContent = ds;
-    const notes=JSON.parse(localStorage.getItem("copilot_tour_notes")||"{}");
-    document.getElementById("tdNote").value = notes[ds] || "";
-    Promise.all([
-      fetch(API+"/api/db/estimates").then(function(r){return r.json();}).catch(function(){return {items:[]};}),
-      fetch(API+"/api/db/site").then(function(r){return r.json();}).catch(function(){return {items:[]};})
-    ]).then(function(arr){
-      const est=(arr[0].items||[]).filter(function(x){return String(x.ts||"").slice(0,10)===ds;});
-      const site=(arr[1].items||[]).filter(function(x){return String(x.ts||"").slice(0,10)===ds;});
-      const bills=site.filter(function(x){return Number(x.bill||0)>0;});
-      document.getElementById("tdEst").textContent=est.length;
-      document.getElementById("tdSite").textContent=site.length;
-      document.getElementById("tdBill").textContent=bills.length;
-    });
-  }
-  function saveTourNote(){
-    const ds=(document.getElementById("tdTitle")||{}).textContent||"";
-    const notes=JSON.parse(localStorage.getItem("copilot_tour_notes")||"{}");
-    notes[ds]=(document.getElementById("tdNote")||{}).value||"";
-    localStorage.setItem("copilot_tour_notes", JSON.stringify(notes));
-    alert("નોંધ સેવ");
-  }
-
-
-  window.__billMode = 1;
-
-  fetch(API + "/api/log", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({kind:"page_open"}) });
-  applyDark();
-  authInit();
-  loadStats();
-</script>
-</body>
-</html>
+      f24 = tot + 
