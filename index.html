@@ -151,8 +151,9 @@
 
     .hidden { display: none !important; }
     .toast {
-      position:fixed; inset:0; background:rgba(20,33,26,.45); display:flex; align-items:center; justify-content:center; padding:16px; z-index:50;
+      position:fixed; inset:0; background:rgba(20,33,26,.55); display:flex; align-items:center; justify-content:center; padding:16px; z-index:200;
     }
+    #authGate{z-index:220;}
     .toast .box { background:#fff; border-radius:12px; padding:18px; max-width:360px; }
 
     #busy {
@@ -604,8 +605,9 @@
     <div class="box" style="max-width:400px;width:100%">
       <b id="authTitle">SO+ Login</b>
       <p class="muted">ઈમેલ + પાસવર્ડ. OTP નહીં.</p>
-      <div class="field"><label>ઈમેલ</label><input id="authEmail" type="email" placeholder="you@gmail.com"></div>
-      <div class="field"><label>પાસવર્ડ</label><input id="authPass" type="password" placeholder="ઓછામાં 6 અક્ષર"></div>
+      <form id="authForm" onsubmit="event.preventDefault();authLogin();return false;">
+      <div class="field"><label>ઈમેલ</label><input id="authEmail" type="email" placeholder="you@gmail.com" autocomplete="username"></div>
+      <div class="field"><label>પાસવર્ડ</label><input id="authPass" type="password" placeholder="ઓછામાં 6 અક્ષર" autocomplete="current-password"></div>
       <div id="authExtra" class="hidden">
         <div class="field"><label>પૂરું નામ</label><input id="authName" placeholder="Vanrajsinh Thakor"></div>
         <div class="field"><label>હોદ્દો</label>
@@ -617,13 +619,14 @@
       </div>
       <p class="muted" id="authMsg"></p>
       <div class="actions" id="authLoginRow">
-        <button type="button" class="btn btn-g" onclick="authLogin()">Log in</button>
+        <button type="submit" class="btn btn-g" onclick="authLogin()">Log in</button>
         <button type="button" class="btn btn-s" onclick="showSignup(true)">Sign up</button>
       </div>
       <div class="actions hidden" id="authSignRow">
         <button type="button" class="btn btn-g" onclick="authSignup()">અકાઉન્ટ બનાવો</button>
         <button type="button" class="btn btn-w" onclick="showSignup(false)">પાછા Login</button>
       </div>
+      </form>
     </div>
   </div>
 
@@ -1399,26 +1402,28 @@
 
   let sbClient=null;
   async function authInit(){
+    const gate=document.getElementById("authGate");
+    const msg=document.getElementById("authMsg");
     try{
       const cfg=await fetch(API+"/api/auth/config").then(function(r){return r.json();});
       if(!cfg.url||!cfg.anon||!window.supabase){
-        document.getElementById("authGate").classList.add("hidden");
+        if(gate) gate.classList.remove("hidden");
+        if(msg) msg.textContent="Auth config નથી. Render પર SUPABASE_URL / ANON KEY ચેક કરો.";
         return;
       }
       sbClient=window.supabase.createClient(cfg.url, cfg.anon);
       const { data }=await sbClient.auth.getSession();
       if(data&&data.session){ onAuthed(data.session); }
       else {
-        document.getElementById("authGate").classList.remove("hidden");
-        if(typeof show==="function") show("s-hi");
+        if(gate) gate.classList.remove("hidden");
       }
       sbClient.auth.onAuthStateChange(function(_e, session){
-        if(session) onAuthed(session); else {
-          document.getElementById("authGate").classList.remove("hidden");
-        }
+        if(session) onAuthed(session);
+        else if(gate) gate.classList.remove("hidden");
       });
     }catch(e){
-      document.getElementById("authGate").classList.add("hidden");
+      if(gate) gate.classList.remove("hidden");
+      if(msg) msg.textContent="Login સર્વર સુધી પહોંચ્યું નહીં. નેટ / Render જુઓ.";
     }
   }
   const ADMIN_EMAIL="vanraj2592@gmail.com";
@@ -3871,4 +3876,333 @@ function startScan(camera) {
       const murQty = metalTot * (num("murrum_pct") / 100);
       const ccQty = area * num("cc_thick_m");
       const tot = boxQty * 156.56 + metalTot * 677.83 + murQty * 171.8 + metalTot * 247.28 + murQty * 146.01 + ccQty * 4866.35 + 2656 + 306.14;
-      f24 = tot + 
+      f24 = tot + tot * 0.18;
+    }
+    document.getElementById("liveF24").textContent = inr(f24);
+    document.getElementById("liveSay").textContent = "Amounting (Say Rs): " + inr(num("amounting"));
+    return f24;
+  }
+
+  document.addEventListener("input", function (e) {
+    if (!e.target || !e.target.closest || !e.target.closest("#s-form")) return;
+    if (e.target.id === "amounting") onAmount();
+    else liveF24();
+  });
+
+  async function submitForm(kind) {
+    const msg = document.getElementById("msg");
+    if (!val("jilla") || !val("taluka") || !villageName()) {
+      msg.textContent = "જિલ્લો, તાલુકો અને ગામ પસંદ કરો.";
+      return;
+    }
+    if (!fundHead()) {
+      msg.textContent = "Grant Head અને Year પસંદ કરો.";
+      return;
+    }
+    document.querySelectorAll(".dl").forEach((b) => { b.disabled = true; });
+    setBusy(true);
+    msg.textContent = kind === "pdf" ? "PDF બની રહ્યું છે…" : "બની રહ્યું છે…";
+    const body = {
+      output: kind || "xlsx",
+      type: currentType,
+      user_name: "Section Officer",
+      division: val("division"),
+      jilla: val("jilla"),
+      subdiv_address: val("subdiv_address"),
+      nani_address: val("nani_address"),
+      taluka: val("taluka"),
+      fund_head: fundHead(),
+      work_name: val("work_name"),
+      amounting: num("amounting"),
+      prepared_by: val("prepared_by"),
+      sr_no: val("sr_no"),
+      ss_details: val("ss_details"),
+      village: villageName(),
+      length_m: num("length_m"),
+      width_m: num("width_m"),
+      box_thick_m: num("box_thick_m"),
+      bt_thick_m: num("bt_thick_m"),
+      voids: num("voids"),
+      murrum_pct: num("murrum_pct"),
+      cc_thick_m: num("cc_thick_m"),
+      lead_sevaliya_to_taluka_km: num("lead_sevaliya_to_taluka_km"),
+      lead_taluka_to_site_km: num("lead_taluka_to_site_km"),
+      gEx: (typeof GEX!=="undefined"?GEX:[]),
+      gNr: (typeof GNR!=="undefined"?GNR:[]),
+      gDe: (typeof GDE!=="undefined"?GDE:[]),
+      gCh60:num("gCh60"), gCh90:num("gCh90"), gCh139:num("gCh139"), gCh1313:num("gCh1313"),
+      gPlate:num("gPlate"),
+      pEx: (typeof PEX!=="undefined"?PEX:[]),
+      pDe: (typeof PDE!=="undefined"?PDE:[]),
+      pPlate:num("pPlate"),
+      gBedW:num("gBedW"), gBedT:num("gBedT")
+    };
+    const url = currentType === "paver" ? "/api/estimate/paver" : currentType === "gutter" ? "/api/estimate/gutter" : currentType === "pipe" ? "/api/estimate/pipe" : "/api/estimate/cc";
+    try {
+      const res = await fetch(API + url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body)
+      });
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error || "fail");
+      try{
+        if(typeof saveSiteMeta==="function") saveSiteMeta(val("work_name"),{
+          taluka:val("taluka"),
+          grant: (typeof fundHead==="function"?fundHead():""),
+          contractor:""
+        });
+        if(typeof pushLocalEst==="function") pushLocalEst({
+          id:"loc-"+Date.now(),
+          ts:new Date().toISOString(),
+          type: currentType==="paver"?"Paver":"CC",
+          village: villageName(),
+          taluka: val("taluka"),
+          jilla: val("jilla"),
+          work_name: val("work_name"),
+          fund_head: (typeof fundHead==="function"?fundHead():""),
+          amounting: num("amounting"),
+          length_m: num("length_m"),
+          width_m: num("width_m")
+        });
+      }catch(e){}
+      if (data.xlsx) window.open(API + data.xlsx, "_blank");
+      if (data.pdf) setTimeout(() => window.open(API + data.pdf, "_blank"), 500);
+      msg.textContent = data.pdf && data.xlsx
+        ? "Excel અને PDF ડાઉનલોડ."
+        : data.pdf
+          ? "PDF ડાઉનલોડ."
+          : "Excel ડાઉનલોડ." + (data.pdf_error ? " PDF: " + data.pdf_error : "");
+    } catch (e) {
+      msg.textContent = "ભૂલ: " + e.message;
+    }
+    document.querySelectorAll(".dl").forEach((b) => { b.disabled = false; });
+    setBusy(false);
+  }
+
+  fetch("gj-geo.json")
+    .then((r) => r.json())
+    .then((data) => {
+      GJ = data;
+      fillSelect(document.getElementById("jilla"), Object.keys(GJ), "— જિલ્લો પસંદ કરો —");
+    })
+    .catch(function () {});
+
+  fillSelect(document.getElementById("grant_head"), GRANTS, "— Grant Head —");
+  fillSelect(document.getElementById("fy_year"), fyYears(), "— Year —");
+  document.getElementById("grant_head").addEventListener("change", onGrant);
+  document.getElementById("jilla").addEventListener("change", onJilla);
+  document.getElementById("taluka").addEventListener("change", onTaluka);
+  document.getElementById("village").addEventListener("change", onVillage);
+  const _dt=document.getElementById("dType"); if(_dt) _dt.addEventListener("change", renderDiaryRows);
+  ["kTest","kPlate","dAmtIn","dContractor"].forEach(function(id){
+    const e=document.getElementById(id); if(e) e.addEventListener("input", refreshDiaryLive);
+  });
+  
+
+
+
+  function mediaKey(){ return "copilot_site_media"; }
+  function loadMedia(){ try { return JSON.parse(localStorage.getItem(mediaKey())||"[]"); } catch(e){ return []; } }
+  function pushMedia(item){
+    const all=loadMedia();
+    all.unshift(item);
+    localStorage.setItem(mediaKey(), JSON.stringify(all.slice(0,40)));
+    renderMedia();
+  }
+  function renderMedia(){
+    const el=document.getElementById("mediaList");
+    if (!el) return;
+    const all=loadMedia();
+    el.innerHTML = all.length ? all.map(function(m){
+      return "<div><span>"+(m.ts||"").slice(0,16)+" · "+m.kind+" · "+(m.work||"")+"</span><b>"+(m.gps||"")+"</b></div>";
+    }).join("") : "<div>હજુ સ્કેચ/ફોટો નથી</div>";
+  }
+  function togglePlan(){
+    const box=document.getElementById("planBox");
+    box.classList.toggle("hidden");
+    if (!box.classList.contains("hidden")) bindPlan();
+  }
+  function bindPlan(){
+    const c=document.getElementById("planPad");
+    if (!c || c._bound) return;
+    c._bound=true;
+    const ctx=c.getContext("2d");
+    ctx.strokeStyle="#1B5D45"; ctx.lineWidth=2.5; ctx.lineCap="round";
+    function pos(e){
+      const r=c.getBoundingClientRect();
+      const src=(e.touches&&e.touches[0])?e.touches[0]:e;
+      return {x:(src.clientX-r.left)*c.width/r.width, y:(src.clientY-r.top)*c.height/r.height};
+    }
+    let draw=false;
+    function down(e){ e.preventDefault(); draw=true; const p=pos(e); ctx.beginPath(); ctx.moveTo(p.x,p.y); }
+    function move(e){ if(!draw) return; e.preventDefault(); const p=pos(e); ctx.lineTo(p.x,p.y); ctx.stroke(); }
+    function up(){ draw=false; }
+    c.addEventListener("mousedown", down);
+    c.addEventListener("mousemove", move);
+    window.addEventListener("mouseup", up);
+    c.addEventListener("touchstart", down, {passive:false});
+    c.addEventListener("touchmove", move, {passive:false});
+    c.addEventListener("touchend", up);
+  }
+  function clearPlan(){
+    const c=document.getElementById("planPad");
+    if (c) c.getContext("2d").clearRect(0,0,c.width,c.height);
+  }
+  function savePlan(){
+    const c=document.getElementById("planPad");
+    const work=siteWorkName();
+    pushMedia({kind:"plan", ts:new Date().toISOString(), work:work, data:c.toDataURL("image/jpeg",0.55), gps:""});
+    alert("સ્કેચ Profileમાં સેવ");
+  }
+  function takeSitePhoto(){
+    const f=document.getElementById("sitePhotoFile");
+    f.value="";
+    f.onchange=onSitePhoto;
+    f.click();
+  }
+  function onSitePhoto(){
+    const f=document.getElementById("sitePhotoFile");
+    const file=f.files&&f.files[0];
+    if (!file) return;
+    const box=document.getElementById("photoBox");
+    box.classList.remove("hidden");
+    const img=document.getElementById("photoPrev");
+    const gpsEl=document.getElementById("photoGps");
+    const reader=new FileReader();
+    reader.onload=function(){
+      function stamp(src, gps, cb){
+        const im=new Image();
+        im.onload=function(){
+          const cv=document.createElement("canvas");
+          cv.width=im.width; cv.height=im.height;
+          const g=cv.getContext("2d");
+          g.drawImage(im,0,0);
+          if (gps) {
+            const fs=Math.max(18, Math.floor(im.width/28));
+            g.font="bold "+fs+"px sans-serif";
+            g.textAlign="left";
+            g.textBaseline="bottom";
+            const pad=Math.max(10, fs*0.4);
+            g.fillStyle="rgba(0,0,0,.45)";
+            g.fillRect(0, im.height-fs-pad*2, g.measureText(gps).width+pad*2, fs+pad*2);
+            g.fillStyle="#fff";
+            g.fillText(gps, pad, im.height-pad);
+          }
+          cb(cv.toDataURL("image/jpeg",0.7));
+        };
+        im.src=src;
+      }
+      function store(gps){
+        gpsEl.textContent = gps || "GPS નથી";
+        stamp(reader.result, gps, function(out){
+          img.src=out;
+          const work=siteWorkName();
+          pushMedia({kind:"photo", ts:new Date().toISOString(), work:work, data:out, gps:gps||""});
+        });
+      }
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          function(pos){ store(pos.coords.latitude.toFixed(6)+", "+pos.coords.longitude.toFixed(6)); },
+          function(){ store(""); },
+          {enableHighAccuracy:true, timeout:8000}
+        );
+      } else store("");
+    };
+    reader.readAsDataURL(file);
+  }
+
+
+  tourYM = {y:2026,m:8};
+function openTijori(){
+    const c=document.getElementById("mbClosed");
+    const o=document.getElementById("mbOpen");
+    const img=document.getElementById("mbOpenImg");
+    if (c) c.classList.add("hidden");
+    if (o) o.classList.remove("hidden");
+  }
+  function openTour(){ show("s-tour"); tourPage("cover"); }
+  function tourPage(which){
+    ["tourCover","tourPerson","tourMonth","tourDay"].forEach(function(id){
+      const el=document.getElementById(id); if(el) el.classList.toggle("hidden", id!=="tour"+which.charAt(0).toUpperCase()+which.slice(1) && !(which==="cover"&&id==="tourCover") && !(which==="person"&&id==="tourPerson") && !(which==="month"&&id==="tourMonth") && !(which==="day"&&id==="tourDay"));
+    });
+    if (which==="person") loadTourPerson();
+    if (which==="month") renderTourMonth();
+  }
+  function loadTourPerson(){
+    try{
+      const p=JSON.parse(localStorage.getItem("copilot_profile")||"{}");
+      const set=function(id,v){ const e=document.getElementById(id); if(e) e.value=v||""; };
+      set("tdName", p.name); set("tdOffice", p.office); set("tdMobile", p.mobile); set("tdEmail", p.email);
+    }catch(e){}
+  }
+  function saveTourPerson(){
+    const p={
+      name:(document.getElementById("tdName")||{}).value||"",
+      office:(document.getElementById("tdOffice")||{}).value||"",
+      mobile:(document.getElementById("tdMobile")||{}).value||"",
+      email:(document.getElementById("tdEmail")||{}).value||""
+    };
+    localStorage.setItem("copilot_profile", JSON.stringify(p));
+    tourPage("month");
+  }
+  function tourShift(d){
+    tourYM.m += d;
+    if (tourYM.m<0){ tourYM.m=11; tourYM.y--; }
+    if (tourYM.m>11){ tourYM.m=0; tourYM.y++; }
+    renderTourMonth();
+  }
+  function renderTourMonth(){
+    const names=["જાન્યુ","ફેબ","માર્ચ","એપ્રિલ","મે","જૂન","જુલાઈ","ઓગ","સપ્ટે","ઓક્ટો","નવે","ડિસે"];
+    const title=document.getElementById("tmTitle");
+    if (title) title.textContent = names[tourYM.m] + " " + tourYM.y;
+    const grid=document.getElementById("tmGrid");
+    if (!grid) return;
+    const first=new Date(tourYM.y, tourYM.m, 1);
+    const last=new Date(tourYM.y, tourYM.m+1, 0).getDate();
+    const skip=first.getDay();
+    let html="";
+    ["ર","સો","મં","બુ","ગુ","શુ","શ"].forEach(function(d){ html += "<div class='stat'><span>"+d+"</span><b></b></div>"; });
+    for (let i=0;i<skip;i++) html += "<div class='stat' style='opacity:.2'></div>";
+    for (let d=1;d<=last;d++){
+      const ds = tourYM.y + "-" + String(tourYM.m+1).padStart(2,"0") + "-" + String(d).padStart(2,"0");
+      html += "<div class='stat' onclick='openTourDay(\""+ds+"\")' style='cursor:pointer'><span>"+d+"</span><b></b></div>";
+    }
+    grid.innerHTML=html;
+  }
+  function openTourDay(ds){
+    tourPage("day");
+    const el=document.getElementById("tdTitle");
+    if (el) el.textContent = ds;
+    const notes=JSON.parse(localStorage.getItem("copilot_tour_notes")||"{}");
+    document.getElementById("tdNote").value = notes[ds] || "";
+    Promise.all([
+      fetch(API+"/api/db/estimates").then(function(r){return r.json();}).catch(function(){return {items:[]};}),
+      fetch(API+"/api/db/site").then(function(r){return r.json();}).catch(function(){return {items:[]};})
+    ]).then(function(arr){
+      const est=(arr[0].items||[]).filter(function(x){return String(x.ts||"").slice(0,10)===ds;});
+      const site=(arr[1].items||[]).filter(function(x){return String(x.ts||"").slice(0,10)===ds;});
+      const bills=site.filter(function(x){return Number(x.bill||0)>0;});
+      document.getElementById("tdEst").textContent=est.length;
+      document.getElementById("tdSite").textContent=site.length;
+      document.getElementById("tdBill").textContent=bills.length;
+    });
+  }
+  function saveTourNote(){
+    const ds=(document.getElementById("tdTitle")||{}).textContent||"";
+    const notes=JSON.parse(localStorage.getItem("copilot_tour_notes")||"{}");
+    notes[ds]=(document.getElementById("tdNote")||{}).value||"";
+    localStorage.setItem("copilot_tour_notes", JSON.stringify(notes));
+    alert("નોંધ સેવ");
+  }
+
+
+  window.__billMode = 1;
+
+  fetch(API + "/api/log", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({kind:"page_open"}) });
+  applyDark();
+  authInit();
+  loadStats();
+</script>
+</body>
+</html>
