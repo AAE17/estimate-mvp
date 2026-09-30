@@ -1047,16 +1047,18 @@ app.post("/api/estimate/gutter", async (req, res) => {
       return {w:Number((r&&r.w)||dw), d:Number((r&&r.d)||dd)};
     };
 
-    setVal(face, "F2", d.jilla || d.division || "");
+    setVal(face, "F2", d.division || d.jilla || "");
     setVal(face, "I2", d.jilla || "");
-    setVal(face, "F4", d.jilla || "");
-    setVal(face, "I4", d.jilla || "");
-    setVal(face, "F5", d.jilla || "");
+    setVal(face, "F4", d.subdiv_address || "");
+    setVal(face, "F5", d.subdiv_address || "");
+    setVal(face, "I4", d.nani_address || "");
     setVal(face, "D8", fund);
     setVal(face, "H18", taluka);
     setVal(face, "C20", work);
     setVal(face, "G21", say);
     setVal(face, "D27", d.prepared_by || "");
+    setVal(face, "B34", d.sr_no || "");
+    setVal(face, "C34", d.ss_details || "");
     setVal(face, "G40", taluka);
 
     const wd225=lastWD(225,0.45,0.825), wd300=lastWD(300,0.45,0.90), wd450=lastWD(450,0.75,1.15);
