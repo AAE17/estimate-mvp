@@ -598,6 +598,30 @@
     #s-form .pm.add{background:#1e3a5f;border-color:#1e3a5f;color:#fff}
 #ongBox .site-l3{display:grid;grid-template-columns:1fr 1.2fr .8fr;gap:8px 12px;align-items:end}
 #siteList{display:none!important}
+
+    .td-wrap{display:flex;flex-wrap:wrap;gap:16px;align-items:flex-start}
+    .td-cal,.td-side{background:#fff;border:1px solid #e6eaf0;border-radius:12px;padding:16px}
+    .td-cal{flex:2;min-width:280px}
+    .td-side{flex:1.2;min-width:280px}
+    .td-mh{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+    .td-mh h2{margin:0;color:#1B5D45;font-size:22px}
+    .td-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:8px;text-align:center}
+    .td-dn{font-weight:700;color:#718096;font-size:12px;padding-bottom:4px}
+    .td-day{background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;min-height:52px;padding:6px 2px;cursor:pointer}
+    .td-day.on{background:#ebf4ff;border-color:#1B5D45;font-weight:800;color:#1B5D45}
+    .td-tags{display:flex;flex-wrap:wrap;gap:2px;justify-content:center;margin-top:4px}
+    .td-tag{font-size:8px;padding:1px 4px;border-radius:4px;color:#fff;font-weight:800}
+    .td-est{background:#48bb78}.td-bill{background:#ed8936}.td-leave{background:#e53e3e}.td-meet{background:#4299e1}
+    .td-box{border:1px solid #e2e8f0;border-radius:8px;margin-bottom:10px;overflow:hidden}
+    .td-bh{display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:#f8fafc;cursor:pointer;font-weight:700}
+    .td-badge{background:#1B5D45;color:#fff;border-radius:12px;padding:2px 8px;font-size:13px}
+    .td-list{display:none;padding:8px;overflow-x:auto}
+    .td-list.on{display:block}
+    .td-list table{width:100%;border-collapse:collapse;font-size:12px}
+    .td-list th,.td-list td{border:1px solid #e2e8f0;padding:6px;text-align:left;white-space:nowrap}
+    .td-list th{background:#edf2f7}
+    .td-sub{display:none;margin-top:8px;padding:8px;background:#f8fafc;border-left:3px solid #1B5D45}
+
 </style>
 </head>
 <body>
@@ -982,53 +1006,74 @@
     </section>
 
     <section id="s-tour" class="card hidden">
-      <div id="tourCover">
-        <div class="diary" style="min-height:auto;text-align:center;padding:40px 16px 28px;background:#8B4513;color:#f3e6c8">
-          <div style="font-size:42px;font-weight:800;letter-spacing:.08em">2026</div>
-          <h2 style="margin:24px 0 8px;color:#f3e6c8">Tour Diary</h2>
-          <p style="opacity:.9">SO+</p>
-          <p class="muted" style="color:#e8d7b0">Taluka Panchayat AAE</p>
-          <div class="actions" style="justify-content:center;margin-top:22px">
-            <button class="btn btn-g" onclick="tourPage('person')">ખોલો</button>
+      <div class="td-wrap">
+        <div class="td-cal">
+          <div class="td-mh">
+            <button type="button" class="btn btn-w" onclick="tourShift(-1)">< Prev</button>
+            <h2 id="tmTitle">સપ્ટેમ્બર 2026</h2>
+            <button type="button" class="btn btn-w" onclick="tourShift(1)">Next ></button>
+          </div>
+          <div id="tmGrid" class="td-grid"></div>
+          <div class="actions" style="margin-top:10px">
+            <button type="button" class="btn btn-w" onclick="tourPage('person')">Personal</button>
           </div>
         </div>
+        <div class="td-side">
+          <h3 id="tdTitle" style="margin:0 0 10px">તારીખ પસંદ કરો</h3>
+          <div class="td-box">
+            <div class="td-bh" onclick="tdToggle('tdEstList')"><span>Estimate-Generated</span><span class="td-badge" id="tdEst">0</span></div>
+            <div id="tdEstList" class="td-list"></div>
+          </div>
+          <div class="td-box">
+            <div class="td-bh" onclick="tdToggle('tdBillList')"><span>Bill-Generated</span><span class="td-badge" id="tdBill">0</span></div>
+            <div id="tdBillList" class="td-list"></div>
+          </div>
+          <div class="field">
+            <label>Activity Type</label>
+            <select id="tdAct" onchange="tdCheckAct()">
+              <option value="none">-- Select Activity --</option>
+              <option value="office">Office Work / Field Work</option>
+              <option value="tdo">TDO Meeting</option>
+              <option value="jilla">Jilla Panchayat Meeting</option>
+              <option value="leave">Leave (રજા)</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>આજે કરેલ કામગીરીની વિગત</label>
+            <textarea id="tdNote" rows="3" placeholder="સાઇટ વિઝિટ, ઓફિસ કામ કે અન્ય નોંધ"></textarea>
+          </div>
+          <div id="tdJilla" class="td-sub">
+            <label>Meeting With</label>
+            <select id="tdMeet">
+              <option>Ex-En Sir</option><option>D.D.O. Sir</option><option>Dist. Collector Sir</option>
+              <option>D.P.O. Sir</option><option>Dy.D.D.O Sir</option><option>Other</option>
+            </select>
+          </div>
+          <div id="tdLeave" class="td-sub">
+            <table class="td-list" style="display:table;width:100%">
+              <tr><th></th><th>પ્રકાર</th><th>કુલ</th><th>વપરાયેલ</th><th>બાકી</th></tr>
+              <tr><td><input type="radio" name="tdLv" value="CL"></td><td>CL પરચુરણ</td><td>15</td><td>4</td><td>11</td></tr>
+              <tr><td><input type="radio" name="tdLv" value="RH"></td><td>RH મરજિયાત</td><td>2</td><td>1</td><td>1</td></tr>
+              <tr><td><input type="radio" name="tdLv" value="EL"></td><td>EL હકની</td><td>300</td><td>45</td><td>255</td></tr>
+              <tr><td><input type="radio" name="tdLv" value="HPL"></td><td>HPL અર્ધ પગાર</td><td>-</td><td>-</td><td>-</td></tr>
+              <tr><td><input type="radio" name="tdLv" value="CML"></td><td>Commuted Leave</td><td>-</td><td>-</td><td>-</td></tr>
+              <tr><td><input type="radio" name="tdLv" value="PH"></td><td>Public Holiday</td><td>-</td><td>-</td><td>-</td></tr>
+            </table>
+          </div>
+          <button type="button" class="btn btn-g" style="width:100%;margin-top:8px" onclick="saveTourNote()">Save Daily Entry</button>
+        </div>
       </div>
-      <div id="tourPerson" class="hidden">
+      <div id="tourPerson" class="hidden" style="margin-top:12px">
         <h2>Personal Information</h2>
         <div class="field"><label>નામ</label><input id="tdName"></div>
         <div class="field"><label>ઓફિસ</label><input id="tdOffice"></div>
         <div class="field"><label>મોબાઈલ</label><input id="tdMobile"></div>
         <div class="field"><label>ઈમેલ</label><input id="tdEmail"></div>
-        <div class="actions">
-          <button class="btn btn-w" onclick="tourPage('cover')">કવર</button>
-          <button class="btn btn-g" onclick="saveTourPerson()">સેવ · મહિનો</button>
-        </div>
-      </div>
-      <div id="tourMonth" class="hidden">
-        <h2 id="tmTitle">Monthly Index</h2>
-        <div class="actions">
-          <button class="btn btn-w" onclick="tourShift(-1)">‹</button>
-          <button class="btn btn-w" onclick="tourPage('person')">Personal</button>
-          <button class="btn btn-w" onclick="tourShift(1)">›</button>
-        </div>
-        <div id="tmGrid" class="stats" style="grid-template-columns:repeat(7,1fr)"></div>
-      </div>
-      <div id="tourDay" class="hidden">
-        <h2 id="tdTitle">દિવસ</h2>
-        <div class="stats">
-          <div class="stat"><span>એસ્ટિમેટ</span><b id="tdEst">0</b></div>
-          <div class="stat"><span>સાઇટ</span><b id="tdSite">0</b></div>
-          <div class="stat"><span>બિલ</span><b id="tdBill">0</b></div>
-        </div>
-        <div class="field full"><label>નોંધ</label><textarea id="tdNote" rows="5"></textarea></div>
-        <div class="actions">
-          <button class="btn btn-w" onclick="tourPage('month')">મહિનો</button>
-          <button class="btn btn-g" onclick="saveTourNote()">નોંધ સેવ</button>
-        </div>
+        <button type="button" class="btn btn-g" onclick="saveTourPerson()">સેવ</button>
       </div>
     </section>
 
-                        <section id="s-bill" class="card hidden">
+    <section id="s-bill" class="card hidden">
       <h2 style="display:flex;flex-wrap:wrap;align-items:baseline;gap:10px">Bill Generate <span class="muted" id="billModeHint" style="font-size:14px;font-weight:500">રસ્તો પસંદ કરો.</span></h2>
       <div class="pillbar" id="billPills">
         <button type="button" id="bm1" onclick="billMode(1)">એસ્ટિમેટ પરથી</button>
@@ -1339,7 +1384,7 @@
     if (id === "s-hi") { setTab("tab-dash"); loadStats(); }
     if (id === "s-type" || id === "s-form") setTab("tab-est");
     if (id === "s-site") { setTab("tab-site"); loadStats(); siteTab("new"); renderSiteList(); }
-    if (id === "s-tour") { setTab("tab-tour"); }
+    if (id === "s-tour") { setTab("tab-tour"); try{ renderTourMonth(); }catch(e){} }
     if (id === "s-pr") { loadProfile(); setHomeOffice(); }
     if (id === "s-bill") { try{ billMode(window.__billMode||1); liveBill(); }catch(e){} setTab("tab-bill"); }
     if (id === "s-letter") { try{ renderLetterBills(); }catch(e){} setTab("tab-letter"); }
@@ -1402,28 +1447,26 @@
 
   let sbClient=null;
   async function authInit(){
-    const gate=document.getElementById("authGate");
-    const msg=document.getElementById("authMsg");
     try{
       const cfg=await fetch(API+"/api/auth/config").then(function(r){return r.json();});
       if(!cfg.url||!cfg.anon||!window.supabase){
-        if(gate) gate.classList.remove("hidden");
-        if(msg) msg.textContent="Auth config નથી. Render પર SUPABASE_URL / ANON KEY ચેક કરો.";
+        document.getElementById("authGate").classList.add("hidden");
         return;
       }
       sbClient=window.supabase.createClient(cfg.url, cfg.anon);
       const { data }=await sbClient.auth.getSession();
       if(data&&data.session){ onAuthed(data.session); }
       else {
-        if(gate) gate.classList.remove("hidden");
+        document.getElementById("authGate").classList.remove("hidden");
+        if(typeof show==="function") show("s-hi");
       }
       sbClient.auth.onAuthStateChange(function(_e, session){
-        if(session) onAuthed(session);
-        else if(gate) gate.classList.remove("hidden");
+        if(session) onAuthed(session); else {
+          document.getElementById("authGate").classList.remove("hidden");
+        }
       });
     }catch(e){
-      if(gate) gate.classList.remove("hidden");
-      if(msg) msg.textContent="Login સર્વર સુધી પહોંચ્યું નહીં. નેટ / Render જુઓ.";
+      document.getElementById("authGate").classList.add("hidden");
     }
   }
   const ADMIN_EMAIL="vanraj2592@gmail.com";
@@ -2142,11 +2185,10 @@ function onLetterDate(){
   let tourYM = {y:2026,m:8};
   function openTour(){ show("s-tour"); tourPage("cover"); }
   function tourPage(which){
-    ["tourCover","tourPerson","tourMonth","tourDay"].forEach(function(id){
-      const el=document.getElementById(id); if(el) el.classList.toggle("hidden", id!=="tour"+which.charAt(0).toUpperCase()+which.slice(1) && !(which==="cover"&&id==="tourCover") && !(which==="person"&&id==="tourPerson") && !(which==="month"&&id==="tourMonth") && !(which==="day"&&id==="tourDay"));
-    });
-    if (which==="person") loadTourPerson();
-    if (which==="month") renderTourMonth();
+    const p=document.getElementById("tourPerson");
+    if(p) p.classList.toggle("hidden", which!=="person");
+    if(which==="person") loadTourPerson();
+    if(which==="month"||which==="cover") renderTourMonth();
   }
   function loadTourPerson(){
     try{
@@ -2156,14 +2198,13 @@ function onLetterDate(){
     }catch(e){}
   }
   function saveTourPerson(){
-    const p={
-      name:(document.getElementById("tdName")||{}).value||"",
-      office:(document.getElementById("tdOffice")||{}).value||"",
-      mobile:(document.getElementById("tdMobile")||{}).value||"",
-      email:(document.getElementById("tdEmail")||{}).value||""
-    };
+    const p=JSON.parse(localStorage.getItem("copilot_profile")||"{}");
+    p.name=(document.getElementById("tdName")||{}).value||"";
+    p.office=(document.getElementById("tdOffice")||{}).value||"";
+    p.mobile=(document.getElementById("tdMobile")||{}).value||"";
+    p.email=(document.getElementById("tdEmail")||{}).value||"";
     localStorage.setItem("copilot_profile", JSON.stringify(p));
-    tourPage("month");
+    const box=document.getElementById("tourPerson"); if(box) box.classList.add("hidden");
   }
   function tourShift(d){
     tourYM.m += d;
@@ -2171,50 +2212,96 @@ function onLetterDate(){
     if (tourYM.m>11){ tourYM.m=0; tourYM.y++; }
     renderTourMonth();
   }
+  function tourDays(){ try{ return JSON.parse(localStorage.getItem("copilot_tour_days")||"{}"); }catch(e){ return {}; } }
+  function tdToggle(id){ const el=document.getElementById(id); if(el) el.classList.toggle("on"); }
+  function tdCheckAct(){
+    const v=(document.getElementById("tdAct")||{}).value||"none";
+    const j=document.getElementById("tdJilla"); const l=document.getElementById("tdLeave");
+    if(j) j.style.display=(v==="jilla")?"block":"none";
+    if(l) l.style.display=v==="leave"?"block":"none";
+  }
+  function tourDateOf(x){
+    return String(x.date||x.ts||x.created_at||x.bill_date||"").slice(0,10);
+  }
+  function tourPack(){
+    const est=typeof loadLocalEst==="function"?loadLocalEst():[];
+    const bills=typeof loadLocalBills==="function"?loadLocalBills():[];
+    return {est:est, bills:bills, days:tourDays()};
+  }
   function renderTourMonth(){
-    const names=["જાન્યુ","ફેબ","માર્ચ","એપ્રિલ","મે","જૂન","જુલાઈ","ઓગ","સપ્ટે","ઓક્ટો","નવે","ડિસે"];
+    const names=["જાન્યુઆરી","ફેબ્રુઆરી","માર્ચ","એપ્રિલ","મે","જૂન","જુલાઈ","ઑગસ્ટ","સપ્ટેમ્બર","ઑક્ટોબર","નવેમ્બર","ડિસેમ્બર"];
     const title=document.getElementById("tmTitle");
     if (title) title.textContent = names[tourYM.m] + " " + tourYM.y;
     const grid=document.getElementById("tmGrid");
     if (!grid) return;
+    const pack=tourPack();
     const first=new Date(tourYM.y, tourYM.m, 1);
     const last=new Date(tourYM.y, tourYM.m+1, 0).getDate();
-    const skip=first.getDay();
-    let html="";
-    ["ર","સો","મં","બુ","ગુ","શુ","શ"].forEach(function(d){ html += "<div class='stat'><span>"+d+"</span><b></b></div>"; });
-    for (let i=0;i<skip;i++) html += "<div class='stat' style='opacity:.2'></div>";
+    const skip=(first.getDay()+6)%7;
+    let html=["સોમ","મંગળ","બુધ","ગુરુ","શુક્ર","શનિ","રવિ"].map(function(d){return "<div class='td-dn'>"+d+"</div>";}).join("");
+    for (let i=0;i<skip;i++) html += "<div></div>";
+    const sel=window._tourDs||"";
     for (let d=1;d<=last;d++){
       const ds = tourYM.y + "-" + String(tourYM.m+1).padStart(2,"0") + "-" + String(d).padStart(2,"0");
-      html += "<div class='stat' onclick='openTourDay(\""+ds+"\")' style='cursor:pointer'><span>"+d+"</span><b></b></div>";
+      const hasE=pack.est.some(function(x){return tourDateOf(x)===ds;});
+      const hasB=pack.bills.some(function(x){return tourDateOf(x)===ds;});
+      const day=pack.days[ds]||{};
+      const tags=[];
+      if(hasE) tags.push("<span class='td-tag td-est'>EST</span>");
+      if(hasB) tags.push("<span class='td-tag td-bill'>BILL</span>");
+      if(day.act==="leave") tags.push("<span class='td-tag td-leave'>LEAVE</span>");
+      if(day.act==="tdo"||day.act==="jilla") tags.push("<span class='td-tag td-meet'>MEET</span>");
+      html += "<div class='td-day"+(ds===sel?" on":"")+"' onclick='openTourDay(\""+ds+"\")'>"+d+"<div class='td-tags'>"+tags.join("")+"</div></div>";
     }
     grid.innerHTML=html;
   }
   function openTourDay(ds){
-    tourPage("day");
+    window._tourDs=ds;
+    const dt=new Date(ds+"T00:00:00");
+    const wd=["રવિવાર","સોમવાર","મંગળવાર","બુધવાર","ગુરુવાર","શુક્રવાર","શનિવાર"][dt.getDay()];
     const el=document.getElementById("tdTitle");
-    if (el) el.textContent = ds;
-    const notes=JSON.parse(localStorage.getItem("copilot_tour_notes")||"{}");
-    document.getElementById("tdNote").value = notes[ds] || "";
-    Promise.all([
-      fetch(API+"/api/db/estimates").then(function(r){return r.json();}).catch(function(){return {items:[]};}),
-      fetch(API+"/api/db/site").then(function(r){return r.json();}).catch(function(){return {items:[]};})
-    ]).then(function(arr){
-      const est=(arr[0].items||[]).filter(function(x){return String(x.ts||"").slice(0,10)===ds;});
-      const site=(arr[1].items||[]).filter(function(x){return String(x.ts||"").slice(0,10)===ds;});
-      const bills=site.filter(function(x){return Number(x.bill||0)>0;});
-      document.getElementById("tdEst").textContent=est.length;
-      document.getElementById("tdSite").textContent=site.length;
-      document.getElementById("tdBill").textContent=bills.length;
-    });
+    if (el) el.textContent = ds.split("-").reverse().join("/") + " ("+wd+")";
+    const pack=tourPack();
+    const est=pack.est.filter(function(x){return tourDateOf(x)===ds;});
+    const bills=pack.bills.filter(function(x){return tourDateOf(x)===ds;});
+    const eb=document.getElementById("tdEst"); if(eb) eb.textContent=est.length;
+    const bb=document.getElementById("tdBill"); if(bb) bb.textContent=bills.length;
+    const elist=document.getElementById("tdEstList");
+    if(elist){
+      elist.innerHTML = est.length ? ("<table><tr><th>Sr</th><th>Village</th><th>Work Type</th><th>Name of work</th><th>Grant Head-Year</th><th>Amount</th></tr>"
+        + est.map(function(x,i){return "<tr><td>"+(i+1)+"</td><td>"+(x.village||x.gam||"")+"</td><td>"+(x.type||"")+"</td><td>"+(x.work_name||x.work||"")+"</td><td>"+(x.fund_head||x.grant||"")+" "+(x.year||"")+"</td><td>₹ "+(x.amounting||x.amount||"")+"</td></tr>";}).join("")
+        + "</table>") : "<p class='muted'>આ તારીખે એસ્ટિમેટ નથી</p>";
+      elist.classList.add("on");
+    }
+    const blist=document.getElementById("tdBillList");
+    if(blist){
+      blist.innerHTML = bills.length ? ("<table><tr><th>Sr</th><th>Village</th><th>Work Type</th><th>Name of work</th><th>Grant</th><th>MB No.</th><th>Bill Amount</th><th>Agency</th></tr>"
+        + bills.map(function(x,i){return "<tr><td>"+(i+1)+"</td><td>"+(x.village||x.gam||"")+"</td><td>"+(x.type||"")+"</td><td>"+(x.work_name||x.work||"")+"</td><td>"+(x.grant||x.fund_head||"")+"</td><td>"+(x.mb_no||x.mb||"")+"</td><td>₹ "+(x.bill_amount||x.amount||"")+"</td><td>"+(x.agency||x.contractor||"")+"</td></tr>";}).join("")
+        + "</table>") : "<p class='muted'>આ તારીખે બિલ નથી</p>";
+    }
+    const day=pack.days[ds]||{};
+    const act=document.getElementById("tdAct"); if(act) act.value=day.act||"none";
+    const note=document.getElementById("tdNote"); if(note) note.value=day.note||"";
+    const meet=document.getElementById("tdMeet"); if(meet && day.meet) meet.value=day.meet;
+    document.querySelectorAll("input[name=tdLv]").forEach(function(r){ r.checked = r.value===(day.leave||""); });
+    tdCheckAct();
+    renderTourMonth();
   }
   function saveTourNote(){
-    const ds=(document.getElementById("tdTitle")||{}).textContent||"";
-    const notes=JSON.parse(localStorage.getItem("copilot_tour_notes")||"{}");
-    notes[ds]=(document.getElementById("tdNote")||{}).value||"";
-    localStorage.setItem("copilot_tour_notes", JSON.stringify(notes));
+    const ds=window._tourDs;
+    if(!ds){ alert("પહેલાં તારીખ પસંદ કરો"); return; }
+    const days=tourDays();
+    const lv=(document.querySelector("input[name=tdLv]:checked")||{}).value||"";
+    days[ds]={
+      act:(document.getElementById("tdAct")||{}).value||"none",
+      note:(document.getElementById("tdNote")||{}).value||"",
+      meet:(document.getElementById("tdMeet")||{}).value||"",
+      leave:lv
+    };
+    localStorage.setItem("copilot_tour_days", JSON.stringify(days));
+    renderTourMonth();
     alert("નોંધ સેવ");
   }
-
 
   let SEGS = [{l:40,w:3,d:0.1}];
   function syncSegToLW() {
@@ -3168,81 +3255,6 @@ function openTijori(){
     if (o) o.classList.remove("hidden");
   }
   function openTour(){ show("s-tour"); tourPage("cover"); }
-  function tourPage(which){
-    ["tourCover","tourPerson","tourMonth","tourDay"].forEach(function(id){
-      const el=document.getElementById(id); if(el) el.classList.toggle("hidden", id!=="tour"+which.charAt(0).toUpperCase()+which.slice(1) && !(which==="cover"&&id==="tourCover") && !(which==="person"&&id==="tourPerson") && !(which==="month"&&id==="tourMonth") && !(which==="day"&&id==="tourDay"));
-    });
-    if (which==="person") loadTourPerson();
-    if (which==="month") renderTourMonth();
-  }
-  function loadTourPerson(){
-    try{
-      const p=JSON.parse(localStorage.getItem("copilot_profile")||"{}");
-      const set=function(id,v){ const e=document.getElementById(id); if(e) e.value=v||""; };
-      set("tdName", p.name); set("tdOffice", p.office); set("tdMobile", p.mobile); set("tdEmail", p.email);
-    }catch(e){}
-  }
-  function saveTourPerson(){
-    const p={
-      name:(document.getElementById("tdName")||{}).value||"",
-      office:(document.getElementById("tdOffice")||{}).value||"",
-      mobile:(document.getElementById("tdMobile")||{}).value||"",
-      email:(document.getElementById("tdEmail")||{}).value||""
-    };
-    localStorage.setItem("copilot_profile", JSON.stringify(p));
-    tourPage("month");
-  }
-  function tourShift(d){
-    tourYM.m += d;
-    if (tourYM.m<0){ tourYM.m=11; tourYM.y--; }
-    if (tourYM.m>11){ tourYM.m=0; tourYM.y++; }
-    renderTourMonth();
-  }
-  function renderTourMonth(){
-    const names=["જાન્યુ","ફેબ","માર્ચ","એપ્રિલ","મે","જૂન","જુલાઈ","ઓગ","સપ્ટે","ઓક્ટો","નવે","ડિસે"];
-    const title=document.getElementById("tmTitle");
-    if (title) title.textContent = names[tourYM.m] + " " + tourYM.y;
-    const grid=document.getElementById("tmGrid");
-    if (!grid) return;
-    const first=new Date(tourYM.y, tourYM.m, 1);
-    const last=new Date(tourYM.y, tourYM.m+1, 0).getDate();
-    const skip=first.getDay();
-    let html="";
-    ["ર","સો","મં","બુ","ગુ","શુ","શ"].forEach(function(d){ html += "<div class='stat'><span>"+d+"</span><b></b></div>"; });
-    for (let i=0;i<skip;i++) html += "<div class='stat' style='opacity:.2'></div>";
-    for (let d=1;d<=last;d++){
-      const ds = tourYM.y + "-" + String(tourYM.m+1).padStart(2,"0") + "-" + String(d).padStart(2,"0");
-      html += "<div class='stat' onclick='openTourDay(\""+ds+"\")' style='cursor:pointer'><span>"+d+"</span><b></b></div>";
-    }
-    grid.innerHTML=html;
-  }
-  function openTourDay(ds){
-    tourPage("day");
-    const el=document.getElementById("tdTitle");
-    if (el) el.textContent = ds;
-    const notes=JSON.parse(localStorage.getItem("copilot_tour_notes")||"{}");
-    document.getElementById("tdNote").value = notes[ds] || "";
-    Promise.all([
-      fetch(API+"/api/db/estimates").then(function(r){return r.json();}).catch(function(){return {items:[]};}),
-      fetch(API+"/api/db/site").then(function(r){return r.json();}).catch(function(){return {items:[]};})
-    ]).then(function(arr){
-      const est=(arr[0].items||[]).filter(function(x){return String(x.ts||"").slice(0,10)===ds;});
-      const site=(arr[1].items||[]).filter(function(x){return String(x.ts||"").slice(0,10)===ds;});
-      const bills=site.filter(function(x){return Number(x.bill||0)>0;});
-      document.getElementById("tdEst").textContent=est.length;
-      document.getElementById("tdSite").textContent=site.length;
-      document.getElementById("tdBill").textContent=bills.length;
-    });
-  }
-  function saveTourNote(){
-    const ds=(document.getElementById("tdTitle")||{}).textContent||"";
-    const notes=JSON.parse(localStorage.getItem("copilot_tour_notes")||"{}");
-    notes[ds]=(document.getElementById("tdNote")||{}).value||"";
-    localStorage.setItem("copilot_tour_notes", JSON.stringify(notes));
-    alert("નોંધ સેવ");
-  }
-
-
   window.__billMode = 1;
 
   fetch(API + "/api/log", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({kind:"select_" + currentType}) });
@@ -3390,81 +3402,6 @@ function openTijori(){
     if (o) o.classList.remove("hidden");
   }
   function openTour(){ show("s-tour"); tourPage("cover"); }
-  function tourPage(which){
-    ["tourCover","tourPerson","tourMonth","tourDay"].forEach(function(id){
-      const el=document.getElementById(id); if(el) el.classList.toggle("hidden", id!=="tour"+which.charAt(0).toUpperCase()+which.slice(1) && !(which==="cover"&&id==="tourCover") && !(which==="person"&&id==="tourPerson") && !(which==="month"&&id==="tourMonth") && !(which==="day"&&id==="tourDay"));
-    });
-    if (which==="person") loadTourPerson();
-    if (which==="month") renderTourMonth();
-  }
-  function loadTourPerson(){
-    try{
-      const p=JSON.parse(localStorage.getItem("copilot_profile")||"{}");
-      const set=function(id,v){ const e=document.getElementById(id); if(e) e.value=v||""; };
-      set("tdName", p.name); set("tdOffice", p.office); set("tdMobile", p.mobile); set("tdEmail", p.email);
-    }catch(e){}
-  }
-  function saveTourPerson(){
-    const p={
-      name:(document.getElementById("tdName")||{}).value||"",
-      office:(document.getElementById("tdOffice")||{}).value||"",
-      mobile:(document.getElementById("tdMobile")||{}).value||"",
-      email:(document.getElementById("tdEmail")||{}).value||""
-    };
-    localStorage.setItem("copilot_profile", JSON.stringify(p));
-    tourPage("month");
-  }
-  function tourShift(d){
-    tourYM.m += d;
-    if (tourYM.m<0){ tourYM.m=11; tourYM.y--; }
-    if (tourYM.m>11){ tourYM.m=0; tourYM.y++; }
-    renderTourMonth();
-  }
-  function renderTourMonth(){
-    const names=["જાન્યુ","ફેબ","માર્ચ","એપ્રિલ","મે","જૂન","જુલાઈ","ઓગ","સપ્ટે","ઓક્ટો","નવે","ડિસે"];
-    const title=document.getElementById("tmTitle");
-    if (title) title.textContent = names[tourYM.m] + " " + tourYM.y;
-    const grid=document.getElementById("tmGrid");
-    if (!grid) return;
-    const first=new Date(tourYM.y, tourYM.m, 1);
-    const last=new Date(tourYM.y, tourYM.m+1, 0).getDate();
-    const skip=first.getDay();
-    let html="";
-    ["ર","સો","મં","બુ","ગુ","શુ","શ"].forEach(function(d){ html += "<div class='stat'><span>"+d+"</span><b></b></div>"; });
-    for (let i=0;i<skip;i++) html += "<div class='stat' style='opacity:.2'></div>";
-    for (let d=1;d<=last;d++){
-      const ds = tourYM.y + "-" + String(tourYM.m+1).padStart(2,"0") + "-" + String(d).padStart(2,"0");
-      html += "<div class='stat' onclick='openTourDay(\""+ds+"\")' style='cursor:pointer'><span>"+d+"</span><b></b></div>";
-    }
-    grid.innerHTML=html;
-  }
-  function openTourDay(ds){
-    tourPage("day");
-    const el=document.getElementById("tdTitle");
-    if (el) el.textContent = ds;
-    const notes=JSON.parse(localStorage.getItem("copilot_tour_notes")||"{}");
-    document.getElementById("tdNote").value = notes[ds] || "";
-    Promise.all([
-      fetch(API+"/api/db/estimates").then(function(r){return r.json();}).catch(function(){return {items:[]};}),
-      fetch(API+"/api/db/site").then(function(r){return r.json();}).catch(function(){return {items:[]};})
-    ]).then(function(arr){
-      const est=(arr[0].items||[]).filter(function(x){return String(x.ts||"").slice(0,10)===ds;});
-      const site=(arr[1].items||[]).filter(function(x){return String(x.ts||"").slice(0,10)===ds;});
-      const bills=site.filter(function(x){return Number(x.bill||0)>0;});
-      document.getElementById("tdEst").textContent=est.length;
-      document.getElementById("tdSite").textContent=site.length;
-      document.getElementById("tdBill").textContent=bills.length;
-    });
-  }
-  function saveTourNote(){
-    const ds=(document.getElementById("tdTitle")||{}).textContent||"";
-    const notes=JSON.parse(localStorage.getItem("copilot_tour_notes")||"{}");
-    notes[ds]=(document.getElementById("tdNote")||{}).value||"";
-    localStorage.setItem("copilot_tour_notes", JSON.stringify(notes));
-    alert("નોંધ સેવ");
-  }
-
-
   window.__billMode = 1;
 
   fetch(API + "/api/log", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({kind:"blocked_type", type:name}) });
@@ -4122,81 +4059,6 @@ function openTijori(){
     if (o) o.classList.remove("hidden");
   }
   function openTour(){ show("s-tour"); tourPage("cover"); }
-  function tourPage(which){
-    ["tourCover","tourPerson","tourMonth","tourDay"].forEach(function(id){
-      const el=document.getElementById(id); if(el) el.classList.toggle("hidden", id!=="tour"+which.charAt(0).toUpperCase()+which.slice(1) && !(which==="cover"&&id==="tourCover") && !(which==="person"&&id==="tourPerson") && !(which==="month"&&id==="tourMonth") && !(which==="day"&&id==="tourDay"));
-    });
-    if (which==="person") loadTourPerson();
-    if (which==="month") renderTourMonth();
-  }
-  function loadTourPerson(){
-    try{
-      const p=JSON.parse(localStorage.getItem("copilot_profile")||"{}");
-      const set=function(id,v){ const e=document.getElementById(id); if(e) e.value=v||""; };
-      set("tdName", p.name); set("tdOffice", p.office); set("tdMobile", p.mobile); set("tdEmail", p.email);
-    }catch(e){}
-  }
-  function saveTourPerson(){
-    const p={
-      name:(document.getElementById("tdName")||{}).value||"",
-      office:(document.getElementById("tdOffice")||{}).value||"",
-      mobile:(document.getElementById("tdMobile")||{}).value||"",
-      email:(document.getElementById("tdEmail")||{}).value||""
-    };
-    localStorage.setItem("copilot_profile", JSON.stringify(p));
-    tourPage("month");
-  }
-  function tourShift(d){
-    tourYM.m += d;
-    if (tourYM.m<0){ tourYM.m=11; tourYM.y--; }
-    if (tourYM.m>11){ tourYM.m=0; tourYM.y++; }
-    renderTourMonth();
-  }
-  function renderTourMonth(){
-    const names=["જાન્યુ","ફેબ","માર્ચ","એપ્રિલ","મે","જૂન","જુલાઈ","ઓગ","સપ્ટે","ઓક્ટો","નવે","ડિસે"];
-    const title=document.getElementById("tmTitle");
-    if (title) title.textContent = names[tourYM.m] + " " + tourYM.y;
-    const grid=document.getElementById("tmGrid");
-    if (!grid) return;
-    const first=new Date(tourYM.y, tourYM.m, 1);
-    const last=new Date(tourYM.y, tourYM.m+1, 0).getDate();
-    const skip=first.getDay();
-    let html="";
-    ["ર","સો","મં","બુ","ગુ","શુ","શ"].forEach(function(d){ html += "<div class='stat'><span>"+d+"</span><b></b></div>"; });
-    for (let i=0;i<skip;i++) html += "<div class='stat' style='opacity:.2'></div>";
-    for (let d=1;d<=last;d++){
-      const ds = tourYM.y + "-" + String(tourYM.m+1).padStart(2,"0") + "-" + String(d).padStart(2,"0");
-      html += "<div class='stat' onclick='openTourDay(\""+ds+"\")' style='cursor:pointer'><span>"+d+"</span><b></b></div>";
-    }
-    grid.innerHTML=html;
-  }
-  function openTourDay(ds){
-    tourPage("day");
-    const el=document.getElementById("tdTitle");
-    if (el) el.textContent = ds;
-    const notes=JSON.parse(localStorage.getItem("copilot_tour_notes")||"{}");
-    document.getElementById("tdNote").value = notes[ds] || "";
-    Promise.all([
-      fetch(API+"/api/db/estimates").then(function(r){return r.json();}).catch(function(){return {items:[]};}),
-      fetch(API+"/api/db/site").then(function(r){return r.json();}).catch(function(){return {items:[]};})
-    ]).then(function(arr){
-      const est=(arr[0].items||[]).filter(function(x){return String(x.ts||"").slice(0,10)===ds;});
-      const site=(arr[1].items||[]).filter(function(x){return String(x.ts||"").slice(0,10)===ds;});
-      const bills=site.filter(function(x){return Number(x.bill||0)>0;});
-      document.getElementById("tdEst").textContent=est.length;
-      document.getElementById("tdSite").textContent=site.length;
-      document.getElementById("tdBill").textContent=bills.length;
-    });
-  }
-  function saveTourNote(){
-    const ds=(document.getElementById("tdTitle")||{}).textContent||"";
-    const notes=JSON.parse(localStorage.getItem("copilot_tour_notes")||"{}");
-    notes[ds]=(document.getElementById("tdNote")||{}).value||"";
-    localStorage.setItem("copilot_tour_notes", JSON.stringify(notes));
-    alert("નોંધ સેવ");
-  }
-
-
   window.__billMode = 1;
 
   fetch(API + "/api/log", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({kind:"page_open"}) });
