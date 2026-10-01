@@ -628,7 +628,86 @@
     .td-list th{background:#edf2f7}
     .td-sub{display:none;margin-top:8px;padding:8px;background:#f8fafc;border-left:3px solid #1B5D45}
 
-</style>
+
+    .lift{transition:transform .18s ease, box-shadow .18s ease, background .18s ease}
+    .kpi, .choice button, .actions .dl, .pillbar button, .hacts .newest, .letter-step1 .cal-btn, #s-letter .btn-g, .td-side .btn-g{
+      transition:transform .18s ease, box-shadow .18s ease, background .18s ease, border-color .18s ease;
+    }
+    .kpi:hover{transform:translateY(-6px); box-shadow:0 14px 28px rgba(37,99,235,.12)}
+    .choice{grid-template-columns:1fr 1fr}
+    .choice button{
+      display:flex; align-items:center; justify-content:space-between;
+      min-height:78px; border-radius:16px; border:1px solid #e6eaf0; background:#f8fafc;
+      font-weight:800; color:#0f172a;
+    }
+    .choice button:hover{transform:translateY(-5px); box-shadow:0 12px 24px rgba(15,23,42,.08); border-color:#93c5fd; background:#fff}
+    .choice button.on{border:2px solid #2563eb; background:#fff}
+    .choice .pic{width:46px;height:46px;border-radius:12px;object-fit:cover;background:#e2e8f0}
+    .actions .dl{border-radius:14px; min-width:140px}
+    .actions .dl:hover{transform:translateY(-4px); box-shadow:0 10px 20px rgba(15,23,42,.1)}
+    .dl-x{background:#ecfdf5 !important; color:#047857 !important; border:1px solid #86efac !important}
+    .dl-p{background:#fff1f2 !important; color:#be123c !important; border:1px solid #fecdd3 !important}
+    .dl-b{background:linear-gradient(90deg,#4f46e5,#7c3aed) !important; color:#fff !important; border:0 !important}
+    .pillbar button{border:0; background:transparent; border-radius:999px; padding:8px 14px; font:inherit; font-weight:700; color:#64748b; cursor:pointer}
+    .pillbar button.on{background:#4f46e5; color:#fff}
+    .pillbar button:hover{transform:translateY(-2px)}
+    .freeze-head{
+      position:sticky; top:64px; z-index:40; background:#fffdf8;
+      padding:8px 0 10px; border-bottom:1px dashed #d7d0c4; margin-bottom:12px;
+    }
+    body.dark .freeze-head{background:#111827; border-bottom-color:#334155}
+    .head-row{display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap}
+    .letter-step1{display:flex; align-items:center; justify-content:space-between; gap:12px;
+      background:#eff6ff; border:1px dashed #93c5fd; border-radius:16px; padding:14px 16px; margin-bottom:14px}
+    .letter-step1 b{display:block}
+    .letter-step1 .cal-btn, #s-letter .btn-g, .td-side .btn{border-radius:999px}
+    .letter-step1 .cal-btn:hover, #s-letter .btn-g:hover, .td-side .btn-g:hover{transform:translateY(-3px); box-shadow:0 10px 18px rgba(79,70,229,.25)}
+    .mail-empty{text-align:center; padding:36px 12px; color:#64748b}
+    .mail-empty .box{font-size:34px; margin-bottom:8px}
+    .td-cal, .td-side{background:#fff; border:1px solid #e6eaf0; border-radius:18px; padding:14px; box-shadow:0 8px 24px rgba(15,23,42,.04)}
+
+  
+    #s-site .pillbar, #s-bill .pillbar{position:static !important; box-shadow:none; background:#eef2ff; border:0; margin:0; max-width:none; padding:4px; border-radius:999px}
+    .letter-step1{position:relative}
+
+  
+    .kind-pill{width:auto;min-width:180px;border-radius:999px;padding:8px 14px;font-weight:800;background:#fff;border:1px solid #e6eaf0}
+    .freeze-head{border-bottom:1px dashed #c5cdd8}
+    #s-site .pillbar, #s-bill .pillbar{display:flex;align-items:center;gap:4px;background:#eef2ff;padding:4px;border-radius:999px}
+    #s-site .pillbar button, #s-bill .pillbar button{height:36px;border-radius:999px;padding:0 14px;white-space:nowrap}
+    .gen-pop{border-radius:999px !important;background:linear-gradient(90deg,#4f46e5,#7c3aed) !important;padding:12px 18px}
+    .gen-pop:hover{transform:translateY(-3px)}
+    .letter-step1{background:#eff6ff;border:1.5px dashed #93c5fd;border-radius:18px}
+    .td-nav{display:flex;align-items:center;justify-content:space-between;gap:8px;padding-bottom:10px;margin-bottom:10px;border-bottom:1px dashed #c5cdd8}
+    label{position:relative}
+
+  
+    .nb{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:999px;background:#e0e7ff;color:#3730a3;font-size:11px;font-weight:800;margin-right:4px}
+
+  
+    #s-form:not(.hidden) .freeze-head,
+    #s-site:not(.hidden) .freeze-head,
+    #s-bill:not(.hidden) .freeze-head{
+      position:fixed; top:58px; left:50%; transform:translateX(-50%);
+      width:min(1060px, calc(100% - 24px)); z-index:70;
+      background:#fff; border:1px solid #e6eaf0; border-bottom:1px dashed #94a3b8;
+      border-radius:12px; padding:10px 14px; box-shadow:0 8px 18px rgba(15,23,42,.06);
+    }
+    .freeze-gap{height:62px}
+    #s-site .pillbar, #s-bill .pillbar{margin-left:auto; width:auto; flex:0 0 auto}
+    .letter-step1 .cal-btn{margin-left:auto}
+    .td-nav{justify-content:flex-start}
+    .td-nav h3{margin:0 8px}
+
+  
+    .step-line{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+    .step-line .cal-btn{margin:0}
+    .td-nav{display:grid !important; grid-template-columns:1fr auto 1fr; align-items:center; width:100%}
+    .td-sidebit{display:flex; align-items:center; gap:8px}
+    .td-nav .td-sidebit:last-child{justify-content:flex-end}
+    .td-nav .btn-w{justify-self:center}
+
+  </style>
 </head>
 <body>
   <div id="authGate" class="toast">
@@ -736,27 +815,24 @@
       <h2>Estimate બની જશે ૨ મિનીટ માં જ...</h2>
       <p class="muted">CC / Paver / Gutter / Pipe</p>
       <div class="choice">
-        <button onclick="goForm('cc')">CC Road</button>
-        <button onclick="goForm('paver')">Paver Block</button>
-        <button onclick="goForm('gutter')">Gutter line</button>
-        <button onclick="goForm('pipe')">Pipe Line</button>
+        <button onclick="goForm('cc')">CC Road <img class="pic" alt="" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect fill='%23dbeafe' width='64' height='64'/%3E%3Cpath d='M8 40h48' stroke='%2364748b' stroke-width='6'/%3E%3Cpath d='M14 40 V28 h10 v12 M30 40 V22 h12 v18' fill='%23f8fafc' stroke='%2394a3b8'/%3E%3C/svg%3E"></button>
+        <button onclick="goForm('paver')">Paver Block <img class="pic" alt="" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect fill='%23ffedd5' width='64' height='64'/%3E%3Crect x='10' y='16' width='18' height='12' fill='%23c2410c'/%3E%3Crect x='30' y='16' width='18' height='12' fill='%23ea580c'/%3E%3Crect x='10' y='30' width='18' height='12' fill='%23ea580c'/%3E%3Crect x='30' y='30' width='18' height='12' fill='%23c2410c'/%3E%3C/svg%3E"></button>
+        <button onclick="goForm('gutter')">Gutter Line <img class="pic" alt="" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect fill='%23e0f2fe' width='64' height='64'/%3E%3Cpath d='M8 36c8 8 16-8 24 0s16-8 24 0' fill='none' stroke='%230284c7' stroke-width='5'/%3E%3C/svg%3E"></button>
+        <button onclick="goForm('pipe')">Pipe Line <img class="pic" alt="" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect fill='%23f1f5f9' width='64' height='64'/%3E%3Crect x='8' y='26' width='48' height='12' rx='6' fill='%23475569'/%3E%3Crect x='28' y='16' width='8' height='32' fill='%23334155'/%3E%3C/svg%3E"></button>
       </div>
     </section>
 
     <section id="s-form" class="card hidden">
-      <div class="est-l3" style="align-items:end;margin-bottom:8px">
-        <div class="field"><label>કામનો પ્રકાર</label>
-          <select id="estKind" onchange="goForm(this.value)">
-            <option value="cc">CC Road</option>
-            <option value="paver">Paver Block</option>
-            <option value="gutter">Gutter Line</option>
-            <option value="pipe">Pipe Line</option>
-          </select>
-        </div>
-        <div class="field"></div>
-        <div class="field"></div>
+      <div class="freeze-head head-row">
+        <h2 id="formTitle" style="margin:0">CC Road — એસ્ટિમેટ</h2>
+        <select id="estKind" class="kind-pill" onchange="goForm(this.value)">
+          <option value="cc">CC Road</option>
+          <option value="paver">Paver Block</option>
+          <option value="gutter">Gutter Line</option>
+          <option value="pipe">Pipe Line</option>
+        </select>
       </div>
-      <h2 id="formTitle" class="hidden">CC Road — ફોર્મ</h2>
+      <div class="freeze-gap"></div>
       <div class="grid est-form">
         <div class="est-l3">
           <div class="field"><label>1. જિલ્લો</label>
@@ -894,9 +970,9 @@
         <span id="liveBrass" class="paver-only hidden">Brass: 0.00</span>
       </div>
       <div class="actions">
-        <button class="btn btn-g dl" onclick="submitForm('xlsx')">📄 Excel</button>
-        <button class="btn btn-s dl" onclick="submitForm('pdf')">📑 PDF</button>
-        <button class="btn btn-w dl" onclick="submitForm('both')" style="border-color:var(--g);color:var(--g)">📁 Excel + PDF</button>
+        <button class="btn dl dl-x" onclick="submitForm('xlsx')">Excel</button>
+        <button class="btn dl dl-p" onclick="submitForm('pdf')">PDF</button>
+        <button class="btn dl dl-b" onclick="submitForm('both')">Excel + PDF</button>
       </div>
       <p class="muted" id="msg"></p>
       <p class="muted" id="batchBar"></p>
@@ -905,12 +981,15 @@
 
 
     <section id="s-site" class="card hidden">
-      <h2>Site Measurement</h2>
+      <div class="freeze-head head-row">
+      <h2 style="margin:0">Site Measurement</h2>
       <div class="pillbar" id="sitePills">
         <button type="button" class="on" id="st2" onclick="siteTab('new')">નવું કામ</button>
         <button type="button" id="st1" onclick="siteTab('ong')">Ongoing</button>
         <button type="button" id="st3" onclick="siteTab('done')">સેવ થયેલું</button>
       </div>
+      </div>
+      <div class="freeze-gap"></div>
       <div class="pill-space"></div>
 
       
@@ -1026,9 +1105,9 @@
         </div>
         <div class="td-side">
           <div class="td-nav">
-            <button type="button" class="td-chev" onclick="tourDayShift(-1)" aria-label="prev">‹</button>
-            <h3 id="tdTitle">તારીખ પસંદ કરો</h3>
-            <button type="button" class="td-chev" onclick="tourDayShift(1)" aria-label="next">›</button>
+            <span class="td-sidebit"><button type="button" class="td-chev" onclick="tourDayShift(-1)" aria-label="prev">‹</button><h3 id="tdTitle">તારીખ</h3></span>
+            <button type="button" class="btn btn-w" onclick="openTourDay(new Date().toISOString().slice(0,10))">Today</button>
+            <span class="td-sidebit"><b id="tdDay">Day</b><button type="button" class="td-chev" onclick="tourDayShift(1)" aria-label="next">›</button></span>
           </div>
           <div class="td-box">
             <div class="td-bh" onclick="tdToggle('tdEstList')">
@@ -1096,12 +1175,15 @@
     </section>
 
     <section id="s-bill" class="card hidden">
-      <h2 style="display:flex;flex-wrap:wrap;align-items:baseline;gap:10px">Bill Generate <span class="muted" id="billModeHint" style="font-size:14px;font-weight:500">રસ્તો પસંદ કરો.</span></h2>
+      <div class="freeze-head head-row">
+      <h2 style="margin:0">Bill Generate <span class="muted" id="billModeHint" style="font-size:13px;font-weight:500"></span></h2>
       <div class="pillbar" id="billPills">
         <button type="button" id="bm1" onclick="billMode(1)">એસ્ટિમેટ પરથી</button>
         <button type="button" id="bm2" onclick="billMode(2)">સેવ કરેલ માપ પરથી</button>
         <button type="button" id="bm3" onclick="billMode(3)">નવી સાઇટ</button>
       </div>
+      </div>
+      <div class="freeze-gap"></div>
       <div class="pill-space"></div>
       <div class="bill-win">
       <div class="bill-fields">
@@ -1173,14 +1255,10 @@
     <section id="s-letter" class="card hidden">
       <h2 style="margin:0 0 10px">ફોરવર્ડિંગ લેટર</h2>
       <div class="letter-step1">
-        <div class="field letter-cal">
-          <label>પહેલાં બિલની તારીખ પસંદ કરો</label>
-          <div class="cal-row">
-            <button type="button" class="cal-btn" onclick="document.getElementById('letterDate').showPicker?document.getElementById('letterDate').showPicker():document.getElementById('letterDate').click()">📅</button>
-            <input type="date" id="letterDate" onchange="onLetterDate()">
-            <span id="letterDateView" class="cal-view"></span>
-          </div>
-        </div>
+        <div class="step-line"><small style="color:#2563eb;font-weight:800">STEP 1</small><b>પહેલાં બિલની તારીખ પસંદ કરો</b>
+        <button type="button" class="btn btn-g cal-btn" onclick="document.getElementById('letterDate').showPicker?document.getElementById('letterDate').showPicker():document.getElementById('letterDate').click()">Select Date</button></div>
+        <input type="date" id="letterDate" onchange="onLetterDate()" style="position:absolute;opacity:0;width:1px;height:1px">
+        <span id="letterDateView" class="hidden"></span>
       </div>
       <div id="letterRest" class="letter-rest hidden">
         <div class="letter-top">
@@ -1197,7 +1275,7 @@
         <div id="letterList"></div>
         <div class="letter-foot">
           <span class="muted" id="letterCount">0 બિલ પસંદ</span>
-          <button type="button" class="btn btn-g" onclick="makeFwdLetter()">પત્ર બનાવો</button>
+          <button type="button" class="btn btn-g gen-pop" onclick="makeFwdLetter()">✦ પત્ર બનાવો</button>
         </div>
       </div>
     </section>
@@ -1875,7 +1953,7 @@
     const di=document.getElementById("letterDate");
     if(!el) return;
     const ds=(di && di.value) || "";
-    if(!ds){ el.innerHTML="<div class='ltr-row'>પહેલાં તારીખ પસંદ કરો</div>"; el._rows=[]; return; }
+    if(!ds){ el.innerHTML="<div class='mail-empty'><div class='box'>📫</div>પહેલાં તારીખ પસંદ કરો</div>"; el._rows=[]; return; }
     const local=loadLocalBills().filter(function(b){ return String(b.day||b.ts||"").slice(0,10)===ds; });
     function paint(rows){
       const seen={};
@@ -1884,7 +1962,7 @@
         const k=(b.work_name||"")+"|"+(b.mb_no||"")+"|"+(b.village||"");
         if(seen[k]) return; seen[k]=1; uniq.push(b);
       });
-      if(!uniq.length){ el.innerHTML="<div class='ltr-row'>આ તારીખે બિલ નથી</div>"; el._rows=[]; return; }
+      if(!uniq.length){ el.innerHTML="<div class='mail-empty'><div class='box'>📫</div>આ તારીખે કોઈ બિલ જનરેટ થયા નથી</div>"; el._rows=[]; return; }
       el.innerHTML=uniq.map(function(b,i){
         return "<label class='ltr-row'><input type='checkbox' class='letterPick' data-i='"+i+"' checked onchange='letterCountSel()'><div class='ltr-no'>"+(i+1)+"</div><div class='ltr-main'><div class='ltr-title'>"+(b.work_name||"કામ")+"</div><div class='ltr-sub'>"+(b.village||"ગામ નથી")+(b.taluka?(" · "+b.taluka):"")+" · MB "+(b.mb_no||"—")+"</div></div><select class='letterOff' data-i='"+i+"' onclick='event.preventDefault()'><option value='rb'>DEE R&amp;B (પં)</option><option value='nani'>DEE નાની સિંચાઈ (પં)</option></select><input class='letterAddr' data-i='"+i+"' placeholder='ઓફિસ એડ્રેસ' onclick='event.preventDefault()'><div class='ltr-amt'>₹ "+Number(letterAmt(b)||0).toLocaleString("en-IN")+"</div></label>";
       }).join("");
@@ -2329,9 +2407,11 @@ function onLetterDate(){
   function openTourDay(ds){
     window._tourDs=ds;
     const dt=new Date(ds+"T00:00:00");
+    if (typeof tourYM!=="undefined"){ tourYM.y=dt.getFullYear(); tourYM.m=dt.getMonth(); renderTourMonth(); }
     const wd=["રવિવાર","સોમવાર","મંગળવાર","બુધવાર","ગુરુવાર","શુક્રવાર","શનિવાર"][dt.getDay()];
     const el=document.getElementById("tdTitle");
-    if (el) el.textContent = ds.split("-").reverse().join("/") + " ("+wd+")";
+    if (el) el.textContent = ds.split("-").reverse().join("/");
+    const dy=document.getElementById("tdDay"); if(dy) dy.textContent=wd;
     const pack=tourPack();
     const est=pack.est.filter(function(x){return tourDateOf(x)===ds;});
     const bills=pack.bills.filter(function(x){return tourDateOf(x)===ds;});
@@ -3183,7 +3263,7 @@ function onLetterDate(){
     document.body.classList.toggle("pipe-on", currentType==="pipe");
     const ek=document.getElementById("estKind");
     if(ek && ek.value!==currentType) ek.value=currentType;
-    const titles={cc:"CC Road — ફોર્મ",paver:"Paver Block — ફોર્મ",gutter:"Gutter Line — ફોર્મ",pipe:"Pipe Line — ફોર્મ"};
+    const titles={cc:"CC Road — એસ્ટિમેટ",paver:"Paver Block — એસ્ટિમેટ",gutter:"Gutter Line — એસ્ટિમેટ",pipe:"Pipe Line — એસ્ટિમેટ"};
     const ft=document.getElementById("formTitle");
     if(ft) ft.textContent=titles[currentType]||"ફોર્મ";
     document.querySelectorAll(".cc-only").forEach(function(el){ el.classList.toggle("hidden", currentType!=="cc"); });
@@ -4140,7 +4220,18 @@ function openTijori(){
 
   fetch(API + "/api/log", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({kind:"page_open"}) });
   applyDark();
+  
+  function paintNums(){
+    document.querySelectorAll("#s-form label, #s-bill label, #s-site label").forEach(function(lb){
+      if(lb.querySelector(".nb")) return;
+      const m=(lb.textContent||"").match(/^(\d+)\.\s*/);
+      if(!m) return;
+      lb.innerHTML='<span class="nb">'+m[1]+'</span> '+lb.textContent.replace(/^\d+\.\s*/,"");
+    });
+  }
+
   authInit();
+  paintNums();
   loadStats();
 </script>
 </body>
