@@ -609,6 +609,12 @@
     .td-dn{font-weight:700;color:#718096;font-size:12px;padding-bottom:4px}
     .td-day{background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;min-height:52px;padding:6px 2px;cursor:pointer}
     .td-day.on{background:#ebf4ff;border-color:#1B5D45;font-weight:800;color:#1B5D45}
+    .td-day.off{background:#fff1f2;border-color:#fecdd3;color:#be123c}
+    .td-day.off.on{background:#ffe4e6;border-color:#e11d48}
+    .td-off{font-size:8px;font-weight:800;color:#e11d48;letter-spacing:.04em}
+    .td-chev{width:22px;height:22px;border:0;border-radius:999px;background:#eef2ff;color:#1B5D45;font-weight:800;cursor:pointer}
+    .td-nav{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0 0 10px}
+    .td-nav h3{margin:0;font-size:16px}
     .td-tags{display:flex;flex-wrap:wrap;gap:2px;justify-content:center;margin-top:4px}
     .td-tag{font-size:8px;padding:1px 4px;border-radius:4px;color:#fff;font-weight:800}
     .td-est{background:#48bb78}.td-bill{background:#ed8936}.td-leave{background:#e53e3e}.td-meet{background:#4299e1}
@@ -1019,13 +1025,23 @@
           </div>
         </div>
         <div class="td-side">
-          <h3 id="tdTitle" style="margin:0 0 10px">તારીખ પસંદ કરો</h3>
+          <div class="td-nav">
+            <button type="button" class="td-chev" onclick="tourDayShift(-1)" aria-label="prev">‹</button>
+            <h3 id="tdTitle">તારીખ પસંદ કરો</h3>
+            <button type="button" class="td-chev" onclick="tourDayShift(1)" aria-label="next">›</button>
+          </div>
           <div class="td-box">
-            <div class="td-bh" onclick="tdToggle('tdEstList')"><span>Estimate-Generated</span><span class="td-badge" id="tdEst">0</span></div>
+            <div class="td-bh" onclick="tdToggle('tdEstList')">
+              <span>Estimate-Generated</span>
+              <span style="display:flex;align-items:center;gap:6px"><span class="td-badge" id="tdEst">0</span><button type="button" class="td-chev" id="tdEstChev" onclick="event.stopPropagation();tdToggle('tdEstList')">▾</button></span>
+            </div>
             <div id="tdEstList" class="td-list"></div>
           </div>
           <div class="td-box">
-            <div class="td-bh" onclick="tdToggle('tdBillList')"><span>Bill-Generated</span><span class="td-badge" id="tdBill">0</span></div>
+            <div class="td-bh" onclick="tdToggle('tdBillList')">
+              <span>Bill-Generated</span>
+              <span style="display:flex;align-items:center;gap:6px"><span class="td-badge" id="tdBill">0</span><button type="button" class="td-chev" id="tdBillChev" onclick="event.stopPropagation();tdToggle('tdBillList')">▾</button></span>
+            </div>
             <div id="tdBillList" class="td-list"></div>
           </div>
           <div class="field">
@@ -1044,10 +1060,16 @@
           </div>
           <div id="tdJilla" class="td-sub">
             <label>Meeting With</label>
-            <select id="tdMeet">
-              <option>Ex-En Sir</option><option>D.D.O. Sir</option><option>Dist. Collector Sir</option>
-              <option>D.P.O. Sir</option><option>Dy.D.D.O Sir</option><option>Other</option>
-            </select>
+            <div style="display:flex;gap:6px;align-items:center">
+              <select id="tdMeet" style="flex:1.4">
+                <option>Ex.En sir</option><option>D.D.O. Sir</option><option>Dist. Collector Sir.</option>
+                <option>D.P.O. Sir</option><option>Dy.D.D.O. Sir</option><option>S.D.M. Sir</option>
+                <option>M.L.A.</option><option>M.P.</option><option>Other</option>
+              </select>
+              <select id="tdFrom" style="flex:1" title="From"></select>
+              <span>to</span>
+              <select id="tdTo" style="flex:1" title="To"></select>
+            </div>
           </div>
           <div id="tdLeave" class="td-sub">
             <table class="td-list" style="display:table;width:100%">
@@ -1384,7 +1406,7 @@
     if (id === "s-hi") { setTab("tab-dash"); loadStats(); }
     if (id === "s-type" || id === "s-form") setTab("tab-est");
     if (id === "s-site") { setTab("tab-site"); loadStats(); siteTab("new"); renderSiteList(); }
-    if (id === "s-tour") { setTab("tab-tour"); try{ renderTourMonth(); }catch(e){} }
+    if (id === "s-tour") { setTab("tab-tour"); try{ if(!window._tourDs){ const n=new Date(); tourYM.y=n.getFullYear(); tourYM.m=n.getMonth(); openTourDay(n.getFullYear()+"-"+String(n.getMonth()+1).padStart(2,"0")+"-"+String(n.getDate()).padStart(2,"0")); } else renderTourMonth(); }catch(e){} }
     if (id === "s-pr") { loadProfile(); setHomeOffice(); }
     if (id === "s-bill") { try{ billMode(window.__billMode||1); liveBill(); }catch(e){} setTab("tab-bill"); }
     if (id === "s-letter") { try{ renderLetterBills(); }catch(e){} setTab("tab-letter"); }
@@ -2182,7 +2204,7 @@ function onLetterDate(){
   }
 
 
-  let tourYM = {y:2026,m:8};
+  let tourYM = {y:2026,m:9};
   function openTour(){ show("s-tour"); tourPage("cover"); }
   function tourPage(which){
     const p=document.getElementById("tourPerson");
@@ -2213,11 +2235,45 @@ function onLetterDate(){
     renderTourMonth();
   }
   function tourDays(){ try{ return JSON.parse(localStorage.getItem("copilot_tour_days")||"{}"); }catch(e){ return {}; } }
-  function tdToggle(id){ const el=document.getElementById(id); if(el) el.classList.toggle("on"); }
+  function tdToggle(id){
+    const el=document.getElementById(id); if(!el) return;
+    el.classList.toggle("on");
+    const chev=document.getElementById(id==="tdEstList"?"tdEstChev":"tdBillChev");
+    if(chev) chev.textContent=el.classList.contains("on")?"▴":"▾";
+  }
+  function isGovOff(ds){
+    const dt=new Date(ds+"T00:00:00");
+    const dow=dt.getDay();
+    if(dow===0) return true;
+    if(dow!==6) return false;
+    const d=dt.getDate();
+    const first=new Date(dt.getFullYear(), dt.getMonth(), 1);
+    const firstSat=1+((6-first.getDay()+7)%7);
+    const n=Math.floor((d-firstSat)/7)+1;
+    return n===2 || n===4;
+  }
+  function tourDayShift(step){
+    const base=window._tourDs || new Date().toISOString().slice(0,10);
+    const dt=new Date(base+"T00:00:00");
+    dt.setDate(dt.getDate()+step);
+    const ds=dt.getFullYear()+"-"+String(dt.getMonth()+1).padStart(2,"0")+"-"+String(dt.getDate()).padStart(2,"0");
+    tourYM.y=dt.getFullYear(); tourYM.m=dt.getMonth();
+    openTourDay(ds);
+  }
+  function tdFillTimes(){
+    ["tdFrom","tdTo"].forEach(function(id){
+      const el=document.getElementById(id);
+      if(!el || el.options.length) return;
+      const slots=["10:30","11:00","11:30","12:00","12:30","1:00","1:30","2:00","2:30","3:00","3:30","4:00","4:30","5:00","5:30","6:00","6:30"];
+      el.innerHTML=slots.map(function(s){return "<option>"+s+"</option>";}).join("");
+      if(id==="tdFrom") el.value="10:30";
+      if(id==="tdTo") el.value="6:30";
+    });
+  }
   function tdCheckAct(){
     const v=(document.getElementById("tdAct")||{}).value||"none";
     const j=document.getElementById("tdJilla"); const l=document.getElementById("tdLeave");
-    if(j) j.style.display=(v==="jilla")?"block":"none";
+    if(j) j.style.display=(v==="jilla")?"block":"none"; if(v==="jilla") tdFillTimes();
     if(l) l.style.display=v==="leave"?"block":"none";
   }
   function tourDateOf(x){
@@ -2249,9 +2305,10 @@ function onLetterDate(){
       const tags=[];
       if(hasE) tags.push("<span class='td-tag td-est'>EST</span>");
       if(hasB) tags.push("<span class='td-tag td-bill'>BILL</span>");
-      if(day.act==="leave") tags.push("<span class='td-tag td-leave'>LEAVE</span>");
+      const off=isGovOff(ds);
+      if(day.act==="leave"||off) tags.push("<span class='td-off'>"+(off?"રજા":"LEAVE")+"</span>");
       if(day.act==="tdo"||day.act==="jilla") tags.push("<span class='td-tag td-meet'>MEET</span>");
-      html += "<div class='td-day"+(ds===sel?" on":"")+"' onclick='openTourDay(\""+ds+"\")'>"+d+"<div class='td-tags'>"+tags.join("")+"</div></div>";
+      html += "<div class='td-day"+(off?" off":"")+(ds===sel?" on":"")+"' onclick='openTourDay(\""+ds+"\")'>"+d+"<div class='td-tags'>"+tags.join("")+"</div></div>";
     }
     grid.innerHTML=html;
   }
@@ -2271,10 +2328,11 @@ function onLetterDate(){
       elist.innerHTML = est.length ? ("<table><tr><th>Sr</th><th>Village</th><th>Work Type</th><th>Name of work</th><th>Grant Head-Year</th><th>Amount</th></tr>"
         + est.map(function(x,i){return "<tr><td>"+(i+1)+"</td><td>"+(x.village||x.gam||"")+"</td><td>"+(x.type||"")+"</td><td>"+(x.work_name||x.work||"")+"</td><td>"+(x.fund_head||x.grant||"")+" "+(x.year||"")+"</td><td>₹ "+(x.amounting||x.amount||"")+"</td></tr>";}).join("")
         + "</table>") : "<p class='muted'>આ તારીખે એસ્ટિમેટ નથી</p>";
-      elist.classList.add("on");
+      elist.classList.remove("on"); const ec=document.getElementById("tdEstChev"); if(ec) ec.textContent="▾";
     }
     const blist=document.getElementById("tdBillList");
     if(blist){
+      blist.classList.remove("on"); const bc=document.getElementById("tdBillChev"); if(bc) bc.textContent="▾";
       blist.innerHTML = bills.length ? ("<table><tr><th>Sr</th><th>Village</th><th>Work Type</th><th>Name of work</th><th>Grant</th><th>MB No.</th><th>Bill Amount</th><th>Agency</th></tr>"
         + bills.map(function(x,i){return "<tr><td>"+(i+1)+"</td><td>"+(x.village||x.gam||"")+"</td><td>"+(x.type||"")+"</td><td>"+(x.work_name||x.work||"")+"</td><td>"+(x.grant||x.fund_head||"")+"</td><td>"+(x.mb_no||x.mb||"")+"</td><td>₹ "+(x.bill_amount||x.amount||"")+"</td><td>"+(x.agency||x.contractor||"")+"</td></tr>";}).join("")
         + "</table>") : "<p class='muted'>આ તારીખે બિલ નથી</p>";
@@ -2283,6 +2341,8 @@ function onLetterDate(){
     const act=document.getElementById("tdAct"); if(act) act.value=day.act||"none";
     const note=document.getElementById("tdNote"); if(note) note.value=day.note||"";
     const meet=document.getElementById("tdMeet"); if(meet && day.meet) meet.value=day.meet;
+    const tf=document.getElementById("tdFrom"); if(tf) tf.value=day.from||"";
+    const tt=document.getElementById("tdTo"); if(tt) tt.value=day.to||"";
     document.querySelectorAll("input[name=tdLv]").forEach(function(r){ r.checked = r.value===(day.leave||""); });
     tdCheckAct();
     renderTourMonth();
@@ -2296,6 +2356,8 @@ function onLetterDate(){
       act:(document.getElementById("tdAct")||{}).value||"none",
       note:(document.getElementById("tdNote")||{}).value||"",
       meet:(document.getElementById("tdMeet")||{}).value||"",
+      from:(document.getElementById("tdFrom")||{}).value||"",
+      to:(document.getElementById("tdTo")||{}).value||"",
       leave:lv
     };
     localStorage.setItem("copilot_tour_days", JSON.stringify(days));
