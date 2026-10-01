@@ -1046,7 +1046,7 @@
           </div>
           <div class="field">
             <label>Activity Type</label>
-            <select id="tdAct" onchange="tdCheckAct()">
+            <select id="tdAct" autocomplete="off" onchange="tdCheckAct()">
               <option value="none" selected>Select activity</option>
               <option value="office">Office Work / Field Work</option>
               <option value="tdo">TDO Meeting</option>
@@ -2352,7 +2352,7 @@ function onLetterDate(){
         + "</table>") : "<p class='muted'>આ તારીખે બિલ નથી</p>";
     }
     const day=pack.days[ds]||{};
-    const act=document.getElementById("tdAct"); if(act){ act.value=(day.act&&day.act!=="none")?day.act:"none"; if(!act.value) act.value="none"; }
+    const act=document.getElementById("tdAct"); if(act){ act.value=(day.saved&&day.act)?day.act:"none"; if(!act.value) act.selectedIndex=0; }
     const note=document.getElementById("tdNote"); if(note) note.value=day.note||"";
     const meet=document.getElementById("tdMeet"); if(meet && day.meet) meet.value=day.meet;
     const tf=document.getElementById("tdFrom"); if(tf) tf.value=day.from||"";
@@ -2367,6 +2367,7 @@ function onLetterDate(){
     const days=tourDays();
     const lv=(document.querySelector("input[name=tdLv]:checked")||{}).value||"";
     days[ds]={
+      saved:true,
       act:(document.getElementById("tdAct")||{}).value||"none",
       note:(document.getElementById("tdNote")||{}).value||"",
       meet:(document.getElementById("tdMeet")||{}).value||"",
