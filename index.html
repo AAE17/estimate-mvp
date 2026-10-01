@@ -2260,15 +2260,29 @@ function onLetterDate(){
     tourYM.y=dt.getFullYear(); tourYM.m=dt.getMonth();
     openTourDay(ds);
   }
+  function tdSlots(){ return ["10:30","11:00","11:30","12:00","12:30","1:00","1:30","2:00","2:30","3:00","3:30","4:00","4:30","5:00","5:30","6:00","6:30"]; }
   function tdFillTimes(){
-    ["tdFrom","tdTo"].forEach(function(id){
-      const el=document.getElementById(id);
-      if(!el || el.options.length) return;
-      const slots=["10:30","11:00","11:30","12:00","12:30","1:00","1:30","2:00","2:30","3:00","3:30","4:00","4:30","5:00","5:30","6:00","6:30"];
-      el.innerHTML=slots.map(function(s){return "<option>"+s+"</option>";}).join("");
-      if(id==="tdFrom") el.value="10:30";
-      if(id==="tdTo") el.value="6:30";
-    });
+    const from=document.getElementById("tdFrom");
+    const to=document.getElementById("tdTo");
+    if(!from||!to) return;
+    const slots=tdSlots();
+    if(!from.options.length){
+      from.innerHTML=slots.map(function(s){return "<option>"+s+"</option>";}).join("");
+      from.value="10:30";
+      from.onchange=tdSyncTo;
+    }
+    tdSyncTo();
+  }
+  function tdSyncTo(){
+    const from=document.getElementById("tdFrom");
+    const to=document.getElementById("tdTo");
+    if(!from||!to) return;
+    const slots=tdSlots();
+    const i=Math.max(0, slots.indexOf(from.value));
+    const later=slots.slice(i+1);
+    const keep=to.value;
+    to.innerHTML=(later.length?later:slots.slice(-1)).map(function(s){return "<option>"+s+"</option>";}).join("");
+    to.value = later.indexOf(keep)>=0 ? keep : later[0];
   }
   function tdCheckAct(){
     const v=(document.getElementById("tdAct")||{}).value||"none";
