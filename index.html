@@ -1047,7 +1047,7 @@
           <div class="field">
             <label>Activity Type</label>
             <select id="tdAct" onchange="tdCheckAct()">
-              <option value="none">-- Select Activity --</option>
+              <option value="none" selected>Select activity</option>
               <option value="office">Office Work / Field Work</option>
               <option value="tdo">TDO Meeting</option>
               <option value="jilla">Jilla Panchayat Meeting</option>
@@ -2338,7 +2338,7 @@ function onLetterDate(){
         + "</table>") : "<p class='muted'>આ તારીખે બિલ નથી</p>";
     }
     const day=pack.days[ds]||{};
-    const act=document.getElementById("tdAct"); if(act) act.value=day.act||"none";
+    const act=document.getElementById("tdAct"); if(act){ act.value=(day.act&&day.act!=="none")?day.act:"none"; if(!act.value) act.value="none"; }
     const note=document.getElementById("tdNote"); if(note) note.value=day.note||"";
     const meet=document.getElementById("tdMeet"); if(meet && day.meet) meet.value=day.meet;
     const tf=document.getElementById("tdFrom"); if(tf) tf.value=day.from||"";
