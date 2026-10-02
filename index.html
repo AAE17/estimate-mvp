@@ -1013,9 +1013,9 @@
         <span id="liveBrass" class="paver-only hidden">Brass: 0.00</span>
       </div>
       <div class="actions">
-        <button class="btn dl dl-x" onclick="submitForm('xlsx')">Excel</button>
-        <button class="btn dl dl-p" onclick="submitForm('pdf')">PDF</button>
-        <button class="btn dl dl-b" onclick="submitForm('both')">Excel + PDF</button>
+        <button type="button" class="btn dl dl-x" onclick="submitForm('xlsx')">Excel</button>
+        <button type="button" class="btn dl dl-p" onclick="submitForm('pdf')">PDF</button>
+        <button type="button" class="btn dl dl-b" onclick="submitForm('both')">Excel + PDF</button>
       </div>
       <p class="muted" id="msg"></p>
       <p class="muted" id="batchBar"></p>
@@ -4044,7 +4044,6 @@ function startScan(camera) {
     else liveF24();
   });
 
-  async 
   function isIos(){ return /iPhone|iPad|iPod/i.test(navigator.userAgent||""); }
   function fileDock(urls){
     let box=document.getElementById("fileDock");
@@ -4082,55 +4081,53 @@ function startScan(camera) {
 
   async function submitForm(kind) {
     const msg = document.getElementById("msg");
-    if (!val("jilla") || !val("taluka") || !villageName()) {
-      msg.textContent = "જિલ્લો, તાલુકો અને ગામ પસંદ કરો.";
-      return;
-    }
-    if (!fundHead()) {
-      msg.textContent = "Grant Head અને Year પસંદ કરો.";
-      return;
-    }
-    document.querySelectorAll(".dl").forEach((b) => { b.disabled = true; });
-    const wins=preWins(kind==="both"?2:1);
-    setBusy(true);
-    msg.textContent = kind === "pdf" ? "PDF બની રહ્યું છે…" : "બની રહ્યું છે…";
-    const body = {
-      output: kind || "xlsx",
-      type: currentType,
-      user_name: "Section Officer",
-      division: val("division"),
-      jilla: val("jilla"),
-      subdiv_address: val("subdiv_address"),
-      nani_address: val("nani_address"),
-      taluka: val("taluka"),
-      fund_head: fundHead(),
-      work_name: val("work_name"),
-      amounting: num("amounting"),
-      prepared_by: val("prepared_by"),
-      sr_no: val("sr_no"),
-      ss_details: val("ss_details"),
-      village: villageName(),
-      length_m: num("length_m"),
-      width_m: num("width_m"),
-      box_thick_m: num("box_thick_m"),
-      bt_thick_m: num("bt_thick_m"),
-      voids: num("voids"),
-      murrum_pct: num("murrum_pct"),
-      cc_thick_m: num("cc_thick_m"),
-      lead_sevaliya_to_taluka_km: num("lead_sevaliya_to_taluka_km"),
-      lead_taluka_to_site_km: num("lead_taluka_to_site_km"),
-      gEx: (typeof GEX!=="undefined"?GEX:[]),
-      gNr: (typeof GNR!=="undefined"?GNR:[]),
-      gDe: (typeof GDE!=="undefined"?GDE:[]),
-      gCh60:num("gCh60"), gCh90:num("gCh90"), gCh139:num("gCh139"), gCh1313:num("gCh1313"),
-      gPlate:num("gPlate"),
-      pEx: (typeof PEX!=="undefined"?PEX:[]),
-      pDe: (typeof PDE!=="undefined"?PDE:[]),
-      pPlate:num("pPlate"),
-      gBedW:num("gBedW"), gBedT:num("gBedT")
-    };
-    const url = currentType === "paver" ? "/api/estimate/paver" : currentType === "gutter" ? "/api/estimate/gutter" : currentType === "pipe" ? "/api/estimate/pipe" : "/api/estimate/cc";
     try {
+      if (!val("jilla") || !val("taluka") || !villageName()) {
+        msg.textContent = "જિલ્લો, તાલુકો અને ગામ પસંદ કરો.";
+        return;
+      }
+      if (!fundHead()) {
+        msg.textContent = "Grant Head અને Year પસંદ કરો.";
+        return;
+      }
+      setBusy(true);
+      msg.textContent = kind === "pdf" ? "PDF બની રહ્યું છે…" : "બની રહ્યું છે…";
+      const body = {
+        output: kind || "xlsx",
+        type: currentType,
+        user_name: "Section Officer",
+        division: val("division"),
+        jilla: val("jilla"),
+        subdiv_address: val("subdiv_address"),
+        nani_address: val("nani_address"),
+        taluka: val("taluka"),
+        fund_head: fundHead(),
+        work_name: val("work_name"),
+        amounting: num("amounting"),
+        prepared_by: val("prepared_by"),
+        sr_no: val("sr_no"),
+        ss_details: val("ss_details"),
+        village: villageName(),
+        length_m: num("length_m"),
+        width_m: num("width_m"),
+        box_thick_m: num("box_thick_m"),
+        bt_thick_m: num("bt_thick_m"),
+        voids: num("voids"),
+        murrum_pct: num("murrum_pct"),
+        cc_thick_m: num("cc_thick_m"),
+        lead_sevaliya_to_taluka_km: num("lead_sevaliya_to_taluka_km"),
+        lead_taluka_to_site_km: num("lead_taluka_to_site_km"),
+        gEx: (typeof GEX!=="undefined"?GEX:[]),
+        gNr: (typeof GNR!=="undefined"?GNR:[]),
+        gDe: (typeof GDE!=="undefined"?GDE:[]),
+        gCh60:num("gCh60"), gCh90:num("gCh90"), gCh139:num("gCh139"), gCh1313:num("gCh1313"),
+        gPlate:num("gPlate"),
+        pEx: (typeof PEX!=="undefined"?PEX:[]),
+        pDe: (typeof PDE!=="undefined"?PDE:[]),
+        pPlate:num("pPlate"),
+        gBedW:num("gBedW"), gBedT:num("gBedT")
+      };
+      const url = currentType === "paver" ? "/api/estimate/paver" : currentType === "gutter" ? "/api/estimate/gutter" : currentType === "pipe" ? "/api/estimate/pipe" : "/api/estimate/cc";
       const res = await fetch(API + url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -4147,7 +4144,7 @@ function startScan(camera) {
         if(typeof pushLocalEst==="function") pushLocalEst({
           id:"loc-"+Date.now(),
           ts:new Date().toISOString(),
-          type: currentType==="paver"?"Paver":"CC",
+          type: currentType==="paver"?"Paver": currentType==="gutter"?"Gutter": currentType==="pipe"?"Pipe":"CC",
           village: villageName(),
           taluka: val("taluka"),
           jilla: val("jilla"),
@@ -4161,17 +4158,20 @@ function startScan(camera) {
       const files=[];
       if (data.xlsx) files.push({name:"Excel", url:API+data.xlsx});
       if (data.pdf) files.push({name:"PDF", url:API+data.pdf});
-      giveFiles(wins, files);
+      if (!files.length) throw new Error("ફાઇલ ન બની");
+      fileDock(files);
+      files.forEach(function(f){ window.open(f.url, "_blank"); });
       msg.textContent = data.pdf && data.xlsx
-        ? "Excel અને PDF ડાઉનલોડ."
+        ? "Excel અને PDF તૈયાર."
         : data.pdf
-          ? "PDF ડાઉનલોડ."
-          : "Excel ડાઉનલોડ." + (data.pdf_error ? " PDF: " + data.pdf_error : "");
+          ? "PDF તૈયાર."
+          : "Excel તૈયાર." + (data.pdf_error ? " PDF: " + data.pdf_error : "");
     } catch (e) {
-      msg.textContent = "ભૂલ: " + e.message;
+      msg.textContent = "ભૂલ: " + (e && e.message ? e.message : e);
+    } finally {
+      document.querySelectorAll(".dl").forEach((b) => { b.disabled = false; });
+      setBusy(false);
     }
-    document.querySelectorAll(".dl").forEach((b) => { b.disabled = false; });
-    setBusy(false);
   }
 
   function loadJilla(){
