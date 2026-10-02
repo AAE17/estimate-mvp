@@ -688,10 +688,9 @@
     #s-form:not(.hidden) .freeze-head,
     #s-site:not(.hidden) .freeze-head,
     #s-bill:not(.hidden) .freeze-head{
-      position:fixed; top:58px; left:50%; transform:translateX(-50%);
-      width:min(1060px, calc(100% - 24px)); z-index:70;
-      background:#fff; border:1px solid #e6eaf0; border-bottom:1px dashed #94a3b8;
-      border-radius:12px; padding:10px 14px; box-shadow:0 8px 18px rgba(15,23,42,.06);
+      position:sticky; top:8px; z-index:5;
+      background:#fff; border-bottom:1px dashed #94a3b8;
+      padding:8px 0 10px;
     }
     .freeze-gap{height:62px}
     #s-site .pillbar, #s-bill .pillbar{margin-left:auto; width:auto; flex:0 0 auto}
@@ -4131,13 +4130,24 @@ function startScan(camera) {
     setBusy(false);
   }
 
-  fetch("gj-geo.json")
-    .then((r) => r.json())
-    .then((data) => {
-      GJ = data;
-      fillSelect(document.getElementById("jilla"), Object.keys(GJ), "— જિલ્લો પસંદ કરો —");
-    })
-    .catch(function () {});
+  function loadJilla(){
+    fetch("/gj-geo.json")
+      .then(function(r){ if(!r.ok) throw new Error("geo"); return r.json(); })
+      .then(function(data){
+        GJ = data;
+        const sel=document.getElementById("jilla");
+        if(sel) fillSelect(sel, Object.keys(GJ), "— જિલ્લો પસંદ કરો —");
+      })
+      .catch(function(){
+        const sel=document.getElementById("jilla");
+        if(sel && sel.options.length<2){
+          const o=document.createElement("option");
+          o.value=""; o.textContent="જિલ્લો લોડ નથી. પેજ ફરી ખોલો";
+          sel.appendChild(o);
+        }
+      });
+  }
+  loadJilla();
 
   fillSelect(document.getElementById("grant_head"), GRANTS, "— Grant Head —");
   fillSelect(document.getElementById("fy_year"), fyYears(), "— Year —");
@@ -4289,6 +4299,7 @@ function openTijori(){
 
   authInit();
   paintNums();
+  if(document.getElementById('jilla') && document.getElementById('jilla').options.length<2) loadJilla();
   loadStats();
 </script>
 </body>
