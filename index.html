@@ -241,6 +241,8 @@
     .badge{display:inline-block;font-size:11px;font-weight:800;padding:2px 8px;border-radius:999px}
     .badge.cc{background:#1e3a8a;color:#bfdbfe}
     .badge.pv{background:#14532d;color:#bbf7d0}
+    .badge.gt{background:#7c2d12;color:#fed7aa}
+    .badge.pp{background:#1e3a5f;color:#bae6fd}
     #s-hi.card{background:transparent;border:0;box-shadow:none;padding:8px 0}
 
     html,body{max-width:100%;overflow-x:hidden}
@@ -392,6 +394,11 @@
 
     .bill-qty-live{display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:start}
     .bill-qty{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+    .gp-line{display:grid;grid-template-columns:1.3fr .7fr auto;gap:6px;align-items:center;margin:4px 0}
+    .gp-line input,.gp-line select{width:100%;padding:6px;border:1px solid #d1d5db;border-radius:6px;background:#fff}
+    .gp-line input[disabled]{background:#f3f4f6}
+    #gpVigat{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+    #gpVigat.hidden{display:none}
     @media(max-width:800px){ .bill-qty-live{grid-template-columns:1fr} }
 
     #s-bill.card{max-width:1100px;margin:0 auto;width:100%}
@@ -815,7 +822,7 @@
       <div class="kpi-grid">
         <div class="kpi"><div class="k-top">TODAY'S OUTPUT <span class="ico">⏱</span></div><b id="dToday">0</b><div class="sub">આજના એસ્ટિમેટ</div></div>
         <div class="kpi"><div class="k-top">TOTAL <span class="ico">▣</span></div><b id="dTotal">0</b><div class="sub">કુલ એસ્ટિમેટ</div></div>
-        <div class="kpi"><div class="k-top">CC / PAVER <span class="ico">⬡</span></div><b id="dSplit">0 / 0</b><div class="sub">પ્રકાર</div></div>
+        <div class="kpi"><div class="k-top">CC / PV / GT / PP <span class="ico">⬡</span></div><b id="dSplit">0 / 0 / 0 / 0</b><div class="sub">પ્રકાર</div></div>
         <div class="kpi"><div class="k-top">SANCTIONED <span class="ico">₹</span></div><b id="dAmt">₹ 0</b><div class="sub" id="dTopTal">તાલુકો: —</div></div>
       </div>
       <div class="est-wrap">
@@ -1068,20 +1075,20 @@
             </div>
             <div class="head site-l4">
               <div class="field"><label>5. AAE નામ</label><input id="dAAE" placeholder="નામ"></div>
-              <div class="field"><label>Contractor</label><input id="dContractor" placeholder="નામ"></div>
+              <div class="field"><label>Agency</label><input id="dContractor" placeholder="નામ"></div>
             </div>
           </div>
           <div class="work">
             <p class="muted" style="margin:0 0 8px">વર્કિંગ સ્પેસ — ખાલી માપ લખો</p>
-            <div id="dHead" class="map-row head"><span>Sr</span><span>Length</span><span>Width</span><span id="dHeadD">C.C.Road Thickness</span><span></span></div>
+            <div id="dHead" class="map-row head"><span>Sr</span><span>Length</span><span>Width</span><span id="dHeadD">Depth</span><span></span></div>
             <div id="dRows"></div>
             <div class="head" id="kTestRow" style="margin-top:8px">
               <div class="field" id="wrapExcD"><label>ખોદકામ જાડાઈ</label><input id="dExcD" type="number" step="0.01" placeholder="0.20" oninput="liveMbBill()"></div>
               <div class="field" id="wrapDustD"><label>બાઈન્ડિંગ જાડાઈ</label><input id="dDustD" type="number" step="0.01" placeholder="0.10" oninput="liveMbBill()"></div>
               <div class="est-l2" id="lineCc3" class="est-l2 est-l3">
-                <div class="field"><label>C.C. Road Thickness (m)</label><input id="dCcT" type="number" step="0.01" placeholder="0.10" oninput="liveMbBill()"></div>
-                <div class="field"><label>Test Reports (Job)</label><input id="kTest" type="number" min="0" max="1" value="1"></div>
-                <div class="field"><label>Name Plate (Job)</label><input id="kPlate" type="number" min="0" max="1" value="0"></div>
+                <div class="field"><label>C.C. Road Thickness</label><input id="dCcT" type="number" step="0.01" placeholder="0.10" oninput="liveMbBill()"></div>
+                <div class="field"><label>Test Report (Job)</label><input id="kTest" type="number" min="0" max="1" value="1" oninput="liveMbBill()"></div>
+                <div class="field"><label>Name Plate (Job)</label><input id="kPlate" type="number" min="0" max="1" value="0" oninput="liveMbBill()"></div>
               </div>
             </div>
             <div class="actions" style="margin-top:8px">
@@ -1231,7 +1238,7 @@
       </div>
       <div class="field span2" id="billWorkWrap"><label>1. કામનું નામ</label><input id="billWork" oninput="liveBill()"></div>
       <div class="field"><label>2. પ્રકાર</label>
-        <select id="billType" onchange="syncBillQtyLabels();liveBill()"><option value="cc">CC Road</option><option value="paver">Paver Block</option><option value="gutter">Gutter Line</option><option value="pipe">Pipe Line</option></select>
+        <select id="billType" onchange="onBillType()"><option value="cc">CC Road</option><option value="paver">Paver Block</option><option value="gutter">Gutter Line</option><option value="pipe">Pipe Line</option></select>
       </div>
       <div class="field"><label>Grant Head</label>
         <select id="billGrant" onchange="onBillGrant();liveBill()"><option value="">— પસંદ કરો —</option></select>
@@ -1266,16 +1273,24 @@
       <div class="span2 bill-qty-live">
         <div>
           <div class="bill-vigat">બિલની વિગત</div>
-          <div class="bill-qty">
-          <div class="field"><label id="lq1">1. Excavation — Cmt</label><input id="billQ1" type="number" step="0.01" oninput="onBillQty()"></div>
-          <div class="field"><label id="lq2">2. Binding material — Cmt</label><input id="billQ2" type="number" step="0.01" oninput="onBillQty()"></div>
-          <div class="field"><label id="lq3">3. Paver Block — Smt</label><input id="billQ3" type="number" step="0.01" oninput="onBillQty()"></div>
-          <div class="field"><label id="lq4">4. Vata — Rmt</label><input id="billQ4" type="number" step="0.01" oninput="onBillQty()"></div>
-          <div class="field"><label id="lq5">5. Test Reports — Job</label><input id="billQ5" type="number" step="1" oninput="onBillQty()"></div>
-          <div class="field"><label id="lq6">6. Name Plate — Job</label><input id="billQ6" type="number" step="1" oninput="onBillQty()"></div>
-          <div class="field hidden" id="wrapQ7"><label id="lq7">7. Testing — Job</label><input id="billQ7" type="number" step="1" oninput="liveBill()"></div>
-          <div class="field hidden" id="wrapQ8"><label id="lq8">8. Name plate — Job</label><input id="billQ8" type="number" step="1" oninput="liveBill()"></div>
+          <div class="bill-qty" id="stdQty">
+          <div class="field" id="wrapQ1"><label id="lq1">1. Box cutting — Cmt</label><input id="billQ1" type="number" step="0.01" oninput="onBillQty()"></div>
+          <div class="field" id="wrapQ2"><label id="lq2">2. Metal 40-63 — Cmt</label><input id="billQ2" type="number" step="0.01" oninput="onBillQty()"></div>
+          <div class="field" id="wrapQ3"><label id="lq3">3. Binding Material — Cmt</label><input id="billQ3" type="number" step="0.01" oninput="onBillQty()"></div>
+          <div class="field" id="wrapQ4"><label id="lq4">4. Spreading metal — Cmt</label><input id="billQ4" type="number" step="0.01" oninput="onBillQty()"></div>
+          <div class="field" id="wrapQ5"><label id="lq5">5. Spreading Binding Material — Cmt</label><input id="billQ5" type="number" step="0.01" oninput="onBillQty()"></div>
+          <div class="field" id="wrapQ6"><label id="lq6">6. CC 1:2:4 — Cmt</label><input id="billQ6" type="number" step="0.01" oninput="onBillQty()"></div>
+          <div class="field" id="wrapQ7"><label id="lq7">7. Test Report (Job)</label><input id="billQ7" type="number" step="1" oninput="liveBill()"></div>
+          <div class="field" id="wrapQ8"><label id="lq8">8. Name Plate (No)</label><input id="billQ8" type="number" step="1" oninput="liveBill()"></div>
+          <div class="field hidden" id="wrapQ9"><label id="lq9">9</label><input id="billQ9" type="number" step="0.01" oninput="liveBill()"></div>
+          <div class="field hidden" id="wrapQ10"><label id="lq10">10</label><input id="billQ10" type="number" step="0.01" oninput="liveBill()"></div>
+          <div class="field hidden" id="wrapQ11"><label id="lq11">11</label><input id="billQ11" type="number" step="0.01" oninput="liveBill()"></div>
+          <div class="field hidden" id="wrapQ12"><label id="lq12">12</label><input id="billQ12" type="number" step="0.01" oninput="liveBill()"></div>
+          <div class="field hidden" id="wrapQ13"><label id="lq13">13</label><input id="billQ13" type="number" step="0.01" oninput="liveBill()"></div>
+          <div class="field hidden" id="wrapQ14"><label id="lq14">14</label><input id="billQ14" type="number" step="0.01" oninput="liveBill()"></div>
+          <div class="field hidden" id="wrapQ15"><label id="lq15">15</label><input id="billQ15" type="number" step="0.01" oninput="liveBill()"></div>
           </div>
+          <div id="gpVigat" class="hidden"></div>
         </div>
         <div id="liveBillBox" class="card" style="background:#fff;color:#111;min-height:220px"></div>
       </div>
@@ -1852,6 +1867,8 @@
           }
         });
       }
+      const want=(document.getElementById("billType")||{}).value||"";
+      raw=raw.filter(function(it){ return !want || normType(it.type||it.kind, it.work_name||it.work)===want; });
       const seen={};
       const uniq=[];
       raw.slice().sort(function(a,b){return String(b.ts||"").localeCompare(String(a.ts||""));}).forEach(function(it){
@@ -1911,14 +1928,10 @@
     set("billGam", it.village||it.gam||"");
     set("billTal", it.taluka||"");
     set("billAAE", it.prepared_by||it.aae||it.aae_name||(typeof prGet==="function"&&prGet().name)||"");
-    const typ=String(it.type||it.kind||"").toLowerCase();
+    const kind=normType(it.type||it.kind, it.work_name||it.work);
     const bt=document.getElementById("billType");
-    if(bt){
-      if(typ.indexOf("cc")>=0) bt.value="cc";
-      else if(typ.indexOf("paver")>=0) bt.value="paver";
-      else if(/સી\s*સી|સીસી|cc road/.test(String(it.work_name||"").toLowerCase())) bt.value="cc";
-    }
-    if(typeof syncBillQtyLabels==="function") syncBillQtyLabels();
+    if(bt && kind) bt.value=kind;
+    if(typeof syncBillQtyLabels==="function") syncBillQtyLabels(true);
     set("billAmt", it.amounting||it.amount||it.ts_amount||"");
     const L=Number(it.length_m||it.L||0), W=Number(it.width_m||it.W||0), area=Number(it.area||0)||(L*W);
     const meta=metaFor(it.work_name||"");
@@ -1926,19 +1939,18 @@
     set("billTal", it.taluka || meta.taluka || "");
     if(window.__billMode===2){
       const rows=(it.rows&&it.rows.length)?it.rows:(meta.rows||[]);
-      if(rows.length && typeof console!=="undefined") {}
-      const typ=String((document.getElementById("billType")||{}).value||it.type||"").toLowerCase();
-      const cc=typ.indexOf("cc")>=0;
-      let areaR=0,Lsum=0,box=0,ccVol=0;
+      const kindNow=(document.getElementById("billType")||{}).value||kind||"cc";
+      let areaR=0,Lsum=0,box=0,ccVol=0,exc=0;
       rows.forEach(function(r){
         const l=parseFloat(String(r.l||r.L||"").split("+").reduce(function(a,b){return a+(parseFloat(b)||0);},0))||parseFloat(r.l)||0;
         const w=parseFloat(String(r.w||r.W||"").split("+").reduce(function(a,b){return a+(parseFloat(b)||0);},0))||parseFloat(r.w)||0;
-        const d=parseFloat(r.d||r.D)||0.10;
-        areaR+=l*w; Lsum+=l; box+=l*w*(d||0); ccVol+=l*w*((it.cc_t||meta.cc_t)||0);
+        const d=parseFloat(r.d||r.D);
+        const depth=isNaN(d)?0.30:d;
+        areaR+=l*w; Lsum+=l; box+=l*w*depth; exc+=l*w*depth; ccVol+=l*w*(Number(it.cc_t||meta.cc_t)||0);
       });
-      const test=it.test_qty!=null?it.test_qty:(meta.test_qty||0);
-      const plate=it.plate!=null?it.plate:(meta.plate||0);
-      if(cc){
+      const test=it.test_qty!=null?it.test_qty:(meta.test_qty!=null?meta.test_qty:1);
+      const plate=it.plate!=null?it.plate:(it.name_plate!=null?it.name_plate:(meta.plate||0));
+      if(kindNow==="cc"){
         const metal0=areaR*0.12, metal=metal0+metal0*0.15, metalQty=Math.floor(metal/1.5+1e-9)*1.5;
         const bindQty=Math.floor((metalQty*0.25)/1.5+1e-9)*1.5;
         set("billQ1", box.toFixed(2));
@@ -1949,13 +1961,17 @@
         set("billQ6", ccVol.toFixed(2));
         set("billQ7", test);
         set("billQ8", plate);
-      } else if(areaR){
+      } else if(kindNow==="paver" && areaR){
         set("billQ1",(areaR*0.2).toFixed(2));
         set("billQ2",(Math.floor((areaR*0.1)/1.5)*1.5).toFixed(2));
         set("billQ3",areaR.toFixed(2));
         set("billQ4",(2*Lsum+2*(Lsum?areaR/Lsum:0)).toFixed(2));
         set("billQ5", test);
         set("billQ6", plate);
+      } else if(kindNow==="gutter" || kindNow==="pipe"){
+        if(exc) GPNUM.exc=exc.toFixed(2);
+        if(plate) GPNUM.plate=String(plate);
+        if(typeof renderGpForm==="function") renderGpForm();
       }
     }
     liveBill();
@@ -2086,20 +2102,186 @@ function onLetterDate(){
     }catch(e){ alert("પત્ર ભૂલ: "+e.message); }
     finally{ if(typeof setBusy==="function") setBusy(false); }
   }
-    function isCcBill(){ return ((document.getElementById("billType")||{}).value||"") === "cc"; }
-  function syncBillQtyLabels(){
-    const bt=(document.getElementById("billType")||{}).value||"cc";
-    const map=bt==="cc"
-      ?[["1. Box cutting — Cmt"],["2. Metal 40-63 — Cmt"],["3. Binding Material — Cmt"],["4. Spreading metal — Cmt"],["5. Spreading Binding Material — Cmt"],["6. CC 1:2:4 — Cmt"],["7. Test Reports — Job"],["8. Name plate — Job"]]
-      : bt==="gutter"
-      ?[["1. Demolition — Cmt"],["2. Excavation — Cmt"],["3. Pipe 225"],["4. Pipe 300"],["5. Pipe 450"],["6. Pipe 600"],["7. Pipe 900"],["8. Pipe 1200"],["9. Ch 0.60"],["10. Ch 0.90"],["11. Ch 1.30x0.90"],["12. Ch 1.30"],["13. Refill"],["14. CC Bed"],["15. Name Plate"]]
-      : bt==="pipe"
-      ?[["1. Demolition — Smt"],["2. Excavation — Cmt"],["3. PVC 63"],["4. PVC 75"],["5. PVC 90"],["6. PVC 110"],["7. Refill"],["8. Name Plate"]]
-      :[["1. Excavation — Cmt"],["2. Binding material — Cmt"],["3. Paver Block — Smt"],["4. Vata — Rmt"],["5. Test Reports — Job"],["6. Name Plate — Job"]];
-    map.forEach(function(lab,i){ const el=document.getElementById("lq"+(i+1)); if(el) el.textContent=lab[0]; });
-    const w7=document.getElementById("wrapQ7"), w8=document.getElementById("wrapQ8");
-    if(w7) w7.classList.toggle("hidden", !cc);
-    if(w8) w8.classList.toggle("hidden", !cc);
+  var GPIPES={gutter:[{dia:225,l:""}],pipe:[{dia:63,l:""}]};
+  var GCHB=[{k:"60",n:""}];
+  var GPNUM={demo:"",exc:"",refill:"",cc:"",plate:""};
+  var GPDIA={
+    gutter:[{d:225,p:421,l:88},{d:300,p:672,l:119},{d:450,p:817,l:171},{d:600,p:1331,l:228},{d:900,p:2476,l:340},{d:1200,p:4121,l:440}],
+    pipe:[{d:63,p:69,l:12},{d:75,p:96,l:15},{d:90,p:139,l:17},{d:110,p:199,l:19}]
+  };
+  var GPCH=[{k:"60",t:"0.60×0.60",r:5138},{k:"90",t:"0.90×0.90",r:7343},{k:"139",t:"1.30×0.90",r:8882},{k:"1313",t:"1.30×1.30",r:10698}];
+  function gpReset(){
+    GPIPES={gutter:[{dia:225,l:""}],pipe:[{dia:63,l:""}]};
+    GCHB=[{k:"60",n:""}];
+    GPNUM={demo:"",exc:"",refill:"",cc:"",plate:""};
+  }
+  function gpSumDia(kind, dia){
+    return (GPIPES[kind]||[]).filter(function(r){return Number(r.dia)===Number(dia);}).reduce(function(a,r){return a+Number(r.l||0);},0);
+  }
+  function gpCh(k){ return GCHB.filter(function(r){return r.k===k;}).reduce(function(a,r){return a+Number(r.n||0);},0); }
+  function gpChTot(){ return GCHB.reduce(function(a,r){return a+Number(r.n||0);},0); }
+  function gpSetDia(i, dia){ GPIPES[billKind()][i].dia=Number(dia); renderGpForm(); liveBill(); }
+  function gpAddPipe(i){ const a=GPIPES[billKind()]; const s=a[i]; a.splice(i+1,0,{dia:s.dia,l:""}); renderGpForm(); liveBill(); }
+  function gpDelPipe(i){ const a=GPIPES[billKind()]; if(a.length<=1) return; a.splice(i,1); renderGpForm(); liveBill(); }
+  function gpSetLen(i, v){ GPIPES[billKind()][i].l=v; const lay=document.querySelector('[data-lay="'+i+'"]'); if(lay) lay.value=v; liveBill(); }
+  function gpSetCh(i,k){ GCHB[i].k=k; renderGpForm(); liveBill(); }
+  function gpSetChN(i,v){ GCHB[i].n=v; const tot=gpChTot(); const f=document.getElementById("gpFrame"); const c=document.getElementById("gpCover"); if(f) f.value=tot||""; if(c) c.value=tot||""; liveBill(); }
+  function gpAddCh(i){ GCHB.splice(i+1,0,{k:GCHB[i].k,n:""}); renderGpForm(); liveBill(); }
+  function gpDelCh(i){ if(GCHB.length<=1) return; GCHB.splice(i,1); renderGpForm(); liveBill(); }
+  function renderGpForm(){
+    const box=document.getElementById("gpVigat");
+    if(!box) return;
+    const kind=billKind()==="pipe"?"pipe":"gutter";
+    const dias=GPDIA[kind];
+    const rows=GPIPES[kind]||[];
+    const pm=function(add, del, i, n){
+      return "<span class='pm'><button type='button' class='pm add' onclick='"+add+"("+i+")'>+</button>"+(n>1?"<button type='button' onclick='"+del+"("+i+")'>−</button>":"")+"</span>";
+    };
+    let h="";
+    h+="<div class='field'><label>1. Demolition — "+(kind==="pipe"?"Smt":"Cmt")+"</label><input id='gpDemo' type='number' step='0.01' value='"+(GPNUM.demo||"")+"' oninput='GPNUM.demo=this.value;liveBill()'></div>";
+    h+="<div class='field'><label>2. Excavation — Cmt</label><input id='gpExc' type='number' step='0.01' value='"+(GPNUM.exc||"")+"' oninput='GPNUM.exc=this.value;liveBill()'></div>";
+    h+="<div class='field' style='grid-column:1/-1'><label>3. "+(kind==="pipe"?"PVC Pipe":"R.C.C. Pipe NP2")+" — Rmt</label>";
+    rows.forEach(function(r,i){
+      h+="<div class='gp-line'><select onchange='gpSetDia("+i+",this.value)'>"+dias.map(function(d){return "<option value='"+d.d+"'"+(Number(r.dia)===d.d?" selected":"")+">"+d.d+" mm</option>";}).join("")+"</select>";
+      h+="<input type='number' step='0.01' value='"+(r.l||"")+"' oninput='gpSetLen("+i+",this.value)'>"+pm("gpAddPipe","gpDelPipe",i,rows.length)+"</div>";
+    });
+    h+="</div>";
+    h+="<div class='field' style='grid-column:1/-1'><label>4. Lowering and Laying — Rmt</label>";
+    rows.forEach(function(r,i){
+      h+="<div class='gp-line'><input disabled value='"+r.dia+" mm'><input disabled data-lay='"+i+"' value='"+(r.l||"")+"'><span></span></div>";
+    });
+    h+="</div>";
+    if(kind==="gutter"){
+      const tot=gpChTot();
+      h+="<div class='field' style='grid-column:1/-1'><label>5. Chamber — No.</label>";
+      GCHB.forEach(function(r,i){
+        h+="<div class='gp-line'><select onchange='gpSetCh("+i+",this.value)'>"+GPCH.map(function(c){return "<option value='"+c.k+"'"+(r.k===c.k?" selected":"")+">"+c.t+"</option>";}).join("")+"</select>";
+        h+="<input type='number' step='1' value='"+(r.n||"")+"' oninput='gpSetChN("+i+",this.value)'>"+pm("gpAddCh","gpDelCh",i,GCHB.length)+"</div>";
+      });
+      h+="</div>";
+      h+="<div class='field'><label>6. Refilling the pipeline trench — Cmt</label><input id='gpRefill' type='number' step='0.01' value='"+(GPNUM.refill||"")+"' oninput='GPNUM.refill=this.value;liveBill()'></div>";
+      h+="<div class='field'><label>7(1) RCC Precast M.H. Frame — No.</label><input id='gpFrame' disabled value='"+(tot||"")+"'></div>";
+      h+="<div class='field'><label>7(2) RCC Pre Cast M.H. Cover — No.</label><input id='gpCover' disabled value='"+(tot||"")+"'></div>";
+      h+="<div class='field'><label>8. New C.C. 1:2:4 — Cmt</label><input id='gpCc' type='number' step='0.01' value='"+(GPNUM.cc||"")+"' oninput='GPNUM.cc=this.value;liveBill()'></div>";
+      h+="<div class='field'><label>9. Name Plate — No.</label><input id='gpPlate' type='number' step='1' value='"+(GPNUM.plate||"")+"' oninput='GPNUM.plate=this.value;liveBill()'></div>";
+    } else {
+      h+="<div class='field'><label>5. Refilling the pipeline trench — Cmt</label><input id='gpRefill' type='number' step='0.01' value='"+(GPNUM.refill||"")+"' oninput='GPNUM.refill=this.value;liveBill()'></div>";
+      h+="<div class='field'><label>6. Name Plate — No.</label><input id='gpPlate' type='number' step='1' value='"+(GPNUM.plate||"")+"' oninput='GPNUM.plate=this.value;liveBill()'></div>";
+    }
+    box.innerHTML=h;
+  }
+  function gpLines(){
+    const kind=billKind()==="pipe"?"pipe":"gutter";
+    const dias=GPDIA[kind];
+    const rows=[];
+    rows.push({item:"1", desc:"Demolition", qty:Number(GPNUM.demo||0), rate:kind==="pipe"?202.2:1030.81});
+    rows.push({item:"2", desc:"Excavation", qty:Number(GPNUM.exc||0), rate:89});
+    dias.forEach(function(d,i){ rows.push({item:"3("+(i+1)+")", desc:(kind==="pipe"?"PVC ":"NP2 ")+d.d+" mm", qty:gpSumDia(kind,d.d), rate:d.p}); });
+    dias.forEach(function(d,i){ rows.push({item:"4("+(i+1)+")", desc:"Laying "+d.d+" mm", qty:gpSumDia(kind,d.d), rate:d.l}); });
+    if(kind==="gutter"){
+      GPCH.forEach(function(c,i){ rows.push({item:"5("+(i+1)+")", desc:"Chamber "+c.t, qty:gpCh(c.k), rate:c.r}); });
+      rows.push({item:"6", desc:"Refilling", qty:Number(GPNUM.refill||0), rate:22});
+      const tot=gpChTot();
+      rows.push({item:"7(1)", desc:"M.H. Frame", qty:tot, rate:1121});
+      rows.push({item:"7(2)", desc:"M.H. Cover", qty:tot, rate:1173});
+      rows.push({item:"8", desc:"New C.C. 1:2:4", qty:Number(GPNUM.cc||0), rate:3652.31});
+      rows.push({item:"9", desc:"Name Plate", qty:Number(GPNUM.plate||0), rate:306.14});
+    } else {
+      rows.push({item:"5", desc:"Refilling", qty:Number(GPNUM.refill||0), rate:22});
+      rows.push({item:"6", desc:"Name Plate", qty:Number(GPNUM.plate||0), rate:306.14});
+    }
+    return rows;
+  }
+  function gpPayload(){
+    const kind=billKind()==="pipe"?"pipe":"gutter";
+    const q={demo:Number(GPNUM.demo||0), exc:Number(GPNUM.exc||0), refill:Number(GPNUM.refill||0), plate:Number(GPNUM.plate||0), cc:Number(GPNUM.cc||0)};
+    GPDIA[kind].forEach(function(d){ q["p"+d.d]=gpSumDia(kind,d.d); });
+    if(kind==="gutter"){
+      GPCH.forEach(function(c){ q["c"+c.k]=gpCh(c.k); });
+      q.frame=gpChTot(); q.cover=gpChTot();
+    }
+    return q;
+  }
+  function isCcBill(){ return ((document.getElementById("billType")||{}).value||"") === "cc"; }
+  function billKind(){ return (document.getElementById("billType")||{}).value||"cc"; }
+  function billCatalog(){
+    const all={
+      cc:[
+        ["1. Box cutting — Cmt","Box cutting",158.12],
+        ["2. Metal 40-63 — Cmt","Metal 40-63",684.6],
+        ["3. Binding Material — Cmt","Binding",173.51],
+        ["4. Spreading metal — Cmt","Spread metal",249.75],
+        ["5. Spreading Binding Material — Cmt","Spread binding",147.47],
+        ["6. CC 1:2:4 — Cmt","CC 1:2:4",4915.01],
+        ["7. Test Report (Job)","Test Report",2656],
+        ["8. Name Plate (No)","Name Plate",306.14]
+      ],
+      paver:[
+        ["1. Excavation — Cmt","Excavation",156.56],
+        ["2. Binding material — Cmt","Binding",210.42],
+        ["3. Paver Block — Smt","Paver Block",740.51],
+        ["4. Vata — Rmt","Vata",23.68],
+        ["5. Test Reports — Job","Test Report",608],
+        ["6. Name Plate — Job","Name Plate",306.14]
+      ],
+      gutter:[
+        ["1. Demolition — Cmt","Demolition",1030.81],
+        ["2. Excavation — Cmt","Excavation",89],
+        ["3. Pipe 225 — Rmt","Pipe 225",509],
+        ["4. Pipe 300 — Rmt","Pipe 300",791],
+        ["5. Pipe 450 — Rmt","Pipe 450",988],
+        ["6. Pipe 600 — Rmt","Pipe 600",1559],
+        ["7. Pipe 900 — Rmt","Pipe 900",2816],
+        ["8. Pipe 1200 — Rmt","Pipe 1200",4561],
+        ["9. Chamber 0.60 — Nos","Ch 0.60",7432],
+        ["10. Chamber 0.90 — Nos","Ch 0.90",9637],
+        ["11. Chamber 1.30×0.90 — Nos","Ch 1.30×0.90",11176],
+        ["12. Chamber 1.30×1.30 — Nos","Ch 1.30",12992],
+        ["13. Refill — Cmt","Refill",22],
+        ["14. CC Bed — Cmt","CC Bed",3652.31],
+        ["15. Name Plate — Job","Name Plate",306.14]
+      ],
+      pipe:[
+        ["1. Demolition — Smt","Demolition",202.2],
+        ["2. Excavation — Cmt","Excavation",89],
+        ["3. PVC 63 — Rmt","PVC 63",81],
+        ["4. PVC 75 — Rmt","PVC 75",111],
+        ["5. PVC 90 — Rmt","PVC 90",156],
+        ["6. PVC 110 — Rmt","PVC 110",218],
+        ["7. Refill — Cmt","Refill",22],
+        ["8. Name Plate — Job","Name Plate",306.14]
+      ]
+    };
+    return all;
+  }
+  function billItems(){
+    const all=billCatalog();
+    return all[billKind()]||all.paver;
+  }
+  function onBillType(){ syncBillQtyLabels(false); fillBillPick(); }
+  function syncBillQtyLabels(keep){
+    const kind=billKind();
+    const gp=kind==="gutter"||kind==="pipe";
+    const std=document.getElementById("stdQty");
+    const gbox=document.getElementById("gpVigat");
+    if(std) std.classList.toggle("hidden", gp);
+    if(gbox) gbox.classList.toggle("hidden", !gp);
+    if(gp){
+      if(!keep) gpReset();
+      renderGpForm();
+      liveBill();
+      return;
+    }
+    const list=(billCatalog()[kind]||billCatalog().cc);
+    for(let i=1;i<=15;i++){
+      const wrap=document.getElementById("wrapQ"+i);
+      const lab=document.getElementById("lq"+i);
+      const inp=document.getElementById("billQ"+i);
+      const on=i<=list.length;
+      if(wrap) wrap.classList.toggle("hidden", !on);
+      if(on && lab) lab.textContent=list[i-1][0];
+      if(!keep && inp) inp.value="";
+    }
     onBillQty();
   }
   function onBillQty(){
@@ -2113,29 +2295,39 @@ function onLetterDate(){
     }
     liveBill();
   }
+  function billQtyMap(){
+    if(billKind()==="gutter"||billKind()==="pipe") return gpPayload();
+    const cat=billItems();
+    const q={};
+    cat.forEach(function(row,i){ q["q"+(i+1)]=Number((document.getElementById("billQ"+(i+1))||{}).value||0); });
+    if(billKind()==="cc"){
+      q.box=q.q1; q.metal=q.q2; q.murum=q.q3; q.spread_metal=q.q4; q.spread_mur=q.q5; q.cc=q.q6; q.test=q.q7; q.plate=q.q8;
+    } else if(billKind()==="paver"){
+      q.box=q.q1; q.murum=q.q2; q.paver=q.q3; q.vata=q.q4; q.test=q.q5; q.plate=q.q6;
+    }
+    return q;
+  }
   function liveBill(){
     const box=document.getElementById("liveBillBox");
     if(!box) return;
-    const work=(document.getElementById("billWork")||{}).value||"—";
-    const gam=(document.getElementById("billGam")||{}).value||"—";
-    const tal=(document.getElementById("billTal")||{}).value||"—";
-    const no=(document.getElementById("billNo")||{}).value||"—";
-    const q=billQtyFromLW();
-    const rows=isCcBill()
-      ?[["1 Box",q.box,158.12],["2 Metal",q.metal,684.6],["3 Binding",q.murum,173.51],["4 Spread M",q.spreadM,249.75],["5 Spread Bind",q.spreadU,147.47],["6 CC",q.cc,4915.01],["7 Test",q.test,2656],["8 Plate",q.plate,306.14]]
-      :[["1 Excavation",q.box,156.56],["2 Binding",q.murum,210.42],["3 Paver",q.paver,740.51],["4 Vata",q.vata,23.68],["5 Testing",q.test,608],["6 Name plate",q.plate,306.14]];
-    let sub=0,h="<b>બિલ — લાઈવ</b>";
-    rows.forEach(function(r){ const amt=Number(r[1])*r[2]; sub+=amt; h+="<div class='mini'><span>"+r[0]+"</span><b>"+Number(r[1]).toFixed(2)+" → ₹ "+Math.round(amt)+"</b></div>"; });
+    const gp=billKind()==="gutter"||billKind()==="pipe";
+    const cat=gp?gpLines().map(function(r){return [r.item, r.desc, r.rate, r.qty];}):billItems().map(function(r,i){return [String(i+1), r[1], r[2], Number((document.getElementById("billQ"+(i+1))||{}).value||0)];});
+    let sub=0;
+    let h="<b>બિલ — લાઈવ</b><table class='mb-live'><thead><tr><th>Item</th><th>Description</th><th>Rate</th><th>Amount</th></tr></thead><tbody>";
+    cat.forEach(function(r){
+      const amt=Number(r[3]||0)*Number(r[2]||0);
+      sub+=amt;
+      h+="<tr><td>"+r[0]+"</td><td>"+r[1]+"</td><td>"+r[2]+"</td><td>₹ "+Math.round(amt).toLocaleString("en-IN")+"</td></tr>";
+    });
     const gst=sub*0.18, tot=Math.floor(sub+gst);
-    h+="<div class='mini'><span>+18% GST</span><b>₹ "+Math.round(gst)+"</b></div>";
-    h+="<div class='mini'><span>ચોખ્ખી</span><b>₹ "+tot.toLocaleString("en-IN")+"</b></div>";
+    h+="<tr><td colspan='3'>+18% GST</td><td>₹ "+Math.round(gst).toLocaleString("en-IN")+"</td></tr>";
+    h+="<tr class='net'><td colspan='3'>ચોખ્ખી</td><td>₹ "+tot.toLocaleString("en-IN")+"</td></tr>";
+    h+="</tbody></table>";
     box.innerHTML=h;
   }
   async function genBillPaver(fmt){
     const val0=function(id){return String((document.getElementById(id)||{}).value||"").trim();};
     const need=["billWork","billGrant","billYear","billGam","billTal","billAAE","billWO","billTS","billTSAmt","billAmt","billStart","billDate","billNo","billPg1","billPg2"];
-    const nQ=isCcBill()?8:6;
-    for(let i=1;i<=nQ;i++) need.push("billQ"+i);
     const miss=need.filter(function(id){
       const el=document.getElementById(id);
       if(!el || el.closest && el.closest(".hidden")) return false;
@@ -2148,7 +2340,7 @@ function onLetterDate(){
       if(f && f.focus) f.focus();
       return;
     }
-    const q=billQtyFromLW();
+    const q=billQtyMap();
     const val=function(id){return (document.getElementById(id)||{}).value||"";};
     const body={
       output: fmt||"both",
@@ -2166,8 +2358,8 @@ function onLetterDate(){
       if(typeof setBusy==="function") setBusy(true);
       document.querySelectorAll("#s-bill .dl").forEach(function(b){ b.disabled=true; });
       const base=(typeof API!=="undefined"?API:"");
-            body.type=isCcBill()?"CC":"Paver";
-      body.qty=isCcBill()?{box:q.box,metal:q.metal,murum:q.murum,spread_metal:q.spreadM,spread_mur:q.spreadU,cc:q.cc,test:q.test,plate:q.plate}:q;
+      body.type=billKind()==="cc"?"CC":billKind()==="gutter"?"Gutter":billKind()==="pipe"?"Pipe":"Paver";
+      body.qty=q;
       const bt=(document.getElementById("billType")||{}).value||"cc"; const url=base+(bt==="cc"?"/api/bill/cc":bt==="gutter"?"/api/bill/gutter":bt==="pipe"?"/api/bill/pipe":"/api/bill/paver");
       const res=await fetch(url,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
       const data=await res.json();
@@ -2176,13 +2368,9 @@ function onLetterDate(){
         const pick=document.getElementById("billPick");
         const pickName=pick && pick.options[pick.selectedIndex] ? pick.options[pick.selectedIndex].textContent : "";
         const liveNet=(function(){
-          const q=billQtyFromLW();
           let sub=0;
-          if(isCcBill()){
-            [[q.box,158.12],[q.metal,684.6],[q.murum,173.51],[q.spreadM,249.75],[q.spreadU,147.47],[q.cc,4915.01],[q.test,2656],[q.plate,306.14]].forEach(function(p){ sub+=Number(p[0]||0)*p[1]; });
-          } else {
-            [[q.box,156.56],[q.murum,210.42],[q.paver,740.51],[q.vata,23.68],[q.test,608],[q.plate,306.14]].forEach(function(p){ sub+=Number(p[0]||0)*p[1]; });
-          }
+          if(billKind()==="gutter"||billKind()==="pipe") gpLines().forEach(function(r){ sub+=Number(r.qty||0)*r.rate; });
+          else billItems().forEach(function(row,i){ sub+=Number((document.getElementById("billQ"+(i+1))||{}).value||0)*row[2]; });
           return Math.floor(sub*1.18);
         })();
         pushLocalBill({
@@ -2193,8 +2381,8 @@ function onLetterDate(){
           taluka:val("billTal"),
           mb_no:val("billNo"),
           subdiv:val("billSub"),
-          type: isCcBill()?"CC":"Paver",
-          qty: isCcBill()?{box:q.box,metal:q.metal,murum:q.murum,spread_metal:q.spreadM,spread_mur:q.spreadU,cc:q.cc,test:q.test,plate:q.plate}:q,
+          type: body.type,
+          qty: q,
           amounting: liveNet || Number(val("billAmt")||0),
           net: liveNet || Number(val("billAmt")||0),
           as_amount: Number(val("billAmt")||0),
@@ -2552,7 +2740,9 @@ function onLetterDate(){
   let diaryEst = null;
   function diaryType() {
     const el=document.getElementById("dType");
-    return (el && el.value==="paver") ? "paver" : "cc";
+    const v=el && el.value;
+    if(v==="paver"||v==="gutter"||v==="pipe"||v==="cc") return v;
+    return "cc";
   }
   
   function ccThick(){
@@ -2574,26 +2764,29 @@ function onLetterDate(){
     const tb=document.getElementById("dRows");
     const th=document.getElementById("dHead");
     if (!tb) return;
-    const paver = diaryType()==="paver";
+    const kind = diaryType();
+    const paver = kind==="paver";
+    const cc = kind==="cc";
     const hd=document.getElementById("dHeadD");
     if (th) {
       /* header labels stay in html */
     }
-    if (hd) hd.textContent = paver ? "" : "Box cutting";
+    if (hd) { hd.textContent = cc ? "Depth" : ""; hd.style.display = cc ? "" : "none"; }
     const we=document.getElementById("wrapExcD");
     const wd=document.getElementById("wrapDustD");
     const lc=document.getElementById("lineCc3");
     if(we) we.style.display = paver ? "" : "none";
     if(wd) wd.style.display = paver ? "" : "none";
-    if(lc) lc.style.display = paver ? "none" : "";
+    if(lc) lc.style.display = cc ? "" : "none";
     tb.innerHTML="";
     DIARY.forEach((s,i)=>{
+      if(cc && !s.d) s.d="0.30";
       const row=document.createElement("div");
       row.className="seg";
       let html='<span>'+(i+1)+'</span>'+
-        '<input type="text" inputmode="decimal" placeholder="10+15" value="'+(s.l||"")+'" data-k="l" data-i="'+i+'">'+
-        '<input type="text" inputmode="decimal" placeholder="3+3.5" value="'+(s.w||"")+'" data-k="w" data-i="'+i+'">';
-      if (!paver) html += '<input type="number" step="0.01" value="'+(s.d||"0.30")+'" data-k="d" data-i="'+i+'" placeholder="0.30">';
+        '<input type="text" inputmode="decimal" placeholder="" value="'+(s.l||"")+'" data-k="l" data-i="'+i+'">'+
+        '<input type="text" inputmode="decimal" placeholder="" value="'+(s.w||"")+'" data-k="w" data-i="'+i+'">';
+      if (cc) html += '<input type="number" step="0.01" value="'+(s.d||"0.30")+'" data-k="d" data-i="'+i+'">';
       html += '<span class="map-act"><button type="button" class="pm add" onclick="addDiaryRow()">+</button><button type="button" class="pm" onclick="delDiaryRow('+i+')">−</button></span>';
       row.innerHTML=html;
       tb.appendChild(row);
@@ -2610,8 +2803,7 @@ function onLetterDate(){
   }
   function addDiaryRow(){
     if (DIARY.length>=10) return;
-    const last=DIARY[DIARY.length-1]||{};
-    DIARY.push({l:last.l||"",w:"",d:last.d||(diaryType()==="cc"?"0.30":"")});
+    DIARY.push({l:"",w:"",d:diaryType()==="cc"?"0.30":""});
     renderDiaryRows();
   }
   function mbPaverTotals(){
@@ -2724,17 +2916,17 @@ function onLetterDate(){
     all.unshift(rec);
     localStorage.setItem(localEstKey(), JSON.stringify(all.slice(0,80)));
   }
+  function normType(v, name){
+    const t=String(v||"").toLowerCase();
+    const n=String(name||"").toLowerCase();
+    if(t.indexOf("gutter")>=0 || n.indexOf("gutter")>=0 || n.indexOf("ગટર")>=0) return "gutter";
+    if(t.indexOf("pipe")>=0 || n.indexOf("pipe")>=0 || n.indexOf("પાઇપ")>=0 || n.indexOf("pvc")>=0) return "pipe";
+    if(t.indexOf("paver")>=0 || n.indexOf("paver")>=0 || n.indexOf("પેવર")>=0) return "paver";
+    if(t==="cc" || t.indexOf("cc")>=0 || n.indexOf("c.c")>=0 || n.indexOf("cc road")>=0 || /સી\s*સી/.test(n)) return "cc";
+    return "";
+  }
   function mergeEstLists(remote){
-    const loc=loadLocalEst();
-    const seen={};
-    const out=[];
-    (loc||[]).concat(remote||[]).forEach(function(x){
-      const k=String(x.type||"").toLowerCase()+"|"+String(x.village||x.gam||"").toLowerCase()+"|"+String(x.work_name||"").replace(/\s+/g," ").trim().toLowerCase()+"|"+String(x.ts||"").slice(0,10);
-      if(seen[k]) return;
-      seen[k]=1;
-      out.push(x);
-    });
-    return out;
+    return Array.isArray(remote) ? remote.slice() : loadLocalEst();
   }
   function siteMetaKey(){ return "copilot_site_meta"; }
   function loadSiteMeta(){ try{ return JSON.parse(localStorage.getItem(siteMetaKey())||"{}"); }catch(e){ return {}; } }
@@ -2790,15 +2982,7 @@ function onLetterDate(){
       let rec=mergeEstLists(d.items||[]);
       const want=(document.getElementById("dType")||{}).value||"";
       rec=rec.filter(function(r){
-        const ty=String(r.type||r.kind||r.work_type||"").toLowerCase();
-        if(!want) return true;
-        if(ty) return ty===want || (want==="cc"&&(ty==="cc"||ty.indexOf("cc")>=0)) || (want==="paver"&&ty.indexOf("paver")>=0) || (want==="gutter"&&ty.indexOf("gutter")>=0) || (want==="pipe"&&ty.indexOf("pipe")>=0);
-        const nm=String(r.work_name||"").toLowerCase();
-        if(want==="cc") return nm.indexOf("paver")<0 && nm.indexOf("પેવર")<0 && nm.indexOf("gutter")<0 && nm.indexOf("ગટર")<0 && nm.indexOf("pipe")<0 && nm.indexOf("પાઇપ")<0;
-        if(want==="paver") return nm.indexOf("paver")>=0 || nm.indexOf("પેવર")>=0;
-        if(want==="gutter") return nm.indexOf("gutter")>=0 || nm.indexOf("ગટર")>=0;
-        if(want==="pipe") return nm.indexOf("pipe")>=0 || nm.indexOf("પાઇપ")>=0;
-        return true;
+        return normType(r.type||r.kind||r.work_type, r.work_name)===want;
       });
       const opts=['<option value="">— કામ પસંદ —</option>'];
       rec.slice(0,80).forEach(function(r){
@@ -2824,7 +3008,7 @@ function onLetterDate(){
       set("dTaluka", rec.taluka||"");
       set("dAmtIn", rec.amounting||rec.amount||"");
       set("dContractor", rec.contractor||"");
-      const typ=(String(rec.type||"").toLowerCase().indexOf("paver")>=0)?"paver":"cc";
+      const typ=normType(rec.type, rec.work_name)||"cc";
       const dt=document.getElementById("dType"); if(dt) dt.value=typ;
       applySiteGrant(rec.fund_head||rec.grant||"");
       renderDiaryRows(); liveMbBill();
@@ -2915,7 +3099,7 @@ function onLetterDate(){
       applySiteGrant((est&&(est.fund_head||est.grant))||m.grant||"");
     })();
     document.getElementById("dAmtIn").value = est && est.amounting ? est.amounting : "";
-    const typ = (est && String(est.type||"").toLowerCase().indexOf("paver")>=0) ? "paver" : "cc";
+    const typ = normType(est && est.type, est && est.work_name) || "cc";
     document.getElementById("dType").value = typ;
     const savedRows=(est && est.rows && est.rows.length)?est.rows:((metaFor((est&&est.work_name)||"").rows)||[]);
     DIARY = (savedRows && savedRows.length) ? savedRows : [{l:"",w:"",d:""}];
@@ -3234,7 +3418,7 @@ function onLetterDate(){
     const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
     set("dToday", s.today || 0);
     set("dTotal", s.total || 0);
-    set("dSplit", (s.cc || 0) + " / " + (s.paver || 0));
+    set("dSplit", (s.cc || 0) + " / " + (s.paver || 0) + " / " + (s.gutter || 0) + " / " + (s.pipe || 0));
     set("dAmt", inr0(s.amount));
     set("aToday", s.today || 0);
     set("aTotal", s.total || 0);
@@ -3269,17 +3453,20 @@ function onLetterDate(){
       const items = mergeEstLists(d.items || []);
       const today = new Date().toISOString().slice(0,10);
       const talMap = {};
-      let cc=0, pv=0, amt=0, tod=0;
+      let cc=0, pv=0, gt=0, pp=0, amt=0, tod=0;
       items.forEach(function (x) {
-        const tp=String(x.type||"").toLowerCase();
-        if (tp.indexOf("paver")>=0) pv++; else cc++;
+        const tp=normType(x.type, x.work_name);
+        if (tp==="paver") pv++;
+        else if (tp==="gutter") gt++;
+        else if (tp==="pipe") pp++;
+        else cc++;
         amt += Number(x.amounting||0);
         if (String(x.ts||"").slice(0,10)===today) tod++;
         const tk=x.taluka||"—";
         talMap[tk]=(talMap[tk]||0)+1;
       });
       const talukas=Object.keys(talMap).map(function(k){return {name:k,n:talMap[k]};}).sort(function(a,b){return b.n-a.n;});
-      fillStats({ total:items.length, cc:cc, paver:pv, amount:amt, today:tod, talukas:talukas, recent:items.slice(0,8) });
+      fillStats({ total:items.length, cc:cc, paver:pv, gutter:gt, pipe:pp, amount:amt, today:tod, talukas:talukas, recent:items.slice(0,8) });
       const box=document.getElementById("dRecent");
       if (box) {
         const inr0=function(x){return "₹ "+Number(x||0).toLocaleString("en-IN",{maximumFractionDigits:0});};
@@ -3295,9 +3482,10 @@ function onLetterDate(){
           return true;
         });
         box.innerHTML = shown.length ? shown.slice(0,12).map(function(r){
-          const tp=String(r.type||"").toLowerCase().indexOf("paver")>=0?"pv":"cc";
-          const lab=tp==="pv"?"Paver":"CC";
-          return "<tr><td>"+String(r.ts||"").slice(0,10)+"</td><td><span class='badge "+tp+"'>"+lab+"</span></td><td>"+(r.work_name||r.village||"—")+"<div class='sub'>Taluka: "+(r.taluka||"—")+"</div></td><td><b>"+inr0(r.amounting)+"</b></td></tr>";
+          const tp=normType(r.type, r.work_name)||"cc";
+          const lab=tp==="paver"?"Paver":tp==="gutter"?"Gutter":tp==="pipe"?"Pipe":"CC";
+          const badge=tp==="paver"?"pv":tp==="gutter"?"gt":tp==="pipe"?"pp":"cc";
+          return "<tr><td>"+String(r.ts||"").slice(0,10)+"</td><td><span class='badge "+badge+"'>"+lab+"</span></td><td>"+(r.work_name||r.village||"—")+"<div class='sub'>Taluka: "+(r.taluka||"—")+"</div></td><td><b>"+inr0(r.amounting)+"</b></td></tr>";
         }).join("") : "<tr><td colspan='4'>હજુ એસ્ટિમેટ નથી</td></tr>";
       }
     }).catch(function(){
