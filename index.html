@@ -707,6 +707,20 @@
     .td-nav .td-sidebit:last-child{justify-content:flex-end}
     .td-nav .btn-w{justify-self:center}
 
+  
+    @media (max-width:800px){
+      #s-form:not(.hidden) .freeze-head,
+      #s-site:not(.hidden) .freeze-head,
+      #s-bill:not(.hidden) .freeze-head{
+        position:relative !important; top:auto !important; left:auto !important;
+        transform:none !important; width:auto !important; z-index:1 !important;
+      }
+      .freeze-gap{display:none}
+    }
+    @media (min-width:801px){
+      .freeze-gap{height:78px}
+    }
+
   </style>
 </head>
 <body>
