@@ -685,18 +685,20 @@
     .nb{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:999px;background:#e0e7ff;color:#3730a3;font-size:11px;font-weight:800;margin-right:4px}
 
   
-    header.topbar{position:sticky;top:0;z-index:40}
     #s-form:not(.hidden) .freeze-head,
     #s-site:not(.hidden) .freeze-head,
     #s-bill:not(.hidden) .freeze-head{
-      position:sticky; top:var(--head-h,56px); z-index:30;
+      position:fixed; top:64px; left:50%; transform:translateX(-50%);
+      width:min(1040px, calc(100% - 28px)); z-index:60;
       background:#fff; border-bottom:1px dashed #94a3b8;
-      padding:8px 0 10px;
+      padding:8px 12px 10px; border-radius:0 0 12px 12px;
     }
     body.dark #s-form .freeze-head,
     body.dark #s-site .freeze-head,
     body.dark #s-bill .freeze-head{background:#111827}
-    .freeze-gap{display:none;height:0}
+    .freeze-gap{display:block;height:58px}
+    #btnProfile{position:static !important;top:auto;right:auto}
+    #s-site:not(.hidden) .pillbar, #s-bill:not(.hidden) .pillbar{position:static;top:auto;left:auto;right:auto;box-shadow:none}
     #s-site .pillbar, #s-bill .pillbar{margin-left:auto; width:auto; flex:0 0 auto}
     .letter-step1 .cal-btn{margin-left:auto}
     .td-nav{justify-content:flex-start}
@@ -4141,7 +4143,12 @@ function startScan(camera) {
       .then(function(data){
         GJ = data;
         const sel=document.getElementById("jilla");
-        if(sel) fillSelect(sel, Object.keys(GJ), "— જિલ્લો પસંદ કરો —");
+        if(sel){
+          const keep=sel.value;
+          fillSelect(sel, Object.keys(GJ), "— જિલ્લો પસંદ કરો —");
+          if(keep && GJ[keep]) sel.value=keep;
+          if(sel.value) onJilla();
+        }
       })
       .catch(function(){ setTimeout(loadJilla, 800); });
   }
