@@ -869,9 +869,9 @@
           <input id="village_other" placeholder="ગામનું નામ">
         </div>
         <div class="est-l3">
-          <div class="field"><label>2. R&amp;B Div.</label><input id="division" value="NADIAD"></div>
-          <div class="field"><label>R&amp;B Sub-Div.</label><input id="subdiv_address" value="DAKOR"></div>
-          <div class="field"><label>Nani Sinchai Sub-Div.</label><input id="nani_address" value="DAKOR"></div>
+          <div class="field"><label>2. R&amp;B Div.</label><input id="division" value=""></div>
+          <div class="field"><label>R&amp;B Sub-Div.</label><input id="subdiv_address" value=""></div>
+          <div class="field"><label>Nani Sinchai Sub-Div.</label><input id="nani_address" value=""></div>
         </div>
         <div class="est-l3">
           <div class="field"><label>3. Grant Head</label>
@@ -913,9 +913,9 @@
         <div class="field full"><label>4. કામનું નામ</label><input id="work_name" value=""></div>
 
         <div class="est-l3">
-          <div class="field"><label>5. Prepared by</label><input id="prepared_by" value="MR.V.A.THAKOR. A.A.E."></div>
+          <div class="field"><label>5. Prepared by</label><input id="prepared_by" value="V A Thakor"></div>
           <div class="field"><label>SS વિગત</label><input id="ss_details" value=""></div>
-          <div class="field"><label>Sr No</label><input id="sr_no" value="6"></div>
+          <div class="field"><label>Sr No</label><input id="sr_no" value=""></div>
         </div>
 
         <div class="gutter-only hidden full" id="gutterBox">
@@ -3312,13 +3312,22 @@ function onLetterDate(){
 
   function goForm(type) {
     const nm=document.getElementById("newEstMenu"); if(nm) nm.classList.add("hidden");
-    applyProfileToForm();
+    ["division","subdiv_address","nani_address","work_name","ss_details","sr_no","village_other","grant_other"].forEach(function(id){
+      const e=document.getElementById(id); if(e) e.value="";
+    });
+    const amt=document.getElementById("amounting"); if(amt) amt.value="100000";
+    const pb=document.getElementById("prepared_by"); if(pb) pb.value="V A Thakor";
+    const jilla=document.getElementById("jilla"); if(jilla) jilla.value="";
+    if(typeof onJilla==="function") onJilla();
+    const gow=document.getElementById("grantOtherWrap"); if(gow) gow.classList.add("hidden");
     currentType = (type==="paver"||type==="gutter"||type==="pipe") ? type : "cc";
     if(!GJ || !Object.keys(GJ).length) loadJilla();
     const gh=document.getElementById("grant_head");
     if(gh && gh.options.length<3) fillSelect(gh, GRANTS, "— પસંદ —");
     const fy=document.getElementById("fy_year");
     if(fy && fy.options.length<3) fillSelect(fy, fyYears(), "— Year —");
+    if(gh) gh.value="";
+    if(fy) fy.value="";
     document.body.classList.toggle("paver-on", currentType==="paver");
     document.body.classList.toggle("gutter-on", currentType==="gutter");
     document.body.classList.toggle("pipe-on", currentType==="pipe");
@@ -3486,12 +3495,12 @@ function openTijori(){
     if (currentType === "paver") {
       document.getElementById("box_thick_m").value = "0.2";
       if (SEGS && SEGS[0]) SEGS[0].exc = 0.2;
-      document.getElementById("sr_no").value = "18";
-      document.getElementById("prepared_by").value = "Shree V.A.Thakor. A.A.E.";
+      document.getElementById("sr_no").value = "";
+      document.getElementById("prepared_by").value = "V A Thakor";
     } else {
       document.getElementById("box_thick_m").value = "0.3";
-      document.getElementById("sr_no").value = "6";
-      document.getElementById("prepared_by").value = "MR.V.A.THAKOR. A.A.E.";
+      document.getElementById("sr_no").value = "";
+      document.getElementById("prepared_by").value = "V A Thakor";
     }
     show("s-form");
     renderSegs();
@@ -4045,28 +4054,7 @@ function startScan(camera) {
   });
 
   function isIos(){ return /iPhone|iPad|iPod/i.test(navigator.userAgent||""); }
-  function fileDock(urls){
-    let box=document.getElementById("fileDock");
-    if(!box){
-      box=document.createElement("div");
-      box.id="fileDock";
-      box.style.cssText="position:fixed;left:12px;right:12px;bottom:12px;z-index:90;display:flex;gap:8px;flex-wrap:wrap;background:#0f172a;color:#fff;padding:10px;border-radius:14px;box-shadow:0 10px 24px rgba(0,0,0,.25)";
-      document.body.appendChild(box);
-    }
-    box.innerHTML="";
-    (urls||[]).forEach(function(u){
-      const a=document.createElement("a");
-      a.href=u.url; a.target="_blank"; a.rel="noopener";
-      a.textContent=u.name;
-      a.style.cssText="flex:1;text-align:center;background:#4f46e5;color:#fff;text-decoration:none;padding:10px 12px;border-radius:10px;font-weight:800";
-      box.appendChild(a);
-    });
-    const x=document.createElement("button");
-    x.textContent="બંધ";
-    x.style.cssText="background:#334155;color:#fff;border:0;border-radius:10px;padding:10px 12px";
-    x.onclick=function(){ box.remove(); };
-    box.appendChild(x);
-  }
+  function fileDock(){ return; }
   function giveFiles(wins, files){
     files.forEach(function(f,i){ if(wins[i] && !wins[i].closed){ try{ wins[i].location.href=f.url; }catch(e){} } });
     if(isIos() || !wins.length) fileDock(files);
