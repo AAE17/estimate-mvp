@@ -1143,7 +1143,7 @@ app.get("/api/db/estimates", async (_req, res) => {
   try {
     if (sbOn()) {
       const remote = await sbSelect("estimates", 200);
-      return res.json({ ok: true, items: mergeItems(remote, local) });
+      return res.json({ ok: true, items: remote });
     }
   } catch (e) { console.error(e.message); }
   res.json({ ok: true, items: local });
@@ -1911,6 +1911,22 @@ function fillBillPaComp(pa, bill, comp, d){
   }
 }
 
+function putBillLine(bill, addr, qty, rate) {
+  const q = Number(qty || 0);
+  const amt = Math.round(q * rate * 100) / 100;
+  setVal(bill, addr, q);
+  setVal(bill, "E" + String(addr).replace(/^[A-Z]+/, ""), amt);
+  return amt;
+}
+function putBillTotals(bill, sub, row) {
+  const gst = Math.round(sub * 0.18 * 100) / 100;
+  const tot = Math.round((sub + gst) * 100) / 100;
+  setVal(bill, "E" + row, Math.round(sub * 100) / 100);
+  setVal(bill, "E" + (row + 1), gst);
+  setVal(bill, "E" + (row + 2), tot);
+  setVal(bill, "E" + (row + 3), Math.floor(sub + gst));
+}
+
 app.post("/api/bill/gutter", async (req, res) => {
   try {
     const d = req.body || {};
@@ -1922,22 +1938,26 @@ app.post("/api/bill/gutter", async (req, res) => {
     if (!pa || !bill || !comp) throw new Error("gutter bill skeleton missing");
     fillBillPaComp(pa, bill, comp, d);
     const q = d.qty || {};
-    const n = (k, def) => Number(q[k] ?? q[k.toUpperCase()] ?? def ?? 0);
-    setVal(bill, "B4", n("q1", 0));
-    setVal(bill, "B5", n("q2", 0));
-    setVal(bill, "B7", n("q3", 0));
-    setVal(bill, "B8", n("q4", 0));
-    setVal(bill, "B9", n("q5", 0));
-    setVal(bill, "B10", n("q6", 0));
-    setVal(bill, "B11", n("q7", 0));
-    setVal(bill, "B12", n("q8", 0));
-    setVal(bill, "B21", n("q9", 0));
-    setVal(bill, "B22", n("q10", 0));
-    setVal(bill, "B23", n("q11", 0));
-    setVal(bill, "B24", n("q12", 0));
-    setVal(bill, "B25", n("q13", 0));
-    setVal(bill, "B29", n("q14", 0));
-    setVal(bill, "B30", n("q15", 1));
+    const n = (k) => Number(q[k] || 0);
+    let sub = 0;
+    sub += putBillLine(bill, "B4", n("demo"), 1030.81);
+    sub += putBillLine(bill, "B5", n("exc"), 89);
+    [[ "B7", 225, 421 ], [ "B8", 300, 672 ], [ "B9", 450, 817 ], [ "B10", 600, 1331 ], [ "B11", 900, 2476 ], [ "B12", 1200, 4121 ]].forEach(function (x) {
+      sub += putBillLine(bill, x[0], n("p" + x[1]), x[2]);
+    });
+    [[ "B14", 225, 88 ], [ "B15", 300, 119 ], [ "B16", 450, 171 ], [ "B17", 600, 228 ], [ "B18", 900, 340 ], [ "B19", 1200, 440 ]].forEach(function (x) {
+      sub += putBillLine(bill, x[0], n("p" + x[1]), x[2]);
+    });
+    [[ "B21", "c60", 5138 ], [ "B22", "c90", 7343 ], [ "B23", "c139", 8882 ], [ "B24", "c1313", 10698 ]].forEach(function (x) {
+      sub += putBillLine(bill, x[0], n(x[1]), x[2]);
+    });
+    sub += putBillLine(bill, "B25", n("refill"), 22);
+    const ch = n("frame") || (n("c60") + n("c90") + n("c139") + n("c1313"));
+    sub += putBillLine(bill, "B27", ch, 1121);
+    sub += putBillLine(bill, "B28", n("cover") || ch, 1173);
+    sub += putBillLine(bill, "B29", n("cc"), 3652.31);
+    sub += putBillLine(bill, "B30", n("plate"), 306.14);
+    putBillTotals(bill, sub, 31);
     await writeAndRespond(req, res, wb, d, "BILL_GUTTER", {
       "21 No. P.A. Form": "A1:I36", Bill: "A1:G40", "COMP-14MU NAN": "A1:H21"
     }, "bill_gutter");
@@ -1957,15 +1977,19 @@ app.post("/api/bill/pipe", async (req, res) => {
     if (!pa || !bill || !comp) throw new Error("pipe bill skeleton missing");
     fillBillPaComp(pa, bill, comp, d);
     const q = d.qty || {};
-    const n = (k, def) => Number(q[k] ?? def ?? 0);
-    setVal(bill, "B4", n("q1", 0));
-    setVal(bill, "B5", n("q2", 0));
-    setVal(bill, "B7", n("q3", 0));
-    setVal(bill, "B8", n("q4", 0));
-    setVal(bill, "B9", n("q5", 0));
-    setVal(bill, "B10", n("q6", 0));
-    setVal(bill, "B11", n("q7", 0));
-    setVal(bill, "B12", n("q8", 1));
+    const n = (k) => Number(q[k] || 0);
+    let sub = 0;
+    sub += putBillLine(bill, "B4", n("demo"), 202.2);
+    sub += putBillLine(bill, "B5", n("exc"), 89);
+    [[ "B7", 63, 69 ], [ "B8", 75, 96 ], [ "B9", 90, 139 ], [ "B10", 110, 199 ]].forEach(function (x) {
+      sub += putBillLine(bill, x[0], n("p" + x[1]), x[2]);
+    });
+    [[ "B12", 63, 12 ], [ "B13", 75, 15 ], [ "B14", 90, 17 ], [ "B15", 110, 19 ]].forEach(function (x) {
+      sub += putBillLine(bill, x[0], n("p" + x[1]), x[2]);
+    });
+    sub += putBillLine(bill, "B16", n("refill"), 22);
+    sub += putBillLine(bill, "B17", n("plate"), 306.14);
+    putBillTotals(bill, sub, 18);
     await writeAndRespond(req, res, wb, d, "BILL_PIPE", {
       "21 No. P.A. Form": "A1:I36", Bill: "A1:G40", "COMP-14MU NAN": "A1:H21"
     }, "bill_pipe");
