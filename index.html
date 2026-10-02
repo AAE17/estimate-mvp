@@ -855,10 +855,10 @@
       <div class="grid est-form">
         <div class="est-l3">
           <div class="field"><label>1. જિલ્લો</label>
-            <select id="jilla"><option value="">— જિલ્લો —</option></select>
+            <select id="jilla" onchange="onJilla()"><option value="">— જિલ્લો —</option></select>
           </div>
           <div class="field"><label>તાલુકો</label>
-            <select id="taluka" disabled><option value="">— તાલુકો —</option></select>
+            <select id="taluka" onchange="onTaluka()"><option value="">— તાલુકો —</option></select>
           </div>
           <div class="field"><label>ગામ</label>
             <select id="village" disabled><option value="">— ગામ —</option></select>
@@ -1450,12 +1450,19 @@
     if(rb) rb.value = d || "";
     const tal = document.getElementById("taluka");
     const vil = document.getElementById("village");
-    document.getElementById("villageOtherWrap").classList.add("hidden");
-    if (!d || !GJ[d]) {
+    const wrap=document.getElementById("villageOtherWrap");
+    if(wrap) wrap.classList.add("hidden");
+    if (!d) {
       tal.disabled = true;
       vil.disabled = true;
       fillSelect(tal, [], "— પહેલા જિલ્લો —");
       fillSelect(vil, [], "— પહેલા તાલુકો —");
+      return;
+    }
+    if (!GJ[d]) {
+      if(!Object.keys(GJ).length) loadJilla();
+      tal.disabled = true;
+      fillSelect(tal, [], "તાલુકો લોડ થાય છે...");
       return;
     }
     tal.disabled = false;
