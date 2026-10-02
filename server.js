@@ -122,12 +122,25 @@ function applyOnePage(wb, areas) {
   });
 }
 
+function dropBadNames(wb) {
+  const dn = wb && wb.definedNames;
+  if (!dn || !Array.isArray(dn.model)) return;
+  const keep = [];
+  dn.model.forEach(function (n) {
+    const blob = JSON.stringify(n || {});
+    if (blob.indexOf("[") >= 0) return;
+    keep.push(n);
+  });
+  dn.model.length = 0;
+  keep.forEach(function (n) { dn.model.push(n); });
+}
+
 async function patchFitXml(xlsxPath) {
   let JSZip;
   try {
     JSZip = require("jszip");
-  } catch (_e) {
-    return;
+  } catch (_e1) {
+    try { JSZip = require("exceljs/node_modules/jszip"); } catch (_e2) { return; }
   }
   const zip = await JSZip.loadAsync(fs.readFileSync(xlsxPath));
   const files = Object.keys(zip.files).filter(
@@ -161,6 +174,13 @@ async function patchFitXml(xlsxPath) {
       xml = xml.replace(/<pageSetup /, '<pageMargins left="0.5" right="0.5" top="0.5" bottom="0.5" header="0.25" footer="0.25"/><pageSetup ');
     }
     zip.file(name, xml);
+  }
+  const wbName = "xl/workbook.xml";
+  if (zip.file(wbName)) {
+    let wbXml = await zip.file(wbName).async("string");
+    wbXml = wbXml.replace(/<definedName\b[^>]*>[^<]*\[[^<]*<\/definedName>/g, "");
+    wbXml = wbXml.replace(/<definedNames>\s*<\/definedNames>/g, "");
+    zip.file(wbName, wbXml);
   }
   const out = await zip.generateAsync({ type: "nodebuffer", compression: "DEFLATE" });
   fs.writeFileSync(xlsxPath, out);
@@ -298,6 +318,7 @@ function sheetsToPdf(wb, pdfPath) {
 
 async function writeAndRespond(req, res, wb, d, prefix, areas, kind) {
   if (wb.calcProperties) wb.calcProperties.fullCalcOnLoad = true;
+  dropBadNames(wb);
   applyOnePage(wb, areas);
   const output = d.output || "xlsx";
   const safe = String(d.village || "gam").replace(/[^a-zA-Z0-9._-]+/g, "_");
