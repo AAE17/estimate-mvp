@@ -1057,6 +1057,7 @@ app.post("/api/estimate/gutter", async (req, res) => {
     setVal(face, "C20", work);
     setVal(face, "G21", say);
     setVal(face, "D27", d.prepared_by || "");
+    setVal(face, "D29", d.prepared_by || "");
     setVal(face, "B34", d.sr_no || "");
     setVal(face, "C34", d.ss_details || "");
     setVal(face, "G40", taluka);
@@ -1851,6 +1852,7 @@ app.post("/api/estimate/pipe", async (req, res) => {
     setVal(face, "C20", work);
     setVal(face, "G21", say);
     setVal(face, "D27", d.prepared_by || "");
+    setVal(face, "D29", d.prepared_by || "");
     setVal(face, "B34", d.sr_no || "");
     setVal(face, "C34", d.ss_details || "");
     setVal(face, "G40", taluka);
