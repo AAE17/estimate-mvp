@@ -1548,12 +1548,14 @@
   let sbClient=null;
   async function authInit(){
     try{
+      for(let i=0;i<20 && !window.supabase;i++){ await new Promise(function(r){setTimeout(r,200);}); }
       const cfg=await fetch(API+"/api/auth/config").then(function(r){return r.json();});
       if(!cfg.url||!cfg.anon||!window.supabase){
-        document.getElementById("authGate").classList.add("hidden");
+        const msg=document.getElementById("authMsg");
+        if(msg) msg.textContent="લૉગિન સેટ નથી. પેજ ફરી ખોલો.";
         return;
       }
-      sbClient=window.supabase.createClient(cfg.url, cfg.anon);
+      if(!sbClient) sbClient=window.supabase.createClient(cfg.url, cfg.anon);
       const { data }=await sbClient.auth.getSession();
       if(data&&data.session){ onAuthed(data.session); }
       else {
@@ -1642,7 +1644,8 @@
     const password=(document.getElementById("authPass")||{}).value||"";
     const msg=document.getElementById("authMsg");
     if(!email||password.length<6){ if(msg) msg.textContent="ઈમેલ અને 6+ પાસવર્ડ લખો"; return; }
-    if(!sbClient){ if(msg) msg.textContent="Auth સેટ નથી"; return; }
+    if(!sbClient){ if(msg) msg.textContent="લૉગિન તૈયાર થાય છે…"; await authInit(); }
+    if(!sbClient){ if(msg) msg.textContent="લૉગિન સેટ નથી. પેજ ફરી ખોલો."; return; }
     if(msg) msg.textContent="બની રહ્યું છે…";
     const name=(document.getElementById("authName")||{}).value||"";
     const role=(document.getElementById("authRole")||{}).value||"AAE";
@@ -1667,7 +1670,8 @@
     const email=(document.getElementById("authEmail")||{}).value||"";
     const password=(document.getElementById("authPass")||{}).value||"";
     const msg=document.getElementById("authMsg");
-    if(!sbClient){ if(msg) msg.textContent="Auth સેટ નથી"; return; }
+    if(!sbClient){ if(msg) msg.textContent="લૉગિન તૈયાર થાય છે…"; await authInit(); }
+    if(!sbClient){ if(msg) msg.textContent="લૉગિન સેટ નથી. પેજ ફરી ખોલો."; return; }
     if(msg) msg.textContent="ચાલુ…";
     const { error }=await sbClient.auth.signInWithPassword({ email, password });
     if(error && msg) msg.textContent=authErr(error.message);
