@@ -346,9 +346,9 @@ async function writeAndRespond(req, res, wb, d, prefix, areas, kind) {
   }, req);
   try {
     const isBill = String(kind||"").indexOf("bill")>=0;
-    const rec = dbAppend(isBill ? (global.DB_BILL || DB_EST) : DB_EST, {
+    const rec = dbAppend(isBill ? DB_BILL : DB_EST, {
       kind: isBill ? "bill" : "estimate",
-      type: kind === "estimate_paver" || kind === "bill_paver" ? "Paver" : "CC",
+      type: d.type || (kind === "estimate_paver" || kind === "bill_paver" ? "Paver" : kind === "bill_gutter" ? "Gutter" : kind === "bill_pipe" ? "Pipe" : "CC"),
       village: d.village, taluka: d.taluka, jilla: d.jilla,
       work_name: d.work_name || "",
       fund_head: d.fund_head || d.grant || "",
@@ -625,7 +625,7 @@ app.get("/api/stats", (_req, res) => {
 app.get("/api/bills", (req, res) => {
   try {
     const day = String(req.query.day || req.query.date || "").slice(0, 10);
-    const file = global.DB_BILL || DB_EST;
+    const file = DB_BILL;
     let rows = dbRead(file, 500).filter(function (r) { return r.kind === "bill" || String(r.kind||"").indexOf("bill")>=0; });
     if (day) {
       rows = rows.filter(function (r) {
@@ -909,6 +909,7 @@ app.get("/api/download/:name", (req, res) => {
 const DB_DIR = path.join(__dirname, "db");
 if (!fs.existsSync(DB_DIR)) fs.mkdirSync(DB_DIR);
 const DB_EST = path.join(DB_DIR, "estimates.jsonl");
+const DB_BILL = path.join(DB_DIR, "bills.jsonl");
 const DB_SITE = path.join(DB_DIR, "site.jsonl");
 const DB_MEDIA = path.join(DB_DIR, "media.jsonl");
 const DB_KACHU = path.join(DB_DIR, "kachu.jsonl");
@@ -1132,11 +1133,24 @@ app.post("/api/db/estimate", (req, res) => {
   res.json({ ok: true, id: rec.id });
 });
 app.get("/api/db/bills", async (_req, res) => {
-  const local = [];
+  const local = dbRead(DB_BILL, 200);
   try {
     if (sbOn()) return res.json({ ok: true, items: await sbSelect("bills", 200) });
   } catch (e) { console.error(e.message); }
   res.json({ ok: true, items: local });
+});
+app.post("/api/db/bills/delete", async (req, res) => {
+  const id = String((req.body && req.body.id) || "");
+  if (!id) return res.json({ ok: false });
+  try {
+    if (sbOn()) {
+      await fetch(SB_URL + "/rest/v1/bills?id=eq." + encodeURIComponent(id), {
+        method: "DELETE",
+        headers: { apikey: SB_KEY, Authorization: "Bearer " + SB_KEY }
+      });
+    }
+  } catch (e) { console.error(e.message); }
+  res.json({ ok: true });
 });
 app.get("/api/db/estimates", async (_req, res) => {
   const local = dbRead(DB_EST, 200);
