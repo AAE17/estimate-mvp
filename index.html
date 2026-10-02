@@ -747,7 +747,7 @@
       </div>
       <p class="muted" id="authMsg"></p>
       <div class="actions" id="authLoginRow">
-        <button type="submit" class="btn btn-g" onclick="authLogin()">Log in</button>
+        <button type="submit" class="btn btn-g">Log in</button>
         <button type="button" class="btn btn-s" onclick="showSignup(true)">Sign up</button>
       </div>
       <div class="actions hidden" id="authSignRow">
@@ -855,7 +855,7 @@
       <div class="grid est-form">
         <div class="est-l3">
           <div class="field"><label>1. જિલ્લો</label>
-            <select id="jilla" onchange="onJilla()"><option value="">— જિલ્લો —</option></select>
+            <select id="jilla" onfocus="loadJilla()" onchange="onJilla()"><option value="">— જિલ્લો —</option></select>
           </div>
           <div class="field"><label>તાલુકો</label>
             <select id="taluka" onchange="onTaluka()"><option value="">— તાલુકો —</option></select>
@@ -875,10 +875,34 @@
         </div>
         <div class="est-l3">
           <div class="field"><label>3. Grant Head</label>
-            <select id="grant_head"><option value="">— પસંદ —</option></select>
+            <select id="grant_head" onchange="onGrant()"><option value="">— પસંદ —</option>
+              <option value="૧૬ મુ નાણાપંચ ગ્રામ્ય કક્ષા">૧૬ મુ નાણાપંચ ગ્રામ્ય કક્ષા</option>
+              <option value="૧૬ મુ નાણાપંચ તાલુકા કક્ષા">૧૬ મુ નાણાપંચ તાલુકા કક્ષા</option>
+              <option value="૧૬ મુ નાણાપંચ જીલ્લા કક્ષા">૧૬ મુ નાણાપંચ જીલ્લા કક્ષા</option>
+              <option value="૧૫ % વિવેકાધીન">૧૫ % વિવેકાધીન</option>
+              <option value="૫ % પ્રોત્સાહક">૫ % પ્રોત્સાહક</option>
+              <option value="એ.ટી.વી.ટી. કાર્યવાહક">એ.ટી.વી.ટી. કાર્યવાહક</option>
+              <option value="એ.ટી.વી.ટી. તાલુકા કક્ષા">એ.ટી.વી.ટી. તાલુકા કક્ષા</option>
+              <option value="એ.ટી.વી.ટી. પ્રાંત કક્ષા">એ.ટી.વી.ટી. પ્રાંત કક્ષા</option>
+              <option value="ધારા ફંડ">ધારા ફંડ</option>
+              <option value="એમ.પી. ફંડ">એમ.પી. ફંડ</option>
+              <option value="જીલ્લા વહીવટી તંત્ર">જીલ્લા વહીવટી તંત્ર</option>
+              <option value="ડી.એમ.એફ.">ડી.એમ.એફ.</option>
+              <option value="રાષ્ટ્રીય તહેવાર">રાષ્ટ્રીય તહેવાર</option>
+              <option value="અન્ય">અન્ય</option>
+            </select>
           </div>
           <div class="field"><label>વર્ષ</label>
-            <select id="fy_year"><option value="">— Year —</option></select>
+            <select id="fy_year"><option value="">— Year —</option>
+              <option>2026-27</option>
+              <option>2025-26</option>
+              <option>2024-25</option>
+              <option>2023-24</option>
+              <option>2022-23</option>
+              <option>2021-22</option>
+              <option>2020-21</option>
+              <option>2019-20</option>
+            </select>
           </div>
           <div class="field"><label>રકમ</label><input id="amounting" type="number" value="100000" oninput="if(currentType==='gutter'){liveF24();}else{onAmount();}"></div>
         </div>
@@ -1594,7 +1618,8 @@
         }
       });
     }catch(e){
-      document.getElementById("authGate").classList.add("hidden");
+      const msg=document.getElementById("authMsg");
+      if(msg) msg.textContent="લૉગિન ખુલ્યું નહીં. પેજ ફરી ખોલો.";
     }
   }
   const ADMIN_EMAIL="vanraj2592@gmail.com";
@@ -1693,9 +1718,10 @@
     if(e2){ if(msg) msg.textContent="અકાઉન્ટ બન્યું. 30 સેકન્ડ પછી Log in દબાવો."; return; }
   }
   async function authLogin(){
-    const email=(document.getElementById("authEmail")||{}).value||"";
+    const email=((document.getElementById("authEmail")||{}).value||"").trim();
     const password=(document.getElementById("authPass")||{}).value||"";
     const msg=document.getElementById("authMsg");
+    if(!email||!password){ if(msg) msg.textContent="ઈમેલ અને પાસવર્ડ લખો"; return; }
     if(!sbClient){ if(msg) msg.textContent="લૉગિન તૈયાર થાય છે…"; await authInit(); }
     if(!sbClient){ if(msg) msg.textContent="લૉગિન સેટ નથી. પેજ ફરી ખોલો."; return; }
     if(msg) msg.textContent="ચાલુ…";
@@ -3289,6 +3315,10 @@ function onLetterDate(){
     applyProfileToForm();
     currentType = (type==="paver"||type==="gutter"||type==="pipe") ? type : "cc";
     if(!GJ || !Object.keys(GJ).length) loadJilla();
+    const gh=document.getElementById("grant_head");
+    if(gh && gh.options.length<3) fillSelect(gh, GRANTS, "— પસંદ —");
+    const fy=document.getElementById("fy_year");
+    if(fy && fy.options.length<3) fillSelect(fy, fyYears(), "— Year —");
     document.body.classList.toggle("paver-on", currentType==="paver");
     document.body.classList.toggle("gutter-on", currentType==="gutter");
     document.body.classList.toggle("pipe-on", currentType==="pipe");
