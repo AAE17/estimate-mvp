@@ -426,7 +426,11 @@
     #s-bill h2{margin:0}
     #s-bill .bill-win{margin-top:4px}
 
-    #liveBillBox{min-height:0;padding:8px 10px}
+    #liveBillBox{background:#14532d !important;color:#ecfdf5 !important;border:2px solid #22c55e !important;box-shadow:0 0 0 4px rgba(34,197,94,.35) !important}
+    #liveBillBox b,#liveBillBox th,#liveBillBox td{color:#ecfdf5}
+    #liveBillBox table.mb-live th{background:#166534;color:#ecfdf5}
+    #liveBillBox table.mb-live td,#liveBillBox table.mb-live th{border-bottom-color:#22c55e}
+    #liveBillBox table.mb-live tr.net td{color:#bbf7d0}
     #liveBillBox .live-grid{display:grid;grid-template-columns:1fr 120px;gap:8px;align-items:start}
     #liveBillBox .live-side{border-left:1px solid #e6eaf0;padding-left:8px;font-size:12px}
     #liveBillBox .live-side div{margin:0 0 6px}
@@ -1058,8 +1062,6 @@
               <div class="field"><label>ગામ</label><input id="dGam" oninput="liveMbBill()"></div>
               <div class="field"><label>તાલુકો</label><input id="dTaluka" oninput="liveMbBill()"></div>
             </div>
-            <div class="field" id="wrapWorkSel"><label>2. કામનું નામ</label><select id="dWork" onchange="pickSiteWork();liveMbBill()"><option value="">— કામ પસંદ —</option></select></div>
-            <div class="field hidden" id="wrapWorkTxt"><label>2. કામનું નામ</label><input id="dWorkTxt" oninput="liveMbBill()" placeholder="નવું કામ લખો"></div>
             <div class="head site-l3">
               <div class="field"><label>3. Grant Head</label>
                 <select id="dGrant" onchange="onSiteGrant();liveMbBill()"><option value="">— પસંદ —</option></select>
@@ -1077,6 +1079,8 @@
               <div class="field"><label>5. AAE નામ</label><input id="dAAE" placeholder="નામ"></div>
               <div class="field"><label>Agency</label><input id="dContractor" placeholder="નામ"></div>
             </div>
+            <div class="field" id="wrapWorkSel"><label>2. કામનું નામ</label><select id="dWork" onchange="pickSiteWork();liveMbBill()"><option value="">— કામ પસંદ —</option></select></div>
+            <div class="field hidden" id="wrapWorkTxt"><label>2. કામનું નામ</label><input id="dWorkTxt" oninput="liveMbBill()" placeholder="નવું કામ લખો"></div>
           </div>
           <div class="work">
             <p class="muted" style="margin:0 0 8px">વર્કિંગ સ્પેસ — ખાલી માપ લખો</p>
@@ -1096,7 +1100,7 @@
               <button type="button" class="btn btn-s hidden" id="btnKachu" onclick="showKachu()">📄 કાચું બિલ Excel</button>
               <button type="button" class="btn btn-s hidden" id="btnKachuPdf" onclick="pdfKachu()">📄 કાચું બીલ PDF</button>
             </div>
-            <div class="actions" style="margin-top:6px">
+            <div class="actions" id="siteMediaBtns" style="margin-top:6px">
               <button type="button" class="btn btn-s" onclick="togglePlan()">Site Plan</button>
               <button type="button" class="btn btn-s" onclick="takeSitePhoto()">Photo</button>
               <button type="button" class="btn btn-g" onclick="saveSiteOnly()">Save</button>
@@ -1255,12 +1259,12 @@
       <div class="field"><label>DEE પેટા વિભાગ</label><input id="billSub"></div>
       <div class="bill-r2 span2">
         <div class="field"><label>4. AAE નામ</label><input id="billAAE"></div>
-        <div class="field"><label>Work order Details & Date:</label><input id="billWO" placeholder="વશી / તારીખ"></div>
+        <div class="field"><label>કામ કરવાનો હુકમ અને તારીખ</label><input id="billWO" autocomplete="off" placeholder=""></div>
       </div>
       <div class="span2 bill-r5">
         <div class="field"><label>5. TS Details</label><input id="billTS"></div>
         <div class="field"><label>TS Amount</label><input id="billTSAmt" type="number" oninput="liveBill()"></div>
-        <div class="field"><label>AS Details & Date:</label><input id="billASDet" placeholder="હુકમ / તારીખ"></div>
+        <div class="field"><label>વહીવટી મંજૂરી હુકમ અને તારીખ</label><input id="billASDet" autocomplete="off" placeholder=""></div>
         <div class="field"><label>AS Amount</label><input id="billAmt" type="number" oninput="liveBill()"></div>
       </div>
       <div class="bill-r2 span2">
@@ -1292,7 +1296,7 @@
           </div>
           <div id="gpVigat" class="hidden"></div>
         </div>
-        <div id="liveBillBox" class="card" style="background:#fff;color:#111;min-height:220px"></div>
+        <div id="liveBillBox" class="card"></div>
       </div>
       <div class="actions span2">
         <button class="btn btn-g dl" onclick="genBillPaver('xlsx')">📄 Excel</button>
@@ -1834,13 +1838,14 @@
     const ww=document.getElementById("billWorkWrap");
     if(ww) ww.style.display = n===3 ? "" : "none";
     fillBillGrantSelects();
-    ["billWork","billGrant","billYear","billGrantOther","billGam","billTal","billSub","billAAE","billWO","billTS","billTSAmt","billAmt","billStart","billDate","billNo","billPg1","billPg2","billQ1","billQ2","billQ3","billQ4","billQ5","billQ6"].forEach(function(id){
+    ["billWork","billGrant","billYear","billGrantOther","billGam","billTal","billSub","billAAE","billWO","billASDet","billTS","billTSAmt","billAmt","billStart","billDate","billNo","billPg1","billPg2","billQ1","billQ2","billQ3","billQ4","billQ5","billQ6"].forEach(function(id){
       const e=document.getElementById(id); if(e) e.value="";
     });
     const pk=document.getElementById("billPick");
     if(pk) pk.value="";
     fillBillPick();
     liveBill();
+    renderBillList();
   }
   function fillBillPick(){
     const sel=document.getElementById("billPick");
@@ -1933,6 +1938,8 @@
     if(bt && kind) bt.value=kind;
     if(typeof syncBillQtyLabels==="function") syncBillQtyLabels(true);
     set("billAmt", it.amounting||it.amount||it.ts_amount||"");
+    const wo=document.getElementById("billWO"); if(wo) wo.value="";
+    const asd=document.getElementById("billASDet"); if(asd) asd.value="";
     const L=Number(it.length_m||it.L||0), W=Number(it.width_m||it.W||0), area=Number(it.area||0)||(L*W);
     const meta=metaFor(it.work_name||"");
     set("billGam", it.village||it.gam||meta.village||(diaryEst&&diaryEst.village)||"");
@@ -2010,6 +2017,36 @@
     all.unshift(rec);
     localStorage.setItem(localBillKey(), JSON.stringify(all.slice(0,100)));
     renderLetterBills();
+    renderBillList();
+  }
+  function renderBillList(){
+    const el=document.getElementById("billList");
+    if(!el) return;
+    const base=(typeof API!=="undefined"?API:"");
+    fetch(base+"/api/db/bills").then(function(r){return r.json();}).then(function(d){
+      const remote=(d&&d.items)||[];
+      const rows=remote.length?remote:loadLocalBills();
+      el._rows=rows;
+      el.innerHTML=rows.length?rows.slice(0,40).map(function(b,i){
+        const day=String(b.day||b.ts||"").slice(0,10);
+        return "<div class='work-row'><span>"+day+" · "+(b.type||"")+" · "+(b.work_name||"")+" · ₹ "+Number(b.net||b.amounting||0).toLocaleString("en-IN")+"</span><button type='button' class='btn btn-w' data-bdel='"+i+"' title='ડિલીટ'>🗑</button></div>";
+      }).join(""):"<div>હજુ બિલ નથી</div>";
+      el.querySelectorAll("[data-bdel]").forEach(function(btn){
+        btn.onclick=function(ev){
+          ev.stopPropagation();
+          const b=el._rows[+this.dataset.bdel];
+          if(!b||!confirm("આ બિલ ડિલીટ કરો?")) return;
+          const left=loadLocalBills().filter(function(x){
+            return !((x.work_name||"")===(b.work_name||"") && String(x.mb_no||"")===String(b.mb_no||"") && String(x.ts||x.day||"").slice(0,10)===String(b.ts||b.day||"").slice(0,10));
+          });
+          localStorage.setItem(localBillKey(), JSON.stringify(left));
+          const done=function(){ renderBillList(); if(typeof renderLetterBills==="function") renderLetterBills(); };
+          if(b.id){
+            fetch(base+"/api/db/bills/delete",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({id:b.id})}).then(done).catch(done);
+          } else done();
+        };
+      });
+    }).catch(function(){ el.textContent="બિલ યાદી ન આવી"; });
   }
   function todayStr(){
     const n=new Date();
@@ -2313,15 +2350,15 @@ function onLetterDate(){
     const gp=billKind()==="gutter"||billKind()==="pipe";
     const cat=gp?gpLines().map(function(r){return [r.item, r.desc, r.rate, r.qty];}):billItems().map(function(r,i){return [String(i+1), r[1], r[2], Number((document.getElementById("billQ"+(i+1))||{}).value||0)];});
     let sub=0;
-    let h="<b>બિલ — લાઈવ</b><table class='mb-live'><thead><tr><th>Item</th><th>Description</th><th>Rate</th><th>Amount</th></tr></thead><tbody>";
+    let h="<b>બિલ — લાઈવ</b><table class='mb-live'><thead><tr><th>Sr</th><th>Item</th><th>Qty</th><th>Rate</th><th>Amount</th></tr></thead><tbody>";
     cat.forEach(function(r){
       const amt=Number(r[3]||0)*Number(r[2]||0);
       sub+=amt;
-      h+="<tr><td>"+r[0]+"</td><td>"+r[1]+"</td><td>"+r[2]+"</td><td>₹ "+Math.round(amt).toLocaleString("en-IN")+"</td></tr>";
+      h+="<tr><td>"+r[0]+"</td><td>"+r[1]+"</td><td>"+Number(r[3]||0).toFixed(2)+"</td><td>"+r[2]+"</td><td>₹ "+Math.round(amt).toLocaleString("en-IN")+"</td></tr>";
     });
     const gst=sub*0.18, tot=Math.floor(sub+gst);
-    h+="<tr><td colspan='3'>+18% GST</td><td>₹ "+Math.round(gst).toLocaleString("en-IN")+"</td></tr>";
-    h+="<tr class='net'><td colspan='3'>ચોખ્ખી</td><td>₹ "+tot.toLocaleString("en-IN")+"</td></tr>";
+    h+="<tr><td colspan='4'>+18% GST</td><td>₹ "+Math.round(gst).toLocaleString("en-IN")+"</td></tr>";
+    h+="<tr class='net'><td colspan='4'>ચોખ્ખી</td><td>₹ "+tot.toLocaleString("en-IN")+"</td></tr>";
     h+="</tbody></table>";
     box.innerHTML=h;
   }
@@ -2890,11 +2927,39 @@ function onLetterDate(){
     const est=Number((document.getElementById("dAmtIn")||{}).value||0);
     return {items,sub,gst,tot,net,est,area};
   }
+  function gpSiteItems(kind){
+    const rows=[];
+    const push=function(sr,name,qty,rate){ rows.push([sr+" "+name, Number(qty||0), rate, Number(qty||0)*rate]); };
+    let exc=0;
+    DIARY.forEach(function(s){ exc += parseMix(s.l)*parseMix(s.w)*parseMix(s.d); });
+    if(kind==="pipe"){
+      push("1","Demolition",0,202.2);
+      push("2","Excavation",exc,89);
+      GPDIA.pipe.forEach(function(d,i){ push("3("+(i+1)+")","PVC "+d.d+" mm",0,d.p); });
+      GPDIA.pipe.forEach(function(d,i){ push("4("+(i+1)+")","Laying "+d.d+" mm",0,d.l); });
+      push("5","Refilling",0,22);
+      push("6","Name Plate",0,306.14);
+    } else {
+      push("1","Demolition",0,1030.81);
+      push("2","Excavation",exc,89);
+      GPDIA.gutter.forEach(function(d,i){ push("3("+(i+1)+")","NP2 "+d.d+" mm",0,d.p); });
+      GPDIA.gutter.forEach(function(d,i){ push("4("+(i+1)+")","Laying "+d.d+" mm",0,d.l); });
+      GPCH.forEach(function(c,i){ push("5("+(i+1)+")","Chamber "+c.t,0,c.r); });
+      push("6","Refilling",0,22);
+      push("7(1)","M.H. Frame",0,1121);
+      push("7(2)","M.H. Cover",0,1173);
+      push("8","New C.C. 1:2:4",0,3652.31);
+      push("9","Name Plate",0,306.14);
+    }
+    let sub=0;
+    rows.forEach(function(it){ sub+=it[3]; });
+    return {items:rows, gst:sub*0.18, tot:sub*1.18};
+  }
   function liveMbBill(){
     const box=document.getElementById("dBill");
     if(!box) return;
-    const paver=diaryType()==="paver";
-    const x=paver?mbPaverTotals():mbCcTotals();
+    const kind=diaryType();
+    const x=(kind==="gutter"||kind==="pipe")?gpSiteItems(kind):(kind==="paver"?mbPaverTotals():mbCcTotals());
     const items=x.items||[];
     let h="<table class='mb-live'><thead><tr><th>આઇટમ</th><th>Qty</th><th>Rate</th><th>Amount</th></tr></thead><tbody>";
     items.forEach(function(it){
@@ -3066,7 +3131,13 @@ function onLetterDate(){
     window._diaryOpenKey=key;
     diaryEst = est || null;
     wrap.classList.remove("hidden");
-    document.getElementById("dDate").value = new Date().toISOString().slice(0,10);
+    (function(){
+      const today=new Date().toISOString().slice(0,10);
+      const m=est?metaFor(est.work_name||""):{};
+      const saved=(est&&(est.meas_date||m.meas_date))||"";
+      const fromSave=est&&(est.rows||est.meas_date);
+      document.getElementById("dDate").value = fromSave ? String(saved||est.ts||today).slice(0,10) : today;
+    })();
     (function(){
       const wsel=document.getElementById("dWork");
       if(!wsel) return;
@@ -3093,7 +3164,7 @@ function onLetterDate(){
     (function(){
       const work=(est && est.work_name)||"";
       const m=metaFor(work)||{};
-      const set=function(id,v){ const e=document.getElementById(id); if(e && v && !e.value) e.value=v; };
+      const set=function(id,v){ const e=document.getElementById(id); if(e && v!=null && v!=="") e.value=v; };
       set("dTaluka", (est&&est.taluka)||m.taluka);
       set("dContractor", (est&&est.contractor)||m.contractor);
       applySiteGrant((est&&(est.fund_head||est.grant))||m.grant||"");
@@ -3108,6 +3179,7 @@ function onLetterDate(){
     const kb0=document.getElementById("kachuBox");
     if (kb0) kb0.classList.add("hidden");
     renderDiaryRows();
+    if (est) setTimeout(function(){ const map=document.getElementById("dRows"); if(map) map.scrollIntoView({behavior:"smooth", block:"nearest"}); }, 50);
     if (est && (est.work_name || est.id)) {
       const q = est.id ? ("id="+encodeURIComponent(est.id)) : ("work="+encodeURIComponent(est.work_name||""));
       fetch(API+"/api/db/bundle?"+q).then(function(r){return r.json();}).then(function(b){
@@ -3288,7 +3360,8 @@ function onLetterDate(){
       test_qty:Number((document.getElementById("kTest")||{}).value||0),
       plate:Number((document.getElementById("kPlate")||{}).value||0),
       cc_t:ccThick(),
-      rows:DIARY
+      rows:DIARY,
+      meas_date:(document.getElementById("dDate")||{}).value||""
     });
     fetch(API+"/api/db/site",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
       type:type, work_name:siteWorkName(),
@@ -3314,6 +3387,10 @@ function onLetterDate(){
     saveSitePayload(type, estAmt, area, L, W, false);
     alert("માપ સેવ થયું");
   }
+  function siteSavedMode(on){
+    const box=document.getElementById("siteMediaBtns");
+    if(box) box.classList.toggle("hidden", !!on);
+  }
   function siteTab(which){
     ["st1","st2","st3"].forEach(function(id){
       const b=document.getElementById(id);
@@ -3324,9 +3401,9 @@ function onLetterDate(){
     const wrap=document.getElementById("diaryWrap");
     if (ong) ong.classList.toggle("hidden", which!=="ong");
     if (done) done.classList.toggle("hidden", which!=="done");
-    if (which==="new") { if (ong) ong.classList.add("hidden"); if (done) done.classList.add("hidden"); siteWorkMode("new"); openDiary(null); }
+    if (which==="new") { if (ong) ong.classList.add("hidden"); if (done) done.classList.add("hidden"); siteWorkMode("new"); siteSavedMode(false); openDiary(null); }
     else if (wrap && which!=="new") { /* keep diary if already open */ }
-    if (which==="ong") { siteWorkMode("ong"); renderSiteList(); openDiary(null); }
+    if (which==="ong") { siteWorkMode("ong"); siteSavedMode(false); renderSiteList(); openDiary(null); }
     if (which==="done") renderDoneList();
   }
   function renderDoneList(){
@@ -3364,8 +3441,10 @@ function onLetterDate(){
           openDiary({
             id:s.estimate_id||s.id, work_name:s.work_name, amounting:s.amounting, type:s.type,
             taluka:s.taluka||"", village:s.village||"",
-            fund_head:s.fund_head||s.grant||"", contractor:s.contractor||""
+            fund_head:s.fund_head||s.grant||s.grant_head||"", contractor:s.contractor||"",
+            rows:s.rows||[], ts:s.ts||"", meas_date:s.meas_date||""
           });
+          siteSavedMode(true);
         };
       });
       el.querySelectorAll("[data-del]").forEach(function(b){
