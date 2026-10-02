@@ -1063,6 +1063,8 @@
               <div class="field"><label>ગામ</label><input id="dGam" oninput="liveMbBill()"></div>
               <div class="field"><label>તાલુકો</label><input id="dTaluka" oninput="liveMbBill()"></div>
             </div>
+            <div class="field" id="wrapWorkSel"><label>2. કામનું નામ</label><select id="dWork" onchange="pickSiteWork();liveMbBill()"><option value="">— કામ પસંદ —</option></select></div>
+            <div class="field hidden" id="wrapWorkTxt"><label>2. કામનું નામ</label><input id="dWorkTxt" oninput="liveMbBill()" placeholder="નવું કામ લખો"></div>
             <div class="head site-l3">
               <div class="field"><label>3. Grant Head</label>
                 <select id="dGrant" onchange="onSiteGrant();liveMbBill()"><option value="">— પસંદ —</option></select>
@@ -1077,11 +1079,9 @@
               <input id="dGrantOther">
             </div>
             <div class="head site-l4">
-              <div class="field"><label>5. AAE નામ</label><input id="dAAE" placeholder="નામ"></div>
+              <div class="field"><label>4. AAE નામ</label><input id="dAAE" placeholder="નામ"></div>
               <div class="field"><label>Agency</label><input id="dContractor" placeholder="નામ"></div>
             </div>
-            <div class="field" id="wrapWorkSel"><label>2. કામનું નામ</label><select id="dWork" onchange="pickSiteWork();liveMbBill()"><option value="">— કામ પસંદ —</option></select></div>
-            <div class="field hidden" id="wrapWorkTxt"><label>2. કામનું નામ</label><input id="dWorkTxt" oninput="liveMbBill()" placeholder="નવું કામ લખો"></div>
           </div>
           <div class="work">
             <p class="muted" style="margin:0 0 8px">વર્કિંગ સ્પેસ — ખાલી માપ લખો</p>
@@ -2215,10 +2215,19 @@ function onLetterDate(){
     const rows=[];
     rows.push({item:"1", desc:"Demolition", qty:Number(GPNUM.demo||0), rate:kind==="pipe"?202.2:1030.81});
     rows.push({item:"2", desc:"Excavation", qty:Number(GPNUM.exc||0), rate:89});
-    dias.forEach(function(d,i){ rows.push({item:"3("+(i+1)+")", desc:(kind==="pipe"?"PVC ":"NP2 ")+d.d+" mm", qty:gpSumDia(kind,d.d), rate:d.p}); });
-    dias.forEach(function(d,i){ rows.push({item:"4("+(i+1)+")", desc:"Laying "+d.d+" mm", qty:gpSumDia(kind,d.d), rate:d.l}); });
+    dias.forEach(function(d,i){
+      const q=gpSumDia(kind,d.d);
+      if(q>0) rows.push({item:"3("+(i+1)+")", desc:(kind==="pipe"?"PVC ":"NP2 ")+d.d+" mm", qty:q, rate:d.p});
+    });
+    dias.forEach(function(d,i){
+      const q=gpSumDia(kind,d.d);
+      if(q>0) rows.push({item:"4("+(i+1)+")", desc:"Laying "+d.d+" mm", qty:q, rate:d.l});
+    });
     if(kind==="gutter"){
-      GPCH.forEach(function(c,i){ rows.push({item:"5("+(i+1)+")", desc:"Chamber "+c.t, qty:gpCh(c.k), rate:c.r}); });
+      GPCH.forEach(function(c,i){
+        const q=gpCh(c.k);
+        if(q>0) rows.push({item:"5("+(i+1)+")", desc:"Chamber "+c.t, qty:q, rate:c.r});
+      });
       rows.push({item:"6", desc:"Refilling", qty:Number(GPNUM.refill||0), rate:22});
       const tot=gpChTot();
       rows.push({item:"7(1)", desc:"M.H. Frame", qty:tot, rate:1121});
@@ -2981,16 +2990,16 @@ function onLetterDate(){
     if(kind==="pipe"){
       push("1","Demolition",demo,202.2);
       push("2","Excavation",exc,89);
-      dias.forEach(function(d,i){ push("3("+(i+1)+")","PVC "+d.d+" mm", byDia[d.d]||0, d.p); });
-      dias.forEach(function(d,i){ push("4("+(i+1)+")","Laying "+d.d+" mm", byDia[d.d]||0, d.l); });
+      dias.forEach(function(d,i){ if((byDia[d.d]||0)>0) push("3("+(i+1)+")","PVC "+d.d+" mm", byDia[d.d], d.p); });
+      dias.forEach(function(d,i){ if((byDia[d.d]||0)>0) push("4("+(i+1)+")","Laying "+d.d+" mm", byDia[d.d], d.l); });
       push("5","Refilling",exc,22);
       push("6","Name Plate",plate,306.14);
     } else {
       push("1","Demolition",demo,1030.81);
       push("2","Excavation",exc,89);
-      dias.forEach(function(d,i){ push("3("+(i+1)+")","NP2 "+d.d+" mm", byDia[d.d]||0, d.p); });
-      dias.forEach(function(d,i){ push("4("+(i+1)+")","Laying "+d.d+" mm", byDia[d.d]||0, d.l); });
-      (typeof GPCH!=="undefined"?GPCH:[]).forEach(function(c,i){ push("5("+(i+1)+")","Chamber "+c.t, chMap[c.k]||0, c.r); });
+      dias.forEach(function(d,i){ if((byDia[d.d]||0)>0) push("3("+(i+1)+")","NP2 "+d.d+" mm", byDia[d.d], d.p); });
+      dias.forEach(function(d,i){ if((byDia[d.d]||0)>0) push("4("+(i+1)+")","Laying "+d.d+" mm", byDia[d.d], d.l); });
+      (typeof GPCH!=="undefined"?GPCH:[]).forEach(function(c,i){ if((chMap[c.k]||0)>0) push("5("+(i+1)+")","Chamber "+c.t, chMap[c.k], c.r); });
       push("6","Refilling",exc,22);
       push("7(1)","M.H. Frame",chTot,1121);
       push("7(2)","M.H. Cover",chTot,1173);
