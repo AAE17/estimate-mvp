@@ -1173,6 +1173,93 @@ app.post("/api/db/bills/delete", async (req, res) => {
   } catch (e) { console.error(e.message); }
   res.json({ ok: true });
 });
+app.get("/api/db/tour", async (req, res) => {
+  try {
+    if (!sbOn()) return res.json({ ok: true, items: [] });
+    const email = String((req.query && req.query.email) || "").trim();
+    let url = SB_URL + "/rest/v1/tour_days?select=*&order=day.desc&limit=400";
+    if (email) url += "&email=eq." + encodeURIComponent(email);
+    const r = await fetch(url, {
+      headers: { apikey: SB_KEY, Authorization: "Bearer " + SB_KEY }
+    });
+    if (!r.ok) throw new Error(await r.text());
+    res.json({ ok: true, items: await r.json() });
+  } catch (e) {
+    res.json({ ok: false, items: [], error: String(e.message || e) });
+  }
+});
+app.post("/api/db/tour", async (req, res) => {
+  try {
+    if (!sbOn()) return res.json({ ok: false, error: "no supabase" });
+    const b = req.body || {};
+    const row = {
+      email: String(b.email || "").trim() || "shared",
+      day: String(b.day || "").slice(0, 10),
+      act: b.act || "none",
+      note: b.note || "",
+      meet: b.meet || "",
+      time_from: b.time_from || "",
+      time_to: b.time_to || "",
+      leave_type: b.leave_type || ""
+    };
+    if (!row.day) return res.json({ ok: false, error: "તારીખ નથી" });
+    const r = await fetch(SB_URL + "/rest/v1/tour_days?on_conflict=email,day", {
+      method: "POST",
+      headers: {
+        apikey: SB_KEY,
+        Authorization: "Bearer " + SB_KEY,
+        "Content-Type": "application/json",
+        Prefer: "resolution=merge-duplicates,return=minimal"
+      },
+      body: JSON.stringify(row)
+    });
+    if (!r.ok) throw new Error(await r.text());
+    res.json({ ok: true });
+  } catch (e) {
+    res.json({ ok: false, error: String(e.message || e) });
+  }
+});
+app.get("/api/db/tour-profile", async (req, res) => {
+  try {
+    if (!sbOn()) return res.json({ ok: true, item: null });
+    const email = String((req.query && req.query.email) || "").trim();
+    if (!email) return res.json({ ok: true, item: null });
+    const url = SB_URL + "/rest/v1/tour_profile?select=*&email=eq." + encodeURIComponent(email) + "&limit=1";
+    const r = await fetch(url, { headers: { apikey: SB_KEY, Authorization: "Bearer " + SB_KEY } });
+    if (!r.ok) throw new Error(await r.text());
+    const rows = await r.json();
+    res.json({ ok: true, item: rows[0] || null });
+  } catch (e) {
+    res.json({ ok: false, item: null, error: String(e.message || e) });
+  }
+});
+app.post("/api/db/tour-profile", async (req, res) => {
+  try {
+    if (!sbOn()) return res.json({ ok: false, error: "no supabase" });
+    const b = req.body || {};
+    const row = {
+      email: String(b.email || "").trim() || "shared",
+      name: b.name || "",
+      office: b.office || "",
+      mobile: b.mobile || "",
+      leave: b.leave || {}
+    };
+    const r = await fetch(SB_URL + "/rest/v1/tour_profile?on_conflict=email", {
+      method: "POST",
+      headers: {
+        apikey: SB_KEY,
+        Authorization: "Bearer " + SB_KEY,
+        "Content-Type": "application/json",
+        Prefer: "resolution=merge-duplicates,return=minimal"
+      },
+      body: JSON.stringify(row)
+    });
+    if (!r.ok) throw new Error(await r.text());
+    res.json({ ok: true });
+  } catch (e) {
+    res.json({ ok: false, error: String(e.message || e) });
+  }
+});
 app.get("/api/db/estimates", async (_req, res) => {
   const local = dbRead(DB_EST, 200);
   try {
