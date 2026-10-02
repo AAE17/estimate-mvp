@@ -1204,12 +1204,12 @@
           <div id="tdLeave" class="td-sub">
             <table class="td-list" style="display:table;width:100%">
               <tr><th></th><th>પ્રકાર</th><th>કુલ</th><th>વપરાયેલ</th><th>બાકી</th></tr>
-              <tr><td><input type="radio" name="tdLv" value="CL"></td><td>CL પરચુરણ</td><td>15</td><td>4</td><td>11</td></tr>
-              <tr><td><input type="radio" name="tdLv" value="RH"></td><td>RH મરજિયાત</td><td>2</td><td>1</td><td>1</td></tr>
-              <tr><td><input type="radio" name="tdLv" value="EL"></td><td>EL હકની</td><td>300</td><td>45</td><td>255</td></tr>
-              <tr><td><input type="radio" name="tdLv" value="HPL"></td><td>HPL અર્ધ પગાર</td><td>-</td><td>-</td><td>-</td></tr>
-              <tr><td><input type="radio" name="tdLv" value="CML"></td><td>Commuted Leave</td><td>-</td><td>-</td><td>-</td></tr>
-              <tr><td><input type="radio" name="tdLv" value="PH"></td><td>Public Holiday</td><td>-</td><td>-</td><td>-</td></tr>
+              <tr><td><input type="radio" name="tdLv" value="CL"></td><td>CL પરચુરણ</td><td><input id="lv_CL_t" value="15" inputmode="decimal" style="width:58px" oninput="lvBal('CL')"></td><td><input id="lv_CL_u" value="4" inputmode="decimal" style="width:58px" oninput="lvBal('CL')"></td><td><input id="lv_CL_b" value="11" inputmode="decimal" style="width:58px"></td></tr>
+              <tr><td><input type="radio" name="tdLv" value="RH"></td><td>RH મરજિયાત</td><td><input id="lv_RH_t" value="2" inputmode="decimal" style="width:58px" oninput="lvBal('RH')"></td><td><input id="lv_RH_u" value="1" inputmode="decimal" style="width:58px" oninput="lvBal('RH')"></td><td><input id="lv_RH_b" value="1" inputmode="decimal" style="width:58px"></td></tr>
+              <tr><td><input type="radio" name="tdLv" value="EL"></td><td>EL હકની</td><td><input id="lv_EL_t" value="300" inputmode="decimal" style="width:58px" oninput="lvBal('EL')"></td><td><input id="lv_EL_u" value="45" inputmode="decimal" style="width:58px" oninput="lvBal('EL')"></td><td><input id="lv_EL_b" value="255" inputmode="decimal" style="width:58px"></td></tr>
+              <tr><td><input type="radio" name="tdLv" value="HPL"></td><td>HPL અર્ધ પગાર</td><td><input id="lv_HPL_t" value="" inputmode="decimal" style="width:58px" oninput="lvBal('HPL')"></td><td><input id="lv_HPL_u" value="" inputmode="decimal" style="width:58px" oninput="lvBal('HPL')"></td><td><input id="lv_HPL_b" value="" inputmode="decimal" style="width:58px"></td></tr>
+              <tr><td><input type="radio" name="tdLv" value="CML"></td><td>Commuted Leave</td><td><input id="lv_CML_t" value="" inputmode="decimal" style="width:58px" oninput="lvBal('CML')"></td><td><input id="lv_CML_u" value="" inputmode="decimal" style="width:58px" oninput="lvBal('CML')"></td><td><input id="lv_CML_b" value="" inputmode="decimal" style="width:58px"></td></tr>
+              <tr><td><input type="radio" name="tdLv" value="PH"></td><td>Public Holiday</td><td><input id="lv_PH_t" value="" inputmode="decimal" style="width:58px" oninput="lvBal('PH')"></td><td><input id="lv_PH_u" value="" inputmode="decimal" style="width:58px" oninput="lvBal('PH')"></td><td><input id="lv_PH_b" value="" inputmode="decimal" style="width:58px"></td></tr>
             </table>
           </div>
           <button type="button" class="btn btn-g" style="width:100%;margin-top:8px" onclick="saveTourNote()">Save Daily Entry</button>
@@ -2571,7 +2571,7 @@ function onLetterDate(){
 
 
   let tourYM = {y:2026,m:9};
-  function openTour(){ show("s-tour"); tourPage("cover"); }
+  function openTour(){ show("s-tour"); tourPage("cover"); loadTourRemote(); }
   function tourPage(which){
     const p=document.getElementById("tourPerson");
     if(p) p.classList.toggle("hidden", which!=="person");
@@ -2593,6 +2593,65 @@ function onLetterDate(){
     p.email=(document.getElementById("tdEmail")||{}).value||"";
     localStorage.setItem("copilot_profile", JSON.stringify(p));
     const box=document.getElementById("tourPerson"); if(box) box.classList.add("hidden");
+    saveTourProfile();
+  }
+  var LEAVE_KEYS=["CL","RH","EL","HPL","CML","PH"];
+  function lvBal(k){
+    const t=document.getElementById("lv_"+k+"_t");
+    const u=document.getElementById("lv_"+k+"_u");
+    const b=document.getElementById("lv_"+k+"_b");
+    if(!t||!u||!b) return;
+    if(t.value===""||u.value==="") return;
+    const n=Number(t.value)-Number(u.value);
+    if(!isNaN(n)) b.value=String(n);
+  }
+  function leavePack(){
+    const o={};
+    LEAVE_KEYS.forEach(function(k){
+      o[k]={
+        total:(document.getElementById("lv_"+k+"_t")||{}).value||"",
+        used:(document.getElementById("lv_"+k+"_u")||{}).value||"",
+        bal:(document.getElementById("lv_"+k+"_b")||{}).value||""
+      };
+    });
+    return o;
+  }
+  function leaveFill(o){
+    if(!o||typeof o!=="object") return;
+    LEAVE_KEYS.forEach(function(k){
+      const x=o[k]||{};
+      const t=document.getElementById("lv_"+k+"_t");
+      const u=document.getElementById("lv_"+k+"_u");
+      const b=document.getElementById("lv_"+k+"_b");
+      if(t&&x.total!=null) t.value=x.total;
+      if(u&&x.used!=null) u.value=x.used;
+      if(b&&x.bal!=null) b.value=x.bal;
+    });
+  }
+  function saveTourProfile(){
+    const email=tourEmail()||((document.getElementById("tdEmail")||{}).value||"")||"shared";
+    const body={
+      email:email,
+      name:(document.getElementById("tdName")||{}).value||"",
+      office:(document.getElementById("tdOffice")||{}).value||"",
+      mobile:(document.getElementById("tdMobile")||{}).value||"",
+      leave:leavePack()
+    };
+    try{ localStorage.setItem("copilot_leave", JSON.stringify(body.leave)); }catch(e){}
+    return fetch(API+"/api/db/tour-profile",{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify(body)
+    }).then(function(r){return r.json();});
+  }
+  function fillTourProfile(row){
+    if(!row) return;
+    const set=function(id,v){ const e=document.getElementById(id); if(e&&v) e.value=v; };
+    set("tdName", row.name);
+    set("tdOffice", row.office);
+    set("tdMobile", row.mobile);
+    if(typeof row.leave==="string"){ try{ row.leave=JSON.parse(row.leave); }catch(e){ row.leave=null; } }
+    if(row.leave) leaveFill(row.leave);
   }
   function tourShift(d){
     tourYM.m += d;
@@ -2601,6 +2660,36 @@ function onLetterDate(){
     renderTourMonth();
   }
   function tourDays(){ try{ return JSON.parse(localStorage.getItem("copilot_tour_days")||"{}"); }catch(e){ return {}; } }
+  var TOUR_REMOTE={est:null,bills:null,days:null};
+  function tourEmail(){
+    try{ return (JSON.parse(localStorage.getItem("copilot_profile")||"{}").email)||""; }
+    catch(e){ return ""; }
+  }
+  function tourMergedDays(){
+    return Object.assign({}, tourDays(), TOUR_REMOTE.days||{});
+  }
+  function loadTourRemote(){
+    const email=tourEmail()||"shared";
+    Promise.all([
+      fetch(API+"/api/db/estimates").then(function(r){return r.json();}).catch(function(){return {};}),
+      fetch(API+"/api/db/bills").then(function(r){return r.json();}).catch(function(){return {};}),
+      fetch(API+"/api/db/tour?email="+encodeURIComponent(email)).then(function(r){return r.json();}).catch(function(){return {};}),
+      fetch(API+"/api/db/tour-profile?email="+encodeURIComponent(email)).then(function(r){return r.json();}).catch(function(){return {};})
+    ]).then(function(all){
+      if(Array.isArray(all[0].items)) TOUR_REMOTE.est=all[0].items;
+      if(Array.isArray(all[1].items)) TOUR_REMOTE.bills=all[1].items;
+      const days={};
+      (all[2].items||[]).forEach(function(x){
+        const ds=String(x.day||"").slice(0,10);
+        if(!ds) return;
+        days[ds]={saved:true, act:x.act||"none", note:x.note||"", meet:x.meet||"", from:x.time_from||"", to:x.time_to||"", leave:x.leave_type||""};
+      });
+      TOUR_REMOTE.days=days;
+      if(all[3]&&all[3].item) fillTourProfile(all[3].item);
+      renderTourMonth();
+      if(window._tourDs) openTourDay(window._tourDs);
+    });
+  }
   function tdToggle(id){
     const el=document.getElementById(id); if(!el) return;
     el.classList.toggle("on");
@@ -2660,9 +2749,9 @@ function onLetterDate(){
     return String(x.date||x.ts||x.created_at||x.bill_date||"").slice(0,10);
   }
   function tourPack(){
-    const est=typeof loadLocalEst==="function"?loadLocalEst():[];
-    const bills=typeof loadLocalBills==="function"?loadLocalBills():[];
-    return {est:est, bills:bills, days:tourDays()};
+    const est=TOUR_REMOTE.est || (typeof loadLocalEst==="function"?loadLocalEst():[]);
+    const bills=TOUR_REMOTE.bills || (typeof loadLocalBills==="function"?loadLocalBills():[]);
+    return {est:est, bills:bills, days:tourMergedDays()};
   }
   function renderTourMonth(){
     const names=["જાન્યુઆરી","ફેબ્રુઆરી","માર્ચ","એપ્રિલ","મે","જૂન","જુલાઈ","ઑગસ્ટ","સપ્ટેમ્બર","ઑક્ટોબર","નવેમ્બર","ડિસેમ્બર"];
@@ -2744,8 +2833,26 @@ function onLetterDate(){
       leave:lv
     };
     localStorage.setItem("copilot_tour_days", JSON.stringify(days));
+    TOUR_REMOTE.days=Object.assign({}, TOUR_REMOTE.days||{}, {[ds]:days[ds]});
     renderTourMonth();
-    alert("નોંધ સેવ");
+    saveTourProfile().catch(function(){});
+    fetch(API+"/api/db/tour",{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({
+        email:tourEmail()||"shared",
+        day:ds,
+        act:days[ds].act,
+        note:days[ds].note,
+        meet:days[ds].meet,
+        time_from:days[ds].from,
+        time_to:days[ds].to,
+        leave_type:days[ds].leave
+      })
+    }).then(function(r){return r.json();}).then(function(d){
+      if(!d.ok) alert(d.error||"Supabase સેવ ન થયું");
+      else alert("નોંધ સેવ");
+    }).catch(function(){ alert("નોંધ આ ફોનમાં સેવ. Supabase ન થયું"); });
   }
 
   let SEGS = [{l:40,w:3,d:0.1}];
@@ -3954,7 +4061,7 @@ function openTijori(){
     if (c) c.classList.add("hidden");
     if (o) o.classList.remove("hidden");
   }
-  function openTour(){ show("s-tour"); tourPage("cover"); }
+  function openTour(){ show("s-tour"); tourPage("cover"); loadTourRemote(); }
   window.__billMode = 1;
 
   fetch(API + "/api/log", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({kind:"select_" + currentType}) });
@@ -4101,7 +4208,7 @@ function openTijori(){
     if (c) c.classList.add("hidden");
     if (o) o.classList.remove("hidden");
   }
-  function openTour(){ show("s-tour"); tourPage("cover"); }
+  function openTour(){ show("s-tour"); tourPage("cover"); loadTourRemote(); }
   window.__billMode = 1;
 
   fetch(API + "/api/log", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({kind:"blocked_type", type:name}) });
@@ -4793,7 +4900,7 @@ function openTijori(){
     if (c) c.classList.add("hidden");
     if (o) o.classList.remove("hidden");
   }
-  function openTour(){ show("s-tour"); tourPage("cover"); }
+  function openTour(){ show("s-tour"); tourPage("cover"); loadTourRemote(); }
   window.__billMode = 1;
 
   fetch(API + "/api/log", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({kind:"page_open"}) });
