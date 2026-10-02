@@ -567,9 +567,9 @@
     .g-tbl th{background:#eef3ef;padding:5px 6px;text-align:left;font-weight:700}
     .g-tbl td{padding:4px 6px;border-bottom:1px solid #e5e7eb;vertical-align:middle}
     .g-tbl td:first-child{width:28px;text-align:center;font-weight:700}
-    .g-tbl input{width:100%;min-width:0;padding:5px 6px;border:1px solid #d1d5db;border-radius:6px}
-    .g-tbl .pm{display:flex;gap:4px}
-    .g-tbl .pm button{width:28px;height:28px;border:1px solid #c5d0c8;border-radius:6px;background:#fff;font-weight:800;cursor:pointer}
+    .g-tbl input,.g-tbl select{width:100%;min-width:0;padding:5px 6px;border:1px solid #d1d5db;border-radius:6px;background:#fff;font:inherit}
+    .g-tbl .pm{display:flex;gap:4px;width:76px;white-space:nowrap}
+    .g-tbl .pm button{width:32px;height:32px;border:1px solid #c5d0c8;border-radius:8px;background:#fff;font-weight:800;font-size:18px;line-height:1;cursor:pointer;padding:0}
     .g-two{display:grid;grid-template-columns:1.4fr .6fr;gap:12px}
     @media(max-width:700px){.g-two{grid-template-columns:1fr}}
 
@@ -925,14 +925,14 @@
               <div class="g-box">
                 <h4>1 Excavation</h4>
                 <table class="g-tbl" id="gExTable">
-                  <thead><tr><th>Sr No.</th><th>Diameter</th><th>Length</th><th>Width</th><th>Depth</th><th>Qty</th><th></th></tr></thead>
+                  <thead><tr><th>Sr No.</th><th>Diameter</th><th>Length</th><th>Width</th><th>Depth</th><th></th></tr></thead>
                   <tbody id="gExBody"></tbody>
                 </table>
               </div>
               <div class="g-box">
                 <h4>2 Demolition of existing C.C. Road, if needed on site.</h4>
                 <table class="g-tbl">
-                  <thead><tr><th>Sr No.</th><th>Length</th><th>Width</th><th>Thickness</th><th>Qty</th><th></th></tr></thead>
+                  <thead><tr><th>Sr No.</th><th>Length</th><th>Width</th><th>Thickness</th><th></th></tr></thead>
                   <tbody id="gDeBody"></tbody>
                 </table>
               </div>
@@ -941,20 +941,15 @@
               <div class="g-box">
                 <h4>3 Chambers</h4>
                 <table class="g-tbl">
-                  <thead><tr><th>Sr No.</th><th>Size</th><th>Nos.</th></tr></thead>
-                  <tbody>
-                    <tr><td>1</td><td>0.60×0.60</td><td><input id="gCh60" type="number" step="1" value="0" oninput="liveF24()"></td></tr>
-                    <tr><td>2</td><td>0.90×0.90</td><td><input id="gCh90" type="number" step="1" value="0" oninput="liveF24()"></td></tr>
-                    <tr><td>3</td><td>1.30×0.90</td><td><input id="gCh139" type="number" step="1" value="0" oninput="liveF24()"></td></tr>
-                    <tr><td>4</td><td>1.30×1.30</td><td><input id="gCh1313" type="number" step="1" value="0" oninput="liveF24()"></td></tr>
-                  </tbody>
+                  <thead><tr><th>Sr No.</th><th>Size</th><th>Nos.</th><th></th></tr></thead>
+                  <tbody id="gChBody"></tbody>
                 </table>
                 <input id="gPlate" type="hidden" value="1">
               </div>
               <div class="g-box">
                 <h4>4 New C.C. Road</h4>
                 <table class="g-tbl">
-                  <thead><tr><th>Sr No.</th><th>Length</th><th>Width</th><th>Thickness</th><th>Qty</th><th></th></tr></thead>
+                  <thead><tr><th>Sr No.</th><th>Length</th><th>Width</th><th>Thickness</th><th></th></tr></thead>
                   <tbody id="gNrBody"></tbody>
                 </table>
                 <input id="gBedW" type="hidden" value="0.45">
@@ -970,14 +965,14 @@
               <div class="g-box">
                 <h4>1 Excavation</h4>
                 <table class="g-tbl">
-                  <thead><tr><th>Sr No.</th><th>Diameter</th><th>Length</th><th>Width</th><th>Depth</th><th>Qty</th><th></th></tr></thead>
+                  <thead><tr><th>Sr No.</th><th>Diameter</th><th>Length</th><th>Width</th><th>Depth</th><th></th></tr></thead>
                   <tbody id="pExBody"></tbody>
                 </table>
               </div>
               <div class="g-box">
                 <h4>2 Demolition of existing surface, if needed on site.</h4>
                 <table class="g-tbl">
-                  <thead><tr><th>Sr No.</th><th>Length</th><th>Width</th><th>Qty</th><th></th></tr></thead>
+                  <thead><tr><th>Sr No.</th><th>Length</th><th>Width</th><th></th></tr></thead>
                   <tbody id="pDeBody"></tbody>
                 </table>
                 <input id="pPlate" type="hidden" value="1">
@@ -985,7 +980,7 @@
             </div>
           </div>
         </div>
-        <p id="lenHint" class="hidden">લંબાઈ અને પહોળાઈ બદલી શકાય</p>
+        <p id="lenHint" class="hidden">લંબાઈ અને પહોળાઈ સ્થળ સ્થિતિ મુજબ બદલી શકાય છે.</p>
         <div class="field full road-only"><label>સાઇટ વિગત</label>
           <table id="segTable" class="est-lw">
             <thead><tr><th>Sr</th><th>Length</th><th>Width</th><th>Excavation (m)</th><th></th></tr></thead>
@@ -3336,6 +3331,13 @@ function onLetterDate(){
     const titles={cc:"CC Road — એસ્ટિમેટ",paver:"Paver Block — એસ્ટિમેટ",gutter:"Gutter Line — એસ્ટિમેટ",pipe:"Pipe Line — એસ્ટિમેટ"};
     const ft=document.getElementById("formTitle");
     if(ft) ft.textContent=titles[currentType]||"ફોર્મ";
+    const hint=document.getElementById("lenHint");
+    if(hint){
+      if(currentType==="cc"||currentType==="paver"){
+        hint.textContent="લંબાઈ અને પહોળાઈ સ્થળ સ્થિતિ મુજબ બદલી શકાય છે.";
+        hint.classList.remove("hidden");
+      } else hint.classList.add("hidden");
+    }
     document.querySelectorAll(".cc-only").forEach(function(el){ el.classList.toggle("hidden", currentType!=="cc"); });
     document.querySelectorAll(".paver-only").forEach(function(el){ el.classList.toggle("hidden", currentType!=="paver"); });
     document.querySelectorAll(".gutter-only").forEach(function(el){ el.classList.toggle("hidden", currentType!=="gutter"); });
@@ -3681,11 +3683,10 @@ function startScan(camera) {
     renderSegs();
     const hint = document.getElementById("lenHint");
     if (hint) {
-      if (currentType === "gutter") hint.classList.add("hidden");
-      else {
+      if (currentType === "cc" || currentType === "paver") {
         hint.classList.remove("hidden");
-        hint.textContent = "લંબાઈ અને પહોળાઈ બદલી શકાય";
-      }
+        hint.textContent = "લંબાઈ અને પહોળાઈ સ્થળ સ્થિતિ મુજબ બદલી શકાય છે.";
+      } else hint.classList.add("hidden");
     }
     liveF24();
   }
@@ -3837,27 +3838,26 @@ function startScan(camera) {
   function inr(x) { return "₹ " + Number(x || 0).toLocaleString("en-IN", { maximumFractionDigits: 2, minimumFractionDigits: 2 }); }
 
   
-  var PEX=[{dia:63,l:"",w:"0.45",d:"0.90",extra:false},{dia:75,l:"",w:"0.45",d:"0.90",extra:false},{dia:90,l:"",w:"0.45",d:"0.90",extra:false},{dia:110,l:"",w:"0.45",d:"0.90",extra:false}];
+  var PDIAS=[63,75,90,110];
+  var PEX=[{dia:63,l:"",w:"0.45",d:"0.90"}];
   var PDE=[{l:"",w:"0.45"}];
+  function diaSel(list, val, fn, i){
+    return "<select onchange='"+fn+"("+i+",this.value)'>"+list.map(function(d){
+      return "<option value='"+d+"'"+(Number(val)===Number(d)?" selected":"")+">"+d+" mm</option>";
+    }).join("")+"</select>";
+  }
   function renderPipeTables(){
     const body=document.getElementById("pExBody");
     if(!body) return;
-    let sr=0;
-    let exTot=0;
+    if(!PEX.length) PEX=[{dia:63,l:"",w:"0.45",d:"0.90"}];
     body.innerHTML=PEX.map(function(r,i){
-      const extra=!!r.extra;
-      if(!extra) sr++;
-      const num=extra?"":String(sr);
-      const dia=extra?"":(r.dia+" mm");
-      const q=Number(r.l||0)*Number(r.w||0)*Number(r.d||0); exTot+=q;
-      const minus=extra?("<button type=button onclick='pExDel("+i+")'>-</button>"):"";
-      return "<tr><td>"+num+"</td><td>"+dia+"</td>"
+      const minus=PEX.length>1?("<button type=button onclick='pExDel("+i+")'>−</button>"):"";
+      return "<tr><td>"+(i+1)+"</td><td>"+diaSel(PDIAS,r.dia,"pSetDia",i)+"</td>"
         +"<td><input type=number step=0.01 value='"+(r.l||"")+"' oninput='PEX["+i+"].l=this.value;liveF24()'></td>"
         +"<td><input type=number step=0.01 value='"+(r.w||"")+"' oninput='PEX["+i+"].w=this.value;liveF24()'></td>"
         +"<td><input type=number step=0.01 value='"+(r.d||"")+"' oninput='PEX["+i+"].d=this.value;liveF24()'></td>"
-        +"<td class=g-qty>"+(q?q.toFixed(2):"")+"</td>"
-        +"<td class=pm><button type=button onclick='pExAdd("+i+")'>+/−</button>"+minus+"</td></tr>";
-    }).join("")+"<tr class=g-tot><td colspan=5 style=text-align:right>Total Qty</td><td class=g-qty>"+exTot.toFixed(2)+"</td><td>Cmt</td></tr>";
+        +"<td class=pm><button type=button class='pm add' onclick='pExAdd("+i+")'>+</button>"+minus+"</td></tr>";
+    }).join("");
     const db=document.getElementById("pDeBody");
     if(db){
       let deTot=0;
@@ -3867,13 +3867,13 @@ function startScan(camera) {
         return "<tr><td>"+(i+1)+"</td>"
           +"<td><input type=number step=0.01 value='"+(r.l||"")+"' oninput='PDE["+i+"].l=this.value;liveF24()'></td>"
           +"<td><input type=number step=0.01 value='"+(r.w||"0.45")+"' oninput='PDE["+i+"].w=this.value;liveF24()'></td>"
-          +"<td class=g-qty>"+(q?q.toFixed(2):"")+"</td>"
-          +"<td class=pm><button type=button onclick='pDeAdd()'>+/−</button>"+(extra?"<button type=button onclick='pDeDel("+i+")'>-</button>":"")+"</td></tr>";
-      }).join("")+"<tr class=g-tot><td colspan=3 style=text-align:right>Total Qty</td><td class=g-qty>"+deTot.toFixed(2)+"</td><td>Smt</td></tr>";
+          +"<td class=pm><button type=button class='pm add' onclick='pDeAdd()'>+</button>"+(extra?"<button type=button onclick='pDeDel("+i+")'>−</button>":"")+"</td></tr>";
+      }).join("");
     }
   }
-  function pExAdd(i){ const s=PEX[i]; PEX.splice(i+1,0,{dia:s.dia,l:"",w:s.w||"0.45",d:s.d||"0.90",extra:true}); renderPipeTables(); liveF24(); }
-  function pExDel(i){ if(!PEX[i]||!PEX[i].extra) return; PEX.splice(i,1); renderPipeTables(); liveF24(); }
+  function pSetDia(i, dia){ PEX[i].dia=Number(dia); PEX[i].w="0.45"; PEX[i].d="0.90"; renderPipeTables(); liveF24(); }
+  function pExAdd(i){ const s=PEX[i]; PEX.splice(i+1,0,{dia:s.dia,l:"",w:s.w||"0.45",d:s.d||"0.90"}); renderPipeTables(); liveF24(); }
+  function pExDel(i){ if(PEX.length<=1) return; PEX.splice(i,1); renderPipeTables(); liveF24(); }
   function pDeAdd(){ PDE.push({l:"",w:"0.45"}); renderPipeTables(); liveF24(); }
   function pDeDel(i){ if(i===0) return; PDE.splice(i,1); renderPipeTables(); liveF24(); }
   function pipeLive(){
@@ -3888,9 +3888,13 @@ function startScan(camera) {
     return f22 + f22*0.18;
   }
 
-  var GEX=[{dia:225,l:"",w:"0.45",d:"0.825",extra:false},{dia:300,l:"",w:"0.45",d:"0.90",extra:false},{dia:450,l:"",w:"0.75",d:"1.15",extra:false},{dia:600,l:"",w:"0.90",d:"1.35",extra:false},{dia:900,l:"",w:"1.20",d:"1.80",extra:false},{dia:1200,l:"",w:"1.50",d:"2.20",extra:false}];
+  var GDIAS=[225,300,450,600,900,1200];
+  var GEX=[{dia:225,l:"",w:"0.45",d:"0.825"}];
   var GDE=[{l:"",w:"0.45",d:"0.10"}];
   var GNR=[{l:"",w:"0.45",d:"0.10"}];
+  var GSIZE=[{k:"60",t:"0.60×0.60"},{k:"90",t:"0.90×0.90"},{k:"139",t:"1.30×0.90"},{k:"1313",t:"1.30×1.30"}];
+  var GCH=[{k:"60",n:""}];
+  function chNos(k){ return (GCH||[]).filter(function(r){return r.k===k;}).reduce(function(a,r){return a+Number(r.n||0);},0); }
   function gDef(dia){
     const m={225:["0.45","0.825"],300:["0.45","0.90"],450:["0.75","1.15"],600:["0.90","1.35"],900:["1.20","1.80"],1200:["1.50","2.20"]};
     return m[dia]||["0.45","0.10"];
@@ -3898,23 +3902,16 @@ function startScan(camera) {
   function renderGutterTables(){
     const body=document.getElementById("gExBody");
     if(!body) return;
-    let sr=0;
-    let exTot=0;
+    if(!GEX.length) GEX=[{dia:225,l:"",w:"0.45",d:"0.825"}];
     body.innerHTML=GEX.map(function(r,i){
-      const extra=!!r.extra;
-      if(!extra) sr++;
-      const num=extra?"":String(sr);
-      const dia=extra?"":(r.dia+" mm");
-      const q=Number(r.l||0)*Number(r.w||0)*Number(r.d||0); exTot+=q;
-      const minus=extra?("<button type=button onclick='gExDel("+i+")'>-</button>"):"";
+      const minus=GEX.length>1?("<button type=button onclick='gExDel("+i+")'>−</button>"):"";
       return "<tr>"
-        +"<td>"+num+"</td><td>"+dia+"</td>"
+        +"<td>"+(i+1)+"</td><td>"+diaSel(GDIAS,r.dia,"gSetDia",i)+"</td>"
         +"<td><input type=number step=0.01 value='"+(r.l||"")+"' oninput='GEX["+i+"].l=this.value;liveF24()'></td>"
         +"<td><input type=number step=0.01 value='"+(r.w||"")+"' oninput='GEX["+i+"].w=this.value;liveF24()'></td>"
         +"<td><input type=number step=0.01 value='"+(r.d||"")+"' oninput='GEX["+i+"].d=this.value;liveF24()'></td>"
-        +"<td class=g-qty>"+(q?q.toFixed(2):"")+"</td>"
-        +"<td class=pm><button type=button onclick='gExAdd("+i+")'>+/−</button>"+minus+"</td></tr>";
-    }).join("")+"<tr class=g-tot><td colspan=5 style=text-align:right>Total Qty</td><td class=g-qty>"+exTot.toFixed(2)+"</td><td>Cmt</td></tr>";
+        +"<td class=pm><button type=button class='pm add' onclick='gExAdd("+i+")'>+</button>"+minus+"</td></tr>";
+    }).join("");
     const db=document.getElementById("gDeBody");
     if(db){
       let deTot=0;
@@ -3924,9 +3921,8 @@ function startScan(camera) {
           +"<td><input type=number step=0.01 value='"+(r.l||"")+"' oninput='GDE["+i+"].l=this.value;liveF24()'></td>"
           +"<td><input type=number step=0.01 value='"+(r.w||"0.45")+"' oninput='GDE["+i+"].w=this.value;liveF24()'></td>"
           +"<td><input type=number step=0.01 value='"+(r.d||"0.10")+"' oninput='GDE["+i+"].d=this.value;liveF24()'></td>"
-          +"<td class=g-qty>"+(q?q.toFixed(2):"")+"</td>"
-          +"<td class=pm><button type=button onclick='gDeAdd()'>+/−</button>"+(i>0?"<button type=button onclick='gDeDel("+i+")'>-</button>":"")+"</td></tr>";
-      }).join("")+"<tr class=g-tot><td colspan=4 style=text-align:right>Total Qty</td><td class=g-qty>"+deTot.toFixed(2)+"</td><td></td></tr>";
+          +"<td class=pm><button type=button class='pm add' onclick='gDeAdd()'>+</button>"+(i>0?"<button type=button onclick='gDeDel("+i+")'>−</button>":"")+"</td></tr>";
+      }).join("");
     }
     const nb=document.getElementById("gNrBody");
     if(nb){
@@ -3938,10 +3934,20 @@ function startScan(camera) {
           +"<td><input type=number step=0.01 value='"+(r.l||"")+"' oninput='GNR["+i+"].l=this.value;syncGutterBed();liveF24()'></td>"
           +"<td><input type=number step=0.01 value='"+(r.w||"0.45")+"' oninput='GNR["+i+"].w=this.value;syncGutterBed();liveF24()'></td>"
           +"<td><input type=number step=0.01 value='"+(r.d||"0.10")+"' oninput='GNR["+i+"].d=this.value;syncGutterBed();liveF24()'></td>"
-          +"<td class=g-qty>"+(q?q.toFixed(2):"")+"</td>"
-          +"<td class=pm><button type=button onclick='gNrAdd()'>+/−</button>"+(i>0?"<button type=button onclick='gNrDel("+i+")'>-</button>":"")+"</td></tr>";
-      }).join("")+"<tr class=g-tot><td colspan=4 style=text-align:right>Total Qty</td><td class=g-qty>"+nTot.toFixed(2)+"</td><td></td></tr>";
+          +"<td class=pm><button type=button class='pm add' onclick='gNrAdd()'>+</button>"+(i>0?"<button type=button onclick='gNrDel("+i+")'>−</button>":"")+"</td></tr>";
+      }).join("");
       syncGutterBed();
+    }
+    const cb=document.getElementById("gChBody");
+    if(cb){
+      if(!GCH.length) GCH=[{k:"60",n:""}];
+      cb.innerHTML=GCH.map(function(r,i){
+        const minus=GCH.length>1?("<button type=button onclick='gChDel("+i+")'>−</button>"):"";
+        const opts=GSIZE.map(function(s){return "<option value='"+s.k+"'"+(r.k===s.k?" selected":"")+">"+s.t+"</option>";}).join("");
+        return "<tr><td>"+(i+1)+"</td><td><select onchange='gChSet("+i+",this.value)'>"+opts+"</select></td>"
+          +"<td><input type=number step=1 value='"+(r.n||"")+"' oninput='GCH["+i+"].n=this.value;liveF24()'></td>"
+          +"<td class=pm><button type=button class='pm add' onclick='gChAdd("+i+")'>+</button>"+minus+"</td></tr>";
+      }).join("");
     }
   }
   function gNrAdd(){ GNR.push({l:"",w:"0.45",d:"0.10"}); renderGutterTables(); liveF24(); }
@@ -3953,17 +3959,21 @@ function startScan(camera) {
     const w=document.getElementById("gBedW"); const th=document.getElementById("gBedT");
     if(w) w.value=r.w||0.45; if(th) th.value=r.d||0.10;
   }
+  function gSetDia(i, dia){ const d=gDef(Number(dia)); GEX[i].dia=Number(dia); GEX[i].w=d[0]; GEX[i].d=d[1]; renderGutterTables(); liveF24(); }
   function gExAdd(i){
     const src=GEX[i];
     const d=gDef(src.dia);
-    GEX.splice(i+1,0,{dia:src.dia,l:"",w:src.w||d[0],d:src.d||d[1],extra:true});
+    GEX.splice(i+1,0,{dia:src.dia,l:"",w:src.w||d[0],d:src.d||d[1]});
     renderGutterTables(); liveF24();
   }
   function gExDel(i){
-    if(!GEX[i] || !GEX[i].extra) return;
+    if(GEX.length<=1) return;
     GEX.splice(i,1);
     renderGutterTables(); liveF24();
   }
+  function gChSet(i,k){ GCH[i].k=k; renderGutterTables(); liveF24(); }
+  function gChAdd(i){ const s=GCH[i]; GCH.splice(i+1,0,{k:s.k,n:""}); renderGutterTables(); liveF24(); }
+  function gChDel(i){ if(GCH.length<=1) return; GCH.splice(i,1); renderGutterTables(); liveF24(); }
   function gDeAdd(){ GDE.push({l:"",w:"0.45",d:"0.10"}); renderGutterTables(); liveF24(); }
   function gDeDel(i){ if(GDE.length<=1){ GDE=[{l:"",w:"0.45",d:"0.10"}]; } else GDE.splice(i,1); renderGutterTables(); liveF24(); }
   function toggleGutterDemo(){
@@ -3985,7 +3995,7 @@ function startScan(camera) {
     });
     const demoL=(GDE||[]).reduce(function(s,r){return s+Number(r.l||0);},0);
     const demoQty=(GDE||[]).reduce(function(s,r){return s+Number(r.l||0)*Number(r.w||0)*Number(r.d||0);},0);
-    const ch=[Number((document.getElementById("gCh60")||{}).value||0),Number((document.getElementById("gCh90")||{}).value||0),Number((document.getElementById("gCh139")||{}).value||0),Number((document.getElementById("gCh1313")||{}).value||0)];
+    const ch=[chNos("60"),chNos("90"),chNos("139"),chNos("1313")];
     const chAmt=ch[0]*5138+ch[1]*7343+ch[2]*8882+ch[3]*10698;
     const refill=Math.max(0, Math.ceil(exc)-pipeVol);
     let bed=0;
@@ -4108,7 +4118,7 @@ function startScan(camera) {
         gEx: (typeof GEX!=="undefined"?GEX:[]),
         gNr: (typeof GNR!=="undefined"?GNR:[]),
         gDe: (typeof GDE!=="undefined"?GDE:[]),
-        gCh60:num("gCh60"), gCh90:num("gCh90"), gCh139:num("gCh139"), gCh1313:num("gCh1313"),
+        gCh60:chNos("60"), gCh90:chNos("90"), gCh139:chNos("139"), gCh1313:chNos("1313"),
         gPlate:num("gPlate"),
         pEx: (typeof PEX!=="undefined"?PEX:[]),
         pDe: (typeof PDE!=="undefined"?PDE:[]),
