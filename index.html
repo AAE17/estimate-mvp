@@ -426,11 +426,10 @@
     #s-bill h2{margin:0}
     #s-bill .bill-win{margin-top:4px}
 
-    #liveBillBox{background:#14532d !important;color:#ecfdf5 !important;border:2px solid #22c55e !important;box-shadow:0 0 0 4px rgba(34,197,94,.35) !important}
-    #liveBillBox b,#liveBillBox th,#liveBillBox td{color:#ecfdf5}
-    #liveBillBox table.mb-live th{background:#166534;color:#ecfdf5}
-    #liveBillBox table.mb-live td,#liveBillBox table.mb-live th{border-bottom-color:#22c55e}
-    #liveBillBox table.mb-live tr.net td{color:#bbf7d0}
+    #liveBillBox{background:#fff;color:#111;border:1px solid #e6eaf0;box-shadow:none}
+    #liveBillBox b,#liveBillBox th,#liveBillBox td{color:#111}
+    #liveBillBox table.mb-live th{background:#f1f5f9;color:#111}
+    #liveBillBox table.mb-live tr.net td{color:#14532d}
     #liveBillBox .live-grid{display:grid;grid-template-columns:1fr 120px;gap:8px;align-items:start}
     #liveBillBox .live-side{border-left:1px solid #e6eaf0;padding-left:8px;font-size:12px}
     #liveBillBox .live-side div{margin:0 0 6px}
@@ -538,6 +537,8 @@
     @media(max-width:800px){ .est-l3,.est-l2{grid-template-columns:1fr} }
     .diary .work .map-row{display:grid;grid-template-columns:36px 1fr 1fr 1fr 80px;gap:8px;align-items:center;margin:8px auto;max-width:560px;background:transparent;padding:4px 0}
     .diary .work .map-row.head{font-weight:700;font-size:14px}
+    #gpSite .seg{display:grid;grid-template-columns:1.1fr 1fr 1fr 1fr 72px;gap:6px;align-items:center;margin:4px 0;background:transparent;padding:0}
+    #gpSite .gp-line{grid-template-columns:1fr 120px 72px}
     .diary .work .map-row input{
       text-align:center;font-size:16px;width:100%;padding:6px 2px;
       background:transparent;border:0;border-bottom:1px solid #334155;color:#0f172a;border-radius:0
@@ -1086,6 +1087,7 @@
             <p class="muted" style="margin:0 0 8px">વર્કિંગ સ્પેસ — ખાલી માપ લખો</p>
             <div id="dHead" class="map-row head"><span>Sr</span><span>Length</span><span>Width</span><span id="dHeadD">Depth</span><span></span></div>
             <div id="dRows"></div>
+            <div id="gpSite" class="hidden"></div>
             <div class="head" id="kTestRow" style="margin-top:8px">
               <div class="field" id="wrapExcD"><label>ખોદકામ જાડાઈ</label><input id="dExcD" type="number" step="0.01" placeholder="0.20" oninput="liveMbBill()"></div>
               <div class="field" id="wrapDustD"><label>બાઈન્ડિંગ જાડાઈ</label><input id="dDustD" type="number" step="0.01" placeholder="0.10" oninput="liveMbBill()"></div>
@@ -2027,10 +2029,10 @@
       const remote=(d&&d.items)||[];
       const rows=remote.length?remote:loadLocalBills();
       el._rows=rows;
-      el.innerHTML=rows.length?rows.slice(0,40).map(function(b,i){
+      el.innerHTML=rows.length?("<table class='mb-live'><thead><tr><th>Sr</th><th>તારીખ</th><th>પ્રકાર</th><th>કામ</th><th>ગામ</th><th>રકમ</th><th></th></tr></thead><tbody>"+rows.slice(0,40).map(function(b,i){
         const day=String(b.day||b.ts||"").slice(0,10);
-        return "<div class='work-row'><span>"+day+" · "+(b.type||"")+" · "+(b.work_name||"")+" · ₹ "+Number(b.net||b.amounting||0).toLocaleString("en-IN")+"</span><button type='button' class='btn btn-w' data-bdel='"+i+"' title='ડિલીટ'>🗑</button></div>";
-      }).join(""):"<div>હજુ બિલ નથી</div>";
+        return "<tr><td>"+(i+1)+"</td><td>"+day+"</td><td>"+(b.type||"")+"</td><td>"+(b.work_name||"")+"</td><td>"+(b.village||"")+"</td><td>₹ "+Number(b.net||b.amounting||0).toLocaleString("en-IN")+"</td><td><button type='button' class='btn btn-w' data-bdel='"+i+"' title='ડિલીટ'>🗑</button></td></tr>";
+      }).join("")+"</tbody></table>"):"<div>હજુ બિલ નથી</div>";
       el.querySelectorAll("[data-bdel]").forEach(function(btn){
         btn.onclick=function(ev){
           ev.stopPropagation();
@@ -2350,15 +2352,16 @@ function onLetterDate(){
     const gp=billKind()==="gutter"||billKind()==="pipe";
     const cat=gp?gpLines().map(function(r){return [r.item, r.desc, r.rate, r.qty];}):billItems().map(function(r,i){return [String(i+1), r[1], r[2], Number((document.getElementById("billQ"+(i+1))||{}).value||0)];});
     let sub=0;
-    let h="<b>બિલ — લાઈવ</b><table class='mb-live'><thead><tr><th>Sr</th><th>Item</th><th>Qty</th><th>Rate</th><th>Amount</th></tr></thead><tbody>";
+    let h="<div style='display:flex;align-items:center;justify-content:space-between;margin-bottom:6px'><b>બિલ</b><span class='pill'>Live</span></div><table class='mb-live'><thead><tr><th>Sr</th><th>Item</th><th>Qty</th><th>Rate</th><th>Amount</th></tr></thead><tbody>";
     cat.forEach(function(r){
       const amt=Number(r[3]||0)*Number(r[2]||0);
       sub+=amt;
       h+="<tr><td>"+r[0]+"</td><td>"+r[1]+"</td><td>"+Number(r[3]||0).toFixed(2)+"</td><td>"+r[2]+"</td><td>₹ "+Math.round(amt).toLocaleString("en-IN")+"</td></tr>";
     });
-    const gst=sub*0.18, tot=Math.floor(sub+gst);
-    h+="<tr><td colspan='4'>+18% GST</td><td>₹ "+Math.round(gst).toLocaleString("en-IN")+"</td></tr>";
-    h+="<tr class='net'><td colspan='4'>ચોખ્ખી</td><td>₹ "+tot.toLocaleString("en-IN")+"</td></tr>";
+    const gst=sub*0.18, tot=sub+gst, net=Math.floor(tot);
+    h+="<tr class='sum'><td colspan='4'>કુલ</td><td>₹ "+Math.round(sub).toLocaleString("en-IN")+"</td></tr>";
+    h+="<tr><td colspan='4'>18% GST</td><td>₹ "+Math.round(gst).toLocaleString("en-IN")+"</td></tr>";
+    h+="<tr class='net'><td colspan='4'>ચોખ્ખી રકમ</td><td>₹ "+net.toLocaleString("en-IN")+"</td></tr>";
     h+="</tbody></table>";
     box.innerHTML=h;
   }
@@ -2809,12 +2812,20 @@ function onLetterDate(){
       /* header labels stay in html */
     }
     if (hd) { hd.textContent = cc ? "Depth" : ""; hd.style.display = cc ? "" : "none"; }
+    const gp = kind==="gutter" || kind==="pipe";
+    const gpBox=document.getElementById("gpSite");
+    if (th) th.style.display = gp ? "none" : "";
+    if (tb) tb.style.display = gp ? "none" : "";
+    if (gpBox) gpBox.classList.toggle("hidden", !gp);
     const we=document.getElementById("wrapExcD");
     const wd=document.getElementById("wrapDustD");
     const lc=document.getElementById("lineCc3");
     if(we) we.style.display = paver ? "" : "none";
     if(wd) wd.style.display = paver ? "" : "none";
     if(lc) lc.style.display = cc ? "" : "none";
+    const kt=document.getElementById("kTestRow");
+    if(kt) kt.style.display = gp ? "none" : "";
+    if(gp){ renderGpSite(); return; }
     tb.innerHTML="";
     DIARY.forEach((s,i)=>{
       if(cc && !s.d) s.d="0.30";
@@ -2927,34 +2938,149 @@ function onLetterDate(){
     const est=Number((document.getElementById("dAmtIn")||{}).value||0);
     return {items,sub,gst,tot,net,est,area};
   }
+  function gpDefWD(kind, dia){
+    if(kind==="pipe") return [0.45, 0.90];
+    const g={225:[0.45,0.825],300:[0.45,0.90],450:[0.75,1.15],600:[0.90,1.35],900:[1.20,1.80],1200:[1.50,2.20]};
+    return g[Number(dia)] || [0.45, 0.825];
+  }
+  function gpBlank(kind){
+    const dia=kind==="pipe"?63:225;
+    const wd=gpDefWD(kind, dia);
+    return {
+      pipes:[{dia:dia, l:"", w:String(wd[0]), d:String(wd[1])}],
+      ch:[{k:"60", n:""}],
+      demo:{l:"", w:"0.45", t:kind==="pipe"?"":"0.10"},
+      cc:{l:"", w:"0.45", t:"0.05"},
+      plate:""
+    };
+  }
+  var SITEGP={};
+  function gpState(kind){
+    if(!SITEGP[kind]) SITEGP[kind]=gpBlank(kind);
+    return SITEGP[kind];
+  }
   function gpSiteItems(kind){
+    const s=gpState(kind);
     const rows=[];
     const push=function(sr,name,qty,rate){ rows.push([sr+" "+name, Number(qty||0), rate, Number(qty||0)*rate]); };
     let exc=0;
-    DIARY.forEach(function(s){ exc += parseMix(s.l)*parseMix(s.w)*parseMix(s.d); });
+    const byDia={};
+    (s.pipes||[]).forEach(function(p){
+      const L=parseMix(p.l), W=Number(p.w)||0, D=Number(p.d)||0;
+      exc += L*W*D;
+      byDia[p.dia]=(byDia[p.dia]||0)+L;
+    });
+    const demoOn=!!(Number(s.demo.l)||Number(s.demo.w)||Number(s.demo.t));
+    const demo=kind==="pipe" ? parseMix(s.demo.l)*Number(s.demo.w||0) : parseMix(s.demo.l)*Number(s.demo.w||0)*Number(s.demo.t||0);
+    const ccq=demoOn ? parseMix(s.cc.l)*Number(s.cc.w||0)*Number(s.cc.t||0) : 0;
+    const chMap={};
+    let chTot=0;
+    (s.ch||[]).forEach(function(c){ const n=Number(c.n||0); chTot+=n; chMap[c.k]=(chMap[c.k]||0)+n; });
+    const plate=Number(s.plate||0);
+    const dias=(typeof GPDIA!=="undefined" && GPDIA[kind]) ? GPDIA[kind] : [];
     if(kind==="pipe"){
-      push("1","Demolition",0,202.2);
+      push("1","Demolition",demo,202.2);
       push("2","Excavation",exc,89);
-      GPDIA.pipe.forEach(function(d,i){ push("3("+(i+1)+")","PVC "+d.d+" mm",0,d.p); });
-      GPDIA.pipe.forEach(function(d,i){ push("4("+(i+1)+")","Laying "+d.d+" mm",0,d.l); });
-      push("5","Refilling",0,22);
-      push("6","Name Plate",0,306.14);
+      dias.forEach(function(d,i){ push("3("+(i+1)+")","PVC "+d.d+" mm", byDia[d.d]||0, d.p); });
+      dias.forEach(function(d,i){ push("4("+(i+1)+")","Laying "+d.d+" mm", byDia[d.d]||0, d.l); });
+      push("5","Refilling",exc,22);
+      push("6","Name Plate",plate,306.14);
     } else {
-      push("1","Demolition",0,1030.81);
+      push("1","Demolition",demo,1030.81);
       push("2","Excavation",exc,89);
-      GPDIA.gutter.forEach(function(d,i){ push("3("+(i+1)+")","NP2 "+d.d+" mm",0,d.p); });
-      GPDIA.gutter.forEach(function(d,i){ push("4("+(i+1)+")","Laying "+d.d+" mm",0,d.l); });
-      GPCH.forEach(function(c,i){ push("5("+(i+1)+")","Chamber "+c.t,0,c.r); });
-      push("6","Refilling",0,22);
-      push("7(1)","M.H. Frame",0,1121);
-      push("7(2)","M.H. Cover",0,1173);
-      push("8","New C.C. 1:2:4",0,3652.31);
-      push("9","Name Plate",0,306.14);
+      dias.forEach(function(d,i){ push("3("+(i+1)+")","NP2 "+d.d+" mm", byDia[d.d]||0, d.p); });
+      dias.forEach(function(d,i){ push("4("+(i+1)+")","Laying "+d.d+" mm", byDia[d.d]||0, d.l); });
+      (typeof GPCH!=="undefined"?GPCH:[]).forEach(function(c,i){ push("5("+(i+1)+")","Chamber "+c.t, chMap[c.k]||0, c.r); });
+      push("6","Refilling",exc,22);
+      push("7(1)","M.H. Frame",chTot,1121);
+      push("7(2)","M.H. Cover",chTot,1173);
+      push("8","New C.C. 1:2:4",ccq,3652.31);
+      push("9","Name Plate",plate,306.14);
     }
     let sub=0;
     rows.forEach(function(it){ sub+=it[3]; });
-    return {items:rows, gst:sub*0.18, tot:sub*1.18};
+    return {items:rows, gst:sub*0.18, tot:sub*1.18, exc:exc, sub:sub};
   }
+  function renderGpSite(){
+    const box=document.getElementById("gpSite");
+    if(!box) return;
+    const kind=diaryType();
+    const s=gpState(kind);
+    const dias=(typeof GPDIA!=="undefined" && GPDIA[kind]) ? GPDIA[kind] : [];
+    const pm=function(fn,i,n){ return "<span class='map-act'><button type='button' class='pm add' onclick='"+fn+"Add("+i+")'>+</button>"+(n>1?"<button type='button' class='pm' onclick='"+fn+"Del("+i+")'>−</button>":"")+"</span>"; };
+    let h="<p class='muted' style='margin:0 0 6px'><b>1. Excavation અને Pipe Dia</b></p>";
+    h+="<div class='map-row head'><span>Dia</span><span>Length</span><span>Width</span><span>Depth</span><span></span></div>";
+    s.pipes.forEach(function(p,i){
+      h+="<div class='seg'><select onchange='gpSiteDia("+i+",this.value)'>"+dias.map(function(d){return "<option value='"+d.d+"'"+(Number(p.dia)===d.d?" selected":"")+">"+d.d+" mm</option>";}).join("")+"</select>";
+      h+="<input inputmode='decimal' value='"+(p.l||"")+"' oninput='gpSitePipe("+i+",\"l\",this.value)'>";
+      h+="<input inputmode='decimal' value='"+(p.w||"")+"' oninput='gpSitePipe("+i+",\"w\",this.value)'>";
+      h+="<input inputmode='decimal' value='"+(p.d||"")+"' oninput='gpSitePipe("+i+",\"d\",this.value)'>"+pm("gpSitePipe",i,s.pipes.length)+"</div>";
+    });
+    if(kind==="gutter"){
+      h+="<p class='muted' style='margin:10px 0 6px'><b>2. Size of Chamber — No.</b></p>";
+      s.ch.forEach(function(c,i){
+        h+="<div class='gp-line'><select onchange='gpSiteCh("+i+",\"k\",this.value)'>"+(typeof GPCH!=="undefined"?GPCH:[]).map(function(x){return "<option value='"+x.k+"'"+(c.k===x.k?" selected":"")+">"+x.t+"</option>";}).join("")+"</select>";
+        h+="<input type='number' step='1' value='"+(c.n||"")+"' oninput='gpSiteCh("+i+",\"n\",this.value)'>"+pm("gpSiteCh",i,s.ch.length)+"</div>";
+      });
+    }
+    const unit=kind==="pipe"?"Smt":"Cmt";
+    h+="<p class='muted' style='margin:10px 0 6px'><b>3. Demolition — "+unit+"</b></p>";
+    h+="<div class='map-row head'><span>Length</span><span>Width</span>"+(kind==="pipe"?"":"<span>Thickness</span>")+"<span></span></div>";
+    h+="<div class='seg'><input inputmode='decimal' value='"+(s.demo.l||"")+"' oninput='gpSiteDemo(\"l\",this.value)'>";
+    h+="<input inputmode='decimal' value='"+(s.demo.w||"")+"' oninput='gpSiteDemo(\"w\",this.value)'>";
+    if(kind!=="pipe") h+="<input inputmode='decimal' value='"+(s.demo.t||"")+"' oninput='gpSiteDemo(\"t\",this.value)'>";
+    h+="<span></span></div>";
+    const demoOn=!!(Number(s.demo.l)||Number(s.demo.w)||Number(s.demo.t));
+    if(kind==="gutter"){
+      h+="<div id='gpCcBox'"+(demoOn?"":" class='hidden'")+">";
+      h+="<p class='muted' style='margin:10px 0 6px'><b>4. New C.C. — Cmt</b></p>";
+      h+="<div class='map-row head'><span>Length</span><span>Width</span><span>Thickness</span><span></span></div>";
+      h+="<div class='seg'><input inputmode='decimal' value='"+(s.cc.l||"")+"' oninput='gpSiteCc(\"l\",this.value)'>";
+      h+="<input inputmode='decimal' value='"+(s.cc.w||"")+"' oninput='gpSiteCc(\"w\",this.value)'>";
+      h+="<input inputmode='decimal' value='"+(s.cc.t||"")+"' oninput='gpSiteCc(\"t\",this.value)'><span></span></div></div>";
+    }
+    h+="<p class='muted' id='gpAutoLine' style='margin:8px 0 0'></p>";
+    h+="<div class='field' style='margin-top:8px'><label>Name Plate — No.</label><input type='number' step='1' value='"+(s.plate||"")+"' oninput='gpSitePlate(this.value)'></div>";
+    box.innerHTML=h;
+    liveMbBill();
+  }
+  function gpSiteDia(i, dia){
+    const kind=diaryType();
+    const s=gpState(kind);
+    const wd=gpDefWD(kind, dia);
+    s.pipes[i].dia=Number(dia);
+    s.pipes[i].w=String(wd[0]);
+    s.pipes[i].d=String(wd[1]);
+    renderGpSite();
+  }
+  function gpSitePipe(i, k, v){ gpState(diaryType()).pipes[i][k]=v; liveMbBill(); }
+  function gpSitePipeAdd(i){
+    const kind=diaryType();
+    const s=gpState(kind);
+    const dia=s.pipes[i].dia;
+    const wd=gpDefWD(kind, dia);
+    s.pipes.splice(i+1,0,{dia:dia, l:"", w:String(wd[0]), d:String(wd[1])});
+    renderGpSite();
+  }
+  function gpSitePipeDel(i){
+    const s=gpState(diaryType());
+    if(s.pipes.length<=1) return;
+    s.pipes.splice(i,1);
+    renderGpSite();
+  }
+  function gpSiteCh(i, k, v){ gpState("gutter").ch[i][k]=v; if(k==="k") renderGpSite(); else liveMbBill(); }
+  function gpSiteChAdd(i){ const s=gpState("gutter"); s.ch.splice(i+1,0,{k:s.ch[i].k, n:""}); renderGpSite(); }
+  function gpSiteChDel(i){ const s=gpState("gutter"); if(s.ch.length<=1) return; s.ch.splice(i,1); renderGpSite(); }
+  function gpSiteDemo(k, v){
+    const s=gpState(diaryType());
+    s.demo[k]=v;
+    const on=!!(Number(s.demo.l)||Number(s.demo.w)||Number(s.demo.t));
+    const box=document.getElementById("gpCcBox");
+    if(box) box.classList.toggle("hidden", !on);
+    liveMbBill();
+  }
+  function gpSiteCc(k, v){ gpState("gutter").cc[k]=v; liveMbBill(); }
+  function gpSitePlate(v){ gpState(diaryType()).plate=v; liveMbBill(); }
   function liveMbBill(){
     const box=document.getElementById("dBill");
     if(!box) return;
@@ -2965,12 +3091,18 @@ function onLetterDate(){
     items.forEach(function(it){
       h+="<tr><td>"+it[0]+"</td><td>"+Number(it[1]||0).toFixed(2)+"</td><td>"+Number(it[2]||0)+"</td><td>"+Math.round(it[3]||0).toLocaleString("en-IN")+"</td></tr>";
     });
+    h+="<tr class='sum'><td colspan='3'>કુલ</td><td>"+Math.round(x.sub||0).toLocaleString("en-IN")+"</td></tr>";
     h+="<tr><td colspan='3'>18% GST</td><td>"+Math.round(x.gst||0).toLocaleString("en-IN")+"</td></tr>";
-    h+="<tr class='sum'><td colspan='3'>કુલ રકમ</td><td>"+Math.round(x.tot||0).toLocaleString("en-IN")+"</td></tr>";
     h+="<tr class='net'><td colspan='3'>ચોખ્ખી રકમ</td><td>"+Math.floor(x.tot||0).toLocaleString("en-IN")+"</td></tr>";
     h+="</tbody></table>";
     box.innerHTML=h;
     box.classList.remove("hidden");
+    const auto=document.getElementById("gpAutoLine");
+    if(auto && (kind==="gutter"||kind==="pipe")){
+      let n=0;
+      if(kind==="gutter") (gpState("gutter").ch||[]).forEach(function(c){ n+=Number(c.n||0); });
+      auto.textContent="Refilling ઓટો: "+Number(x.exc||0).toFixed(2)+" Cmt"+(kind==="gutter"?(" · Frame / Cover ઓટો: "+n):"");
+    }
   }
 
 
@@ -3173,7 +3305,12 @@ function onLetterDate(){
     const typ = normType(est && est.type, est && est.work_name) || "cc";
     document.getElementById("dType").value = typ;
     const savedRows=(est && est.rows && est.rows.length)?est.rows:((metaFor((est&&est.work_name)||"").rows)||[]);
-    DIARY = (savedRows && savedRows.length) ? savedRows : [{l:"",w:"",d:""}];
+    if(savedRows && savedRows[0] && savedRows[0]._gp){
+      SITEGP[typ]=savedRows[0].data;
+      DIARY=[{l:"",w:"",d:""}];
+    } else {
+      DIARY = (savedRows && savedRows.length) ? savedRows : [{l:"",w:"",d:""}];
+    }
     const bill=document.getElementById("dBill");
     if (bill) { bill.classList.add("hidden"); bill.innerHTML=""; }
     const kb0=document.getElementById("kachuBox");
@@ -3186,7 +3323,10 @@ function onLetterDate(){
         if (!b || !b.ok) return;
         const site=(b.site&&b.site[0]);
         if (site) {
-          if (site.rows && site.rows.length) { DIARY = site.rows; renderDiaryRows(); }
+          if (site.rows && site.rows[0] && site.rows[0]._gp) {
+            SITEGP[normType(site.type, site.work_name)||diaryType()]=site.rows[0].data;
+            renderDiaryRows();
+          } else if (site.rows && site.rows.length) { DIARY = site.rows; renderDiaryRows(); }
           const set=function(id,v){ const e=document.getElementById(id); if(e && v) e.value=v; };
           set("dTaluka", site.taluka);
           set("dGrant", site.fund_head||site.grant);
@@ -3349,6 +3489,9 @@ function onLetterDate(){
   function saveSitePayload(type, estAmt, area, L, W, done){
     const ccT=(function(){let v=0;DIARY.forEach(function(r){v+=Number(r.l||0)*Number(r.w||0)*Number(r.d||0.1);}); return area?v/area:0.1;})();
     const workNm=siteWorkName();
+    const gp = type==="gutter" || type==="pipe";
+    const gpRows = gp ? [{_gp:true, data:gpState(type)}] : DIARY;
+    const billTot = gp ? gpSiteItems(type).tot : (type==="paver" ? mbPaverTotals() : mbCcTotals()).tot;
     saveSiteMeta(workNm,{
       taluka:(document.getElementById("dTaluka")||{}).value||"",
       grant:(typeof siteFundHead==="function"?siteFundHead():(document.getElementById("dGrant")||{}).value||""),
@@ -3360,14 +3503,14 @@ function onLetterDate(){
       test_qty:Number((document.getElementById("kTest")||{}).value||0),
       plate:Number((document.getElementById("kPlate")||{}).value||0),
       cc_t:ccThick(),
-      rows:DIARY,
+      rows:gpRows,
       meas_date:(document.getElementById("dDate")||{}).value||""
     });
     fetch(API+"/api/db/site",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
       type:type, work_name:siteWorkName(),
-      amounting:estAmt, rows:DIARY, area:area,
+      amounting:estAmt, rows:gpRows, area:area,
       brass: type==="paver" ? area*10.7584/100 : 0,
-      bill: (type==="paver" ? mbPaverTotals() : mbCcTotals()).tot,
+      bill: billTot,
       estimate_id: diaryEst && diaryEst.id || "",
       done: !!done,
       taluka:(document.getElementById("dTaluka")||{}).value||"",
@@ -3379,6 +3522,15 @@ function onLetterDate(){
   }
   function saveSiteOnly(){
     const type=diaryType();
+    if(type==="gutter"||type==="pipe"){
+      const x=gpSiteItems(type);
+      const has=(x.items||[]).some(function(it){ return Number(it[1])>0; });
+      if(!has){ alert("પહેલા સાઇટ માપ લખો"); return; }
+      const estAmt=Number(document.getElementById("dAmtIn").value||0);
+      saveSitePayload(type, estAmt, x.exc||0, 0, 0, false);
+      alert("માપ સેવ થયું");
+      return;
+    }
     const area=diaryArea();
     if (!area) { alert("પહેલા સાઇટ માપ લખો"); return; }
     const estAmt=Number(document.getElementById("dAmtIn").value||0);
