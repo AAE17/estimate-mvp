@@ -3983,6 +3983,42 @@ function startScan(camera) {
     else liveF24();
   });
 
+  async 
+  function isIos(){ return /iPhone|iPad|iPod/i.test(navigator.userAgent||""); }
+  function fileDock(urls){
+    let box=document.getElementById("fileDock");
+    if(!box){
+      box=document.createElement("div");
+      box.id="fileDock";
+      box.style.cssText="position:fixed;left:12px;right:12px;bottom:12px;z-index:90;display:flex;gap:8px;flex-wrap:wrap;background:#0f172a;color:#fff;padding:10px;border-radius:14px;box-shadow:0 10px 24px rgba(0,0,0,.25)";
+      document.body.appendChild(box);
+    }
+    box.innerHTML="";
+    (urls||[]).forEach(function(u){
+      const a=document.createElement("a");
+      a.href=u.url; a.target="_blank"; a.rel="noopener";
+      a.textContent=u.name;
+      a.style.cssText="flex:1;text-align:center;background:#4f46e5;color:#fff;text-decoration:none;padding:10px 12px;border-radius:10px;font-weight:800";
+      box.appendChild(a);
+    });
+    const x=document.createElement("button");
+    x.textContent="બંધ";
+    x.style.cssText="background:#334155;color:#fff;border:0;border-radius:10px;padding:10px 12px";
+    x.onclick=function(){ box.remove(); };
+    box.appendChild(x);
+  }
+  function giveFiles(wins, files){
+    files.forEach(function(f,i){ if(wins[i] && !wins[i].closed){ try{ wins[i].location.href=f.url; }catch(e){} } });
+    if(isIos() || !wins.length) fileDock(files);
+    else if(files.length>wins.length) fileDock(files.slice(wins.length));
+  }
+  function preWins(n){
+    if(isIos()) return [];
+    const wins=[];
+    for(let i=0;i<n;i++){ const w=window.open("about:blank","_blank"); if(w) wins.push(w); }
+    return wins;
+  }
+
   async function submitForm(kind) {
     const msg = document.getElementById("msg");
     if (!val("jilla") || !val("taluka") || !villageName()) {
@@ -3994,6 +4030,7 @@ function startScan(camera) {
       return;
     }
     document.querySelectorAll(".dl").forEach((b) => { b.disabled = true; });
+    const wins=preWins(kind==="both"?2:1);
     setBusy(true);
     msg.textContent = kind === "pdf" ? "PDF બની રહ્યું છે…" : "બની રહ્યું છે…";
     const body = {
@@ -4060,8 +4097,10 @@ function startScan(camera) {
           width_m: num("width_m")
         });
       }catch(e){}
-      if (data.xlsx) window.open(API + data.xlsx, "_blank");
-      if (data.pdf) setTimeout(() => window.open(API + data.pdf, "_blank"), 500);
+      const files=[];
+      if (data.xlsx) files.push({name:"Excel", url:API+data.xlsx});
+      if (data.pdf) files.push({name:"PDF", url:API+data.pdf});
+      giveFiles(wins, files);
       msg.textContent = data.pdf && data.xlsx
         ? "Excel અને PDF ડાઉનલોડ."
         : data.pdf
