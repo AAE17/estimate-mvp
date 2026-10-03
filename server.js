@@ -430,21 +430,39 @@ function sofficeBin() {
   return "soffice";
 }
 
+function loInstallArg() {
+  const dir = path.join(OUT_DIR, "lo-profile");
+  const user = path.join(dir, "user");
+  fs.mkdirSync(user, { recursive: true });
+  const xcu = path.join(user, "registrymodifications.xcu");
+  if (!fs.existsSync(xcu)) {
+    fs.writeFileSync(
+      xcu,
+      '<?xml version="1.0" encoding="UTF-8"?>\n' +
+        '<oor:items xmlns:oor="http://openoffice.org/2001/registry" xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">\n' +
+        '<item oor:path="/org.openoffice.Office.Calc/Formula/Load"><prop oor:name="OOXMLRecalcMode" oor:op="fuse"><value>0</value></prop></item>\n' +
+        "</oor:items>\n"
+    );
+  }
+  return "-env:UserInstallation=file://" + dir;
+}
+
 function convertWithSoffice(xlsxPath) {
   return new Promise((resolve, reject) => {
     const dir = path.dirname(xlsxPath);
     const pdfPath = xlsxPath.replace(/\.xlsx$/i, ".pdf");
     const filter =
       'pdf:calc_pdf_Export:{"SinglePageSheets":{"type":"boolean","value":"true"}}';
+    const args = [loInstallArg(), "--headless", "--norestore", "--nolockcheck", "--convert-to", filter, "--outdir", dir, xlsxPath];
     execFile(
       sofficeBin(),
-      ["--headless", "--norestore", "--nolockcheck", "--convert-to", filter, "--outdir", dir, xlsxPath],
+      args,
       { timeout: 120000 },
       (err) => {
         if (err) {
           execFile(
             sofficeBin(),
-            ["--headless", "--norestore", "--nolockcheck", "--convert-to", "pdf", "--outdir", dir, xlsxPath],
+            [loInstallArg(), "--headless", "--norestore", "--nolockcheck", "--convert-to", "pdf", "--outdir", dir, xlsxPath],
             { timeout: 120000 },
             (err2) => {
               if (err2) return reject(err2);
@@ -551,8 +569,6 @@ function sheetsToPdf(wb, pdfPath) {
 }
 
 async function writeAndRespond(req, res, wb, d, prefix, areas, kind) {
-  unshareFormulas(wb);
-  bakeFormulaResults(wb);
   if (wb.calcProperties) wb.calcProperties.fullCalcOnLoad = true;
   dropBadNames(wb);
   applyOnePage(wb, areas);
@@ -2096,16 +2112,40 @@ app.post("/api/letter/fwd", async (req, res) => {
       });
       return u;
     }
+    function addWorkRows(ws, templateRow, n) {
+      const extra = Math.max(0, Number(n || 0) - 1);
+      if (!ws || extra < 1) return 0;
+      const merges = [];
+      Object.keys(ws._merges || {}).forEach(function (key) {
+        const m = ws._merges[key];
+        const model = m && (m.model || m);
+        if (model && model.top === templateRow && model.bottom === templateRow) merges.push([model.left, model.right]);
+      });
+      if (typeof ws.duplicateRow === "function") ws.duplicateRow(templateRow, extra, true);
+      else ws.spliceRows(templateRow + 1, 0, ...new Array(extra).fill([]));
+      function colName(num) {
+        let s = "";
+        let c = num;
+        while (c > 0) { const m = (c - 1) % 26; s = String.fromCharCode(65 + m) + s; c = Math.floor((c - 1) / 26); }
+        return s;
+      }
+      for (let i = 1; i <= extra; i++) {
+        const r = templateRow + i;
+        merges.forEach(function (span) {
+          try { ws.mergeCells(colName(span[0]) + r + ":" + colName(span[1]) + r); } catch (_e) {}
+        });
+      }
+      return extra;
+    }
     function fillDee(ws, items, letterNo) {
       if (!ws) return;
       const first = items[0] || {};
       set(ws, "I1", letterNo);
       set(ws, "I2", taluka);
       set(ws, "H3", date);
-      if (first.office_addr || first.subdiv || d.subdiv) {
-        set(ws, "A8", first.office_addr || first.subdiv || d.subdiv);
-      }
-      const list = (items || []).slice(0, 8);
+      set(ws, "A8", first.office_addr || first.subdiv || d.subdiv || "");
+      const list = items || [];
+      const extra = addWorkRows(ws, 19, list.length);
       let total = 0;
       list.forEach(function (it, i) {
         const r = 19 + i;
@@ -2119,11 +2159,12 @@ app.post("/api/letter/fwd", async (req, res) => {
       set(ws, "B" + tr, "TOTAL");
       set(ws, "G" + tr, total);
       const mbs = uniqMb(items);
-      set(ws, "D28", mbs[0] || "");
-      set(ws, "E28", mbs[1] || "");
-      set(ws, "F28", mbs[2] || "");
-      set(ws, "G28", mbs[3] || "");
-      set(ws, "F33", taluka);
+      set(ws, "D" + (28 + extra), mbs[0] || "");
+      set(ws, "E" + (28 + extra), mbs[1] || "");
+      set(ws, "F" + (28 + extra), mbs[2] || "");
+      set(ws, "G" + (28 + extra), mbs[3] || "");
+      set(ws, "F" + (33 + extra), taluka);
+      ws._fitBottom = 33 + extra;
     }
     function fillAudit(ws, items, letterNo) {
       if (!ws) return;
@@ -2131,7 +2172,8 @@ app.post("/api/letter/fwd", async (req, res) => {
       set(ws, "I2", taluka);
       set(ws, "H3", date);
       set(ws, "A8", d.audit_office || "");
-      const list = (items || []).slice(0, 8);
+      const list = items || [];
+      const extra = addWorkRows(ws, 20, list.length);
       let total = 0;
       list.forEach(function (it, i) {
         const r = 20 + i;
@@ -2143,9 +2185,10 @@ app.post("/api/letter/fwd", async (req, res) => {
       const tr = 20 + list.length;
       set(ws, "B" + tr, "TOTAL");
       set(ws, "G" + tr, total);
-      set(ws, "B30", "માપ બુક નંબર");
-      set(ws, "D30", uniqMb(items).join(", "));
-      set(ws, "H35", taluka);
+      set(ws, "B" + (30 + extra), "માપ બુક નંબર");
+      set(ws, "D" + (30 + extra), uniqMb(items).join(", "));
+      set(ws, "H" + (35 + extra), taluka);
+      ws._fitBottom = 35 + extra;
     }
     if (rb.length && wsRb) { fillDee(wsRb, rb, no); no += 1; }
     else if (wsRb) wb.removeWorksheet(wsRb.id);
@@ -2164,7 +2207,8 @@ app.post("/api/letter/fwd", async (req, res) => {
     }
     const areaMap = {};
     wb.worksheets.forEach(function (ws) {
-      const area = ws.name === "Audit" ? "A1:I35" : "A1:I33";
+      const bottom = ws._fitBottom || (ws.name === "Audit" ? 35 : 33);
+      const area = "A1:I" + bottom;
       ws.pageSetup.paperSize = 9;
       ws.pageSetup.orientation = "portrait";
       ws.pageSetup.fitToPage = true;
