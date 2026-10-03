@@ -537,7 +537,10 @@ function convertWithSoffice(xlsxPath) {
         "-env:UserInstallation=file:///tmp/lo-profile",
         "--headless", "--norestore", "--nolockcheck",
         "--convert-to", "pdf", "--outdir", dir, xlsxPath
-      ], { stdio: "ignore" });
+      ], {
+        stdio: "ignore",
+        env: Object.assign({}, process.env, { SAL_USE_VCLPLUGIN: "svp", HOME: "/tmp" })
+      });
       let done = false;
       const finish = (err) => {
         if (done) return;
@@ -652,11 +655,13 @@ function sheetsToPdf(wb, pdfPath) {
 }
 
 async function writeAndRespond(req, res, wb, d, prefix, areas, kind) {
-  if (wb.calcProperties) wb.calcProperties.fullCalcOnLoad = true;
-  try { bakeFormulaResults(wb); } catch (_e) {}
+  const output = d.output || "xlsx";
+  if (output !== "pdf" && wb.calcProperties) wb.calcProperties.fullCalcOnLoad = true;
+  if (output !== "pdf") {
+    try { bakeFormulaResults(wb); } catch (_e) {}
+  }
   dropBadNames(wb);
   applyOnePage(wb, areas);
-  const output = d.output || "xlsx";
   const safe = String(d.village || "gam").replace(/[^a-zA-Z0-9._-]+/g, "_");
   const stamp = Date.now();
   const xlsxName = `${prefix}_${safe}_${stamp}.xlsx`;
@@ -679,18 +684,11 @@ async function writeAndRespond(req, res, wb, d, prefix, areas, kind) {
       if (produced !== pdfFull && fs.existsSync(produced)) fs.copyFileSync(produced, pdfFull);
       if (!fs.existsSync(pdfFull) && fs.existsSync(produced)) fs.copyFileSync(produced, pdfFull);
       if (!fs.existsSync(pdfFull)) throw new Error("pdf missing");
-      try { await addPdfMargins(pdfFull); } catch (em) { console.error("pdf margin", em.message || em); }
       pdfUrl = `/api/download/${pdfName}`;
     } catch (e1) {
-      console.error("pdf fail", e1.message || e1);
-      try {
-        await sheetsToPdf(wb, pdfFull);
-        if (fs.existsSync(pdfFull) && fs.statSync(pdfFull).size > 500) pdfUrl = `/api/download/${pdfName}`;
-        else throw new Error("pdf missing");
-      } catch (_e2) {
-        pdfError = "PDF ન બની: " + String(e1.message || e1);
-        logEvent("pdf_fail", { error: String(e1.message || e1), kind }, req);
-      }
+      pdfError = "PDF ન બની: " + String(e1.message || e1);
+      console.error("pdf fail", pdfError);
+      logEvent("pdf_fail", { error: String(e1.message || e1), kind }, req);
     }
   }
 
