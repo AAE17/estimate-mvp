@@ -19,8 +19,10 @@ function istDay(input) {
   return new Date(base + 330 * 60 * 1000).toISOString().slice(0, 10);
 }
 function recordDay(r) {
+  const d = String((r && r.day) || "").slice(0, 10);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(d)) return d;
   if (r && r.ts) return istDay(r.ts);
-  return String((r && r.day) || "").slice(0, 10);
+  return "";
 }
 const OUT_DIR = path.join(__dirname, "output");
 const LOG_FILE = path.join(__dirname, "events.jsonl");
@@ -1588,6 +1590,24 @@ app.post("/api/db/estimate", (req, res) => {
     prepared_by: b.prepared_by || ""
   });
   if (sbOn()) sbInsert("estimates", rec).catch(function(e){ console.error(e.message); });
+  res.json({ ok: true, id: rec.id });
+});
+app.post("/api/db/bills", (req, res) => {
+  const b = req.body || {};
+  const rec = dbAppend(DB_BILL, {
+    kind: "bill",
+    type: b.type || "",
+    village: b.village || "",
+    taluka: b.taluka || "",
+    work_name: b.work_name || "",
+    fund_head: b.fund_head || b.grant || "",
+    amounting: Number(b.amounting || b.net || 0),
+    net: Number(b.net || b.amounting || 0),
+    day: String(b.day || istDay()).slice(0, 10),
+    mb_no: b.mb_no || "",
+    prepared_by: b.prepared_by || ""
+  });
+  if (sbOn()) sbInsert("bills", rec).catch(function (e) { console.error(e.message); });
   res.json({ ok: true, id: rec.id });
 });
 app.get("/api/db/bills", async (_req, res) => {
