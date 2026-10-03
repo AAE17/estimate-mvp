@@ -2125,7 +2125,8 @@ app.post("/api/mb", async (req, res) => {
       if (!parts.length) return Number(v) || 0;
       return parts.reduce(function (a, b) { return a + b; }, 0) / parts.length;
     }
-    const type = String(d.type || "paver").toLowerCase().indexOf("cc") >= 0 ? "cc" : "paver";
+    const raw = String(d.type || "paver").toLowerCase();
+    const type = raw.indexOf("gutter") >= 0 ? "gutter" : raw.indexOf("pipe") >= 0 ? "pipe" : raw.indexOf("cc") >= 0 ? "cc" : "paver";
     const rows = Array.isArray(d.rows) ? d.rows : [];
     const files = ["skeleton-mb.xlsx","skeleton-mb-paver-cc.xlsx","skeleton-mb-paver.xlsx"];
     const found = files.map(function(n){ return path.join(__dirname, n); }).filter(function(f){ return require("fs").existsSync(f); });
@@ -2154,8 +2155,12 @@ app.post("/api/mb", async (req, res) => {
       return null;
     }
     const ws = type === "cc"
-      ? (wb.getWorksheet("mb-cc road") || findWs(["cc","road"]) || wb.worksheets[1])
-      : (findWs(["paver"]) || wb.worksheets[0]);
+      ? (wb.getWorksheet("mb-cc road") || findWs(["cc", "road"]) || wb.worksheets[1])
+      : type === "gutter"
+        ? (wb.getWorksheet("mb-gutter line") || findWs(["gutter"]) || wb.worksheets[2])
+        : type === "pipe"
+          ? (wb.getWorksheet("mb-pipe line") || findWs(["pipe"]) || wb.worksheets[3])
+          : (findWs(["paver"]) || wb.worksheets[0]);
     if (!ws) throw new Error("mb sheet missing: " + wb.worksheets.map(function(w){return w.name;}).join(", "));
 
     const segs = [];
@@ -2166,7 +2171,53 @@ app.post("/api/mb", async (req, res) => {
       segs.push({ L, W, d: mix(r.d || r.D) });
     });
 
-    if (type === "paver") {
+    if (type === "gutter" || type === "pipe") {
+      const gp = d.gp || {};
+      const by = gp.byDia || {};
+      const ch = gp.ch || {};
+      const num = function (v) { return Number(v || 0); };
+      const put = function (addr, qty, rate) {
+        const q = num(qty);
+        setVal(ws, addr, q);
+        setVal(ws, "E" + String(addr).replace(/^[A-Z]+/, ""), Math.round(q * rate * 100) / 100);
+        return q * rate;
+      };
+      let sub = 0;
+      if (type === "gutter") {
+        sub += put("C2", gp.demo, 1030.81);
+        sub += put("C3", gp.exc, 89);
+        [[ "C5", 225, 421 ], [ "C6", 300, 672 ], [ "C7", 450, 817 ], [ "C8", 600, 1331 ], [ "C9", 900, 2476 ], [ "C10", 1200, 4121 ]].forEach(function (x) {
+          sub += put(x[0], by[x[1]], x[2]);
+        });
+        [[ "C12", 225, 88 ], [ "C13", 300, 119 ], [ "C14", 450, 171 ], [ "C15", 600, 228 ], [ "C16", 900, 340 ], [ "C17", 1200, 440 ]].forEach(function (x) {
+          sub += put(x[0], by[x[1]], x[2]);
+        });
+        [[ "C19", "60", 5138 ], [ "C20", "90", 7343 ], [ "C21", "139", 8882 ], [ "C22", "1313", 10698 ]].forEach(function (x) {
+          sub += put(x[0], ch[x[1]], x[2]);
+        });
+        sub += put("C23", gp.refill, 22);
+        sub += put("C24", gp.frame, 1121);
+        sub += put("C25", gp.cover, 1173);
+        sub += put("C26", gp.cc, 3652.31);
+        sub += put("C27", gp.plate, 306.14);
+        setVal(ws, "E28", Math.round(sub * 100) / 100);
+        setVal(ws, "E29", Math.round(sub * 0.18 * 100) / 100);
+      } else {
+        sub += put("C2", gp.demo, 202.2);
+        sub += put("C3", gp.exc, 89);
+        [[ "C5", 63, 69 ], [ "C6", 75, 96 ], [ "C7", 90, 139 ], [ "C8", 110, 199 ]].forEach(function (x) {
+          sub += put(x[0], by[x[1]], x[2]);
+        });
+        [[ "C10", 63, 12 ], [ "C11", 75, 15 ], [ "C12", 90, 17 ], [ "C13", 110, 19 ]].forEach(function (x) {
+          sub += put(x[0], by[x[1]], x[2]);
+        });
+        sub += put("C14", gp.refill, 22);
+        sub += put("C15", gp.plate, 306.14);
+        setVal(ws, "E16", Math.round(sub * 100) / 100);
+        setVal(ws, "E17", Math.round(sub * 0.18 * 100) / 100);
+        setVal(ws, "E18", Math.round(sub * 1.18 * 100) / 100);
+      }
+    } else if (type === "paver") {
       const excD = Number(d.exc_d || 0.2);
       const dustD = Number(d.dust_d || 0.1);
       for (let r = 3; r <= 14; r++) {
@@ -2215,9 +2266,9 @@ app.post("/api/mb", async (req, res) => {
       setVal(ws, "E13", Number(d.amounting || 0));
     }
 
-    const prefix = type === "cc" ? "MB_CC" : "MB_PAVER";
+    const prefix = type === "cc" ? "MB_CC" : type === "gutter" ? "MB_GUTTER" : type === "pipe" ? "MB_PIPE" : "MB_PAVER";
     const areas = {};
-    areas[ws.name] = type === "cc" ? "A1:P20" : "A1:M32";
+    areas[ws.name] = type === "cc" ? "A1:P20" : type === "gutter" ? "A1:N32" : type === "pipe" ? "A1:N30" : "A1:M32";
     wb.worksheets.slice().forEach(function (w) {
       if (w && ws && w.id !== ws.id) {
         try { wb.removeWorksheet(w.id); } catch (_e) { w.state = "hidden"; }
