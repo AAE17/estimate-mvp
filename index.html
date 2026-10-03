@@ -4800,12 +4800,18 @@ function startScan(camera) {
           width_m: num("width_m")
         });
       }catch(e){}
-      let files = showFiles(API, data, []);
-      if (data && data.pdf_job) {
-        msg.textContent = "PDF બની રહી છે…";
-        const pdf = await waitPdf(data.pdf_job);
-        data.pdf = pdf;
-        files = showFiles(API, data, files);
+      let files = [];
+      if (kind === "both" && data && data.pdf_job) {
+        msg.textContent = "Excel અને PDF બની રહ્યા છે…";
+        data.pdf = await waitPdf(data.pdf_job);
+        files = showFiles(API, data, []);
+      } else {
+        files = showFiles(API, data, []);
+        if (data && data.pdf_job) {
+          msg.textContent = "PDF બની રહી છે…";
+          data.pdf = await waitPdf(data.pdf_job);
+          files = showFiles(API, data, files);
+        }
       }
       if (!files.length) throw new Error((data && data.pdf_error) || "ફાઇલ ન બની");
       msg.textContent = data.pdf ? (kind === "both" ? "Excel અને PDF તૈયાર." : "PDF તૈયાર.") : "Excel તૈયાર.";
