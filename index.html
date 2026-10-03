@@ -2150,7 +2150,7 @@ function onLetterDate(){
       if(typeof setBusy==="function") setBusy(true);
       const base=(typeof API!=="undefined"?API:"");
       const payload={
-        output:"xlsx",
+        output:"both",
         letter_no:vashi.trim(),
         date:dateTxt,
         taluka:picks[0].taluka||"",
@@ -2161,11 +2161,8 @@ function onLetterDate(){
         nani:nani
       };
       const dx=await postJson(base+"/api/letter/fwd", payload);
-      let files=showFiles(base, dx, []);
-      if(typeof setBusy==="function") setBusy(false);
-      payload.output="pdf";
-      const dp=await postJson(base+"/api/letter/fwd", payload);
-      showFiles(base, dp, files);
+      if (dx.pdf_job) dx.pdf = await waitPdf(dx.pdf_job);
+      showFiles(base, dx, []);
     }catch(e){ alert("પત્ર ભૂલ: "+e.message); }
     finally{ if(typeof setBusy==="function") setBusy(false); }
   }
@@ -2439,7 +2436,7 @@ function onLetterDate(){
       body.qty=q;
       const bt=(document.getElementById("billType")||{}).value||"cc"; const url=base+(bt==="cc"?"/api/bill/cc":bt==="gutter"?"/api/bill/gutter":bt==="pipe"?"/api/bill/pipe":"/api/bill/paver");
       const want=fmt||"both";
-      body.output = want==="pdf" ? "pdf" : "xlsx";
+      body.output = want==="pdf" ? "pdf" : want==="both" ? "both" : "xlsx";
       const dx=await postJson(url, body);
       try{
         const pick=document.getElementById("billPick");
@@ -2466,14 +2463,9 @@ function onLetterDate(){
           fund_head: (typeof billFundHead==="function"?billFundHead():"")
         });
       }catch(e){}
-      let files=showFiles(base, dx, []);
-      if(want==="both"){
-        document.querySelectorAll("#s-bill .dl").forEach(function(b){ b.disabled=false; });
-        if(typeof setBusy==="function") setBusy(false);
-        body.output="pdf";
-        const dp=await postJson(url, body);
-        showFiles(base, dp, files);
-      }
+      if (dx.pdf_job) dx.pdf = await waitPdf(dx.pdf_job);
+      if ((want==="pdf" || want==="both") && !dx.pdf) throw new Error("PDF ન બની");
+      showFiles(base, dx, []);
     }catch(e){ alert("બિલ ભૂલ: "+e.message); }
     finally{
       document.querySelectorAll("#s-bill .dl").forEach(function(b){ b.disabled=false; });
@@ -3668,17 +3660,16 @@ function onLetterDate(){
       .catch(function(e){ alert(e.message); })
       .finally(function(){ if (typeof setBusy==="function") setBusy(false); });
   }
-  function pdfKachu(){
-    if (typeof setBusy==="function") setBusy(true);
-    fetch(API+"/api/mb",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(kachuBody("pdf"))})
-      .then(function(r){return r.json();})
-      .then(function(d){
-        if (!d.ok) throw new Error(d.error||"fail");
-        if (d.pdf) window.open(API+d.pdf,"_blank");
-        fileDock(d.pdf?[{name:"PDF", url:API+d.pdf}]:[]);
-      })
-      .catch(function(e){ alert(e.message); })
-      .finally(function(){ if (typeof setBusy==="function") setBusy(false); });
+  async function pdfKachu(){
+    if (typeof setBusy==="function") setBusy(true, "PDF બની રહ્યું છે…");
+    try{
+      const d=await postJson(API+"/api/mb", kachuBody("pdf"));
+      if (d.pdf_job) d.pdf = await waitPdf(d.pdf_job);
+      if (!d.pdf) throw new Error("PDF ન બની");
+      window.open(API+d.pdf,"_blank");
+      fileDock([{name:"PDF", url:API+d.pdf}]);
+    }catch(e){ alert(e.message); }
+    finally{ if (typeof setBusy==="function") setBusy(false); }
   }
   function saveSitePayload(type, estAmt, area, L, W, done){
     const ccT=(function(){let v=0;DIARY.forEach(function(r){v+=Number(r.l||0)*Number(r.w||0)*Number(r.d||0.1);}); return area?v/area:0.1;})();
