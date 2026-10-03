@@ -12,8 +12,18 @@ app.use(cors());
 app.use(express.json({ limit: "12mb" }));
 app.use(express.static(__dirname));
 
-const LOG_FILE = path.join(__dirname, "events.jsonl");
+function istDay(input) {
+  const dt = input ? new Date(input) : new Date();
+  const t = dt.getTime();
+  const base = isNaN(t) ? Date.now() : t;
+  return new Date(base + 330 * 60 * 1000).toISOString().slice(0, 10);
+}
+function recordDay(r) {
+  if (r && r.ts) return istDay(r.ts);
+  return String((r && r.day) || "").slice(0, 10);
+}
 const OUT_DIR = path.join(__dirname, "output");
+const LOG_FILE = path.join(__dirname, "events.jsonl");
 const FONT = path.join(__dirname, "fonts", "NotoSansGujarati-Regular.ttf");
 if (!fs.existsSync(OUT_DIR)) fs.mkdirSync(OUT_DIR);
 
@@ -447,6 +457,26 @@ function loInstallArg() {
   return "-env:UserInstallation=file://" + dir;
 }
 
+function recalcXlsxFile(xlsxPath) {
+  return new Promise((resolve) => {
+    const tmp = path.join(path.dirname(xlsxPath), "recalc-" + Date.now());
+    fs.mkdirSync(tmp, { recursive: true });
+    execFile(
+      sofficeBin(),
+      [loInstallArg(), "--headless", "--norestore", "--nolockcheck", "--convert-to", "xlsx", "--outdir", tmp, xlsxPath],
+      { timeout: 120000 },
+      () => {
+        const produced = path.join(tmp, path.basename(xlsxPath));
+        try {
+          if (fs.existsSync(produced) && fs.statSync(produced).size > 1000) fs.copyFileSync(produced, xlsxPath);
+        } catch (_e) {}
+        try { fs.rmSync(tmp, { recursive: true, force: true }); } catch (_e2) {}
+        resolve();
+      }
+    );
+  });
+}
+
 function convertWithSoffice(xlsxPath) {
   return new Promise((resolve, reject) => {
     const dir = path.dirname(xlsxPath);
@@ -581,6 +611,10 @@ async function writeAndRespond(req, res, wb, d, prefix, areas, kind) {
   const pdfFull = path.join(OUT_DIR, pdfName);
   await wb.xlsx.writeFile(xlsxFull);
   await patchFitXml(xlsxFull);
+  if (output === "xlsx" || output === "both" || output === "pdf") {
+    await recalcXlsxFile(xlsxFull);
+    await patchFitXml(xlsxFull);
+  }
 
   let pdfUrl = null;
   let pdfError = null;
@@ -631,7 +665,7 @@ async function writeAndRespond(req, res, wb, d, prefix, areas, kind) {
         fund_head: d.fund_head || d.grant || "",
         amounting: isBill ? (net || Number(d.amounting || 0)) : Number(d.amounting || 0),
         net: net,
-        day: d.day || new Date().toISOString().slice(0, 10),
+        day: d.day || istDay(),
         length_m: Lm, width_m: Wm, area: areaM,
         brass: (kind === "estimate_paver" || kind === "bill_paver") ? areaM * 10.7584 / 100 : 0,
         prepared_by: d.prepared_by || "",
@@ -860,7 +894,7 @@ app.get("/api/stats", (_req, res) => {
   const empty = { total: 0, cc: 0, paver: 0, amount: 0, today: 0, talukas: [], recent: [] };
   if (!fs.existsSync(LOG_FILE)) return res.json(empty);
   const lines = fs.readFileSync(LOG_FILE, "utf8").trim().split("\n").filter(Boolean);
-  const today = new Date().toISOString().slice(0, 10);
+  const today = istDay();
   const talMap = {};
   let total = 0, cc = 0, paver = 0, amount = 0, todayN = 0;
   const recent = [];
@@ -873,7 +907,7 @@ app.get("/api/stats", (_req, res) => {
     if (ev.kind === "estimate_cc") cc++;
     else paver++;
     amount += Number(pl.amounting || 0);
-    if (String(ev.ts || "").slice(0, 10) === today) todayN++;
+    if (String(ev.ts || "") && recordDay({ ts: ev.ts }) === today) todayN++;
     const tk = pl.taluka || "—";
     talMap[tk] = (talMap[tk] || 0) + 1;
     recent.push({
@@ -904,10 +938,10 @@ app.get("/api/bills", (req, res) => {
   try {
     const day = String(req.query.day || req.query.date || "").slice(0, 10);
     const file = DB_BILL;
-    let rows = dbRead(file, 500).filter(function (r) { return r.kind === "bill" || String(r.kind||"").indexOf("bill")>=0; });
+    let rows = notDeleted(dbRead(file, 500)).filter(function (r) { return r.kind === "bill" || String(r.kind||"").indexOf("bill")>=0; });
     if (day) {
       rows = rows.filter(function (r) {
-        const d = String(r.day || r.ts || "").slice(0, 10);
+        const d = recordDay(r);
         return d === day;
       });
     }
@@ -1200,6 +1234,51 @@ function dbAppend(file, rec) {
   fs.appendFileSync(file, JSON.stringify(rec) + "\n");
   return rec;
 }
+function dbRemove(file, id) {
+  if (!file || !id || !fs.existsSync(file)) return;
+  const lines = fs.readFileSync(file, "utf8").split("\n").filter(Boolean);
+  const keep = lines.filter(function (line) {
+    try { return String(JSON.parse(line).id || "") !== String(id); } catch (_e) { return true; }
+  });
+  fs.writeFileSync(file, keep.length ? keep.join("\n") + "\n" : "");
+}
+function tombPath() { return path.join(DB_DIR, "deleted.json"); }
+function tombRead() {
+  try {
+    const arr = JSON.parse(fs.readFileSync(tombPath(), "utf8"));
+    return Array.isArray(arr) ? arr.map(String) : [];
+  } catch (_e) { return []; }
+}
+function tombAdd(id) {
+  if (!id) return;
+  const arr = tombRead();
+  if (arr.indexOf(String(id)) < 0) arr.push(String(id));
+  fs.writeFileSync(tombPath(), JSON.stringify(arr));
+}
+function forgetRows(file, body) {
+  const id = String((body && body.id) || "");
+  const work = String((body && body.work_name) || "");
+  const ts = String((body && body.ts) || "");
+  const mb = String((body && body.mb_no) || "");
+  if (id) tombAdd(id);
+  if (!file || !fs.existsSync(file)) return;
+  const lines = fs.readFileSync(file, "utf8").split("\n").filter(Boolean);
+  const keep = [];
+  lines.forEach(function (line) {
+    let r = null;
+    try { r = JSON.parse(line); } catch (_e) { keep.push(line); return; }
+    const sameId = id && String(r.id || "") === id;
+    const sameWork = work && String(r.work_name || "") === work && ((ts && String(r.ts || "") === ts) || (mb && String(r.mb_no || "") === mb));
+    if (sameId || sameWork) tombAdd(r.id);
+    else keep.push(line);
+  });
+  fs.writeFileSync(file, keep.length ? keep.join("\n") + "\n" : "");
+}
+function notDeleted(items) {
+  const gone = {};
+  tombRead().forEach(function (id) { gone[id] = 1; });
+  return (items || []).filter(function (x) { return x && !gone[String(x.id || "")]; });
+}
 function dbRead(file, limit) {
   if (!fs.existsSync(file)) return [];
   const lines = fs.readFileSync(file, "utf8").trim().split("\n").filter(Boolean);
@@ -1283,6 +1362,24 @@ async function sbSelect(table, limit) {
   });
   if (!r.ok) throw new Error(await r.text());
   return await r.json();
+}
+async function sbDelete(table, id) {
+  if (!sbOn() || !id) return 0;
+  const key = process.env.SUPABASE_SERVICE_ROLE || process.env.SUPABASE_SERVICE_KEY || SB_KEY;
+  const r = await fetch(SB_URL + "/rest/v1/" + table + "?id=eq." + encodeURIComponent(id), {
+    method: "DELETE",
+    headers: {
+      apikey: key,
+      Authorization: "Bearer " + key,
+      Prefer: "return=representation"
+    }
+  });
+  if (!r.ok) {
+    console.error("delete", table, id, r.status, await r.text());
+    return 0;
+  }
+  const js = await r.json().catch(function () { return []; });
+  return Array.isArray(js) ? js.length : 0;
 }
 async function sbUpload(name, buf) {
   const r = await fetch(SB_URL + "/storage/v1/object/site-media/" + name, {
@@ -1412,24 +1509,19 @@ app.post("/api/db/estimate", (req, res) => {
   res.json({ ok: true, id: rec.id });
 });
 app.get("/api/db/bills", async (_req, res) => {
-  const local = dbRead(DB_BILL, 200);
+  const local = notDeleted(dbRead(DB_BILL, 200));
   try {
-    if (sbOn()) return res.json({ ok: true, items: await sbSelect("bills", 200) });
+    if (sbOn()) return res.json({ ok: true, items: notDeleted(await sbSelect("bills", 200)) });
   } catch (e) { console.error(e.message); }
   res.json({ ok: true, items: local });
 });
 app.post("/api/db/bills/delete", async (req, res) => {
   const id = String((req.body && req.body.id) || "");
   if (!id) return res.json({ ok: false });
-  try {
-    if (sbOn()) {
-      await fetch(SB_URL + "/rest/v1/bills?id=eq." + encodeURIComponent(id), {
-        method: "DELETE",
-        headers: { apikey: SB_KEY, Authorization: "Bearer " + SB_KEY }
-      });
-    }
-  } catch (e) { console.error(e.message); }
-  res.json({ ok: true });
+  forgetRows(DB_BILL, req.body || {});
+  let removed = 0;
+  try { removed = await sbDelete("bills", id); } catch (e) { console.error(e.message); }
+  res.json({ ok: true, removed: removed });
 });
 app.get("/api/db/tour", async (req, res) => {
   try {
@@ -1519,10 +1611,10 @@ app.post("/api/db/tour-profile", async (req, res) => {
   }
 });
 app.get("/api/db/estimates", async (_req, res) => {
-  const local = dbRead(DB_EST, 200);
+  const local = notDeleted(dbRead(DB_EST, 200));
   try {
     if (sbOn()) {
-      const remote = await sbSelect("estimates", 200);
+      const remote = notDeleted(await sbSelect("estimates", 200));
       return res.json({ ok: true, items: remote });
     }
   } catch (e) { console.error(e.message); }
@@ -1551,10 +1643,10 @@ app.post("/api/db/site", (req, res) => {
   res.json({ ok: true, id: rec.id });
 });
 app.get("/api/db/site", async (_req, res) => {
-  const local = dbRead(DB_SITE, 200);
+  const local = notDeleted(dbRead(DB_SITE, 200));
   try {
     if (sbOn()) {
-      const remote = await sbSelect("site_measures", 200);
+      const remote = notDeleted(await sbSelect("site_measures", 200));
       return res.json({ ok: true, items: mergeItems(remote, local) });
     }
   } catch (e) { console.error(e.message); }
@@ -1563,15 +1655,10 @@ app.get("/api/db/site", async (_req, res) => {
 app.post("/api/db/site/delete", async (req, res) => {
   const id = String((req.body && req.body.id) || "");
   if (!id) return res.json({ ok: false });
-  try {
-    if (sbOn()) {
-      await fetch(SB_URL + "/rest/v1/site_measures?id=eq." + encodeURIComponent(id), {
-        method: "DELETE",
-        headers: { apikey: SB_KEY, Authorization: "Bearer " + SB_KEY }
-      });
-    }
-  } catch (e) { console.error(e.message); }
-  res.json({ ok: true });
+  forgetRows(DB_SITE, req.body || {});
+  let removed = 0;
+  try { removed = await sbDelete("site_measures", id); } catch (e) { console.error(e.message); }
+  res.json({ ok: true, removed: removed });
 });
 
 app.post("/api/db/kachu", (req, res) => {
@@ -2115,25 +2202,69 @@ app.post("/api/letter/fwd", async (req, res) => {
     function addWorkRows(ws, templateRow, n) {
       const extra = Math.max(0, Number(n || 0) - 1);
       if (!ws || extra < 1) return 0;
-      const merges = [];
-      Object.keys(ws._merges || {}).forEach(function (key) {
-        const m = ws._merges[key];
-        const model = m && (m.model || m);
-        if (model && model.top === templateRow && model.bottom === templateRow) merges.push([model.left, model.right]);
-      });
-      if (typeof ws.duplicateRow === "function") ws.duplicateRow(templateRow, extra, true);
-      else ws.spliceRows(templateRow + 1, 0, ...new Array(extra).fill([]));
       function colName(num) {
         let s = "";
         let c = num;
         while (c > 0) { const m = (c - 1) % 26; s = String.fromCharCode(65 + m) + s; c = Math.floor((c - 1) / 26); }
         return s;
       }
+      function listMerges() {
+        const out = [];
+        Object.keys(ws._merges || {}).forEach(function (key) {
+          const m = ws._merges[key];
+          const model = m && (m.model || m);
+          if (model && model.top) out.push({ top: model.top, left: model.left, bottom: model.bottom, right: model.right });
+        });
+        return out;
+      }
+      function clearMerges() {
+        Object.keys(ws._merges || {}).slice().forEach(function (key) {
+          try { ws.unMergeCells(key); } catch (_e) {}
+        });
+      }
+      function applyMerge(top, left, bottom, right) {
+        try { ws.mergeCells(colName(left) + top + ":" + colName(right) + bottom); } catch (_e) {}
+      }
+      const saved = listMerges();
+      const spans = [];
+      saved.forEach(function (m) {
+        if (m.top === templateRow && m.bottom === templateRow) spans.push([m.left, m.right]);
+      });
+      if (!spans.length) {
+        spans.push([2, 6]);
+        spans.push(templateRow === 20 ? [7, 9] : [7, 8]);
+      }
+      const src = ws.getRow(templateRow);
+      const height = src.height;
+      const styles = [];
+      for (let c = 1; c <= 9; c++) {
+        const cell = src.getCell(c);
+        let style = {};
+        try { style = JSON.parse(JSON.stringify(cell.style || {})); } catch (_e) {}
+        styles.push({ style: style, numFmt: cell.numFmt });
+      }
+      ws.spliceRows(templateRow + 1, 0, ...new Array(extra).fill([]));
+      for (let i = 1; i <= extra; i++) {
+        const row = ws.getRow(templateRow + i);
+        if (height) row.height = height;
+        for (let c = 1; c <= 9; c++) {
+          const dst = row.getCell(c);
+          dst.value = null;
+          dst.style = styles[c - 1].style || {};
+          if (styles[c - 1].numFmt) dst.numFmt = styles[c - 1].numFmt;
+        }
+      }
+      clearMerges();
+      saved.forEach(function (m) {
+        let top = m.top;
+        let bottom = m.bottom;
+        if (top >= templateRow + 1) { top += extra; bottom += extra; }
+        else if (bottom >= templateRow + 1) bottom += extra;
+        applyMerge(top, m.left, bottom, m.right);
+      });
       for (let i = 1; i <= extra; i++) {
         const r = templateRow + i;
-        merges.forEach(function (span) {
-          try { ws.mergeCells(colName(span[0]) + r + ":" + colName(span[1]) + r); } catch (_e) {}
-        });
+        spans.forEach(function (sp) { applyMerge(r, sp[0], r, sp[1]); });
       }
       return extra;
     }
