@@ -1157,7 +1157,7 @@
         <div class="td-side">
           <div class="td-nav">
             <span class="td-sidebit"><button type="button" class="td-chev" onclick="tourDayShift(-1)" aria-label="prev">‹</button><h3 id="tdTitle">તારીખ</h3></span>
-            <button type="button" class="btn btn-w" onclick="openTourDay(new Date().toISOString().slice(0,10))">Today</button>
+            <button type="button" class="btn btn-w" onclick="openTourDay(todayStr())">Today</button>
             <span class="td-sidebit"><b id="tdDay">Day</b><button type="button" class="td-chev" onclick="tourDayShift(1)" aria-label="next">›</button></span>
           </div>
           <div class="td-box">
@@ -1996,23 +1996,8 @@
 
   function billNetFromQty(q, type){
     q=q||{};
-    const t=String(type||"").toLowerCase();
     let sub=0;
-    if(t.indexOf("gutter")>=0){
-      sub += Number(q.demo||0)*1030.81 + Number(q.exc||0)*89 + Number(q.refill||0)*22 + Number(q.cc||0)*3652.31 + Number(q.plate||0)*306.14;
-      [[225,421,88],[300,672,119],[450,817,171],[600,1331,228],[900,2476,340],[1200,4121,440]].forEach(function(x){
-        const n=Number(q["p"+x[0]]||0); sub += n*x[1] + n*x[2];
-      });
-      const ch=Number(q.c60||0)*5138 + Number(q.c90||0)*7343 + Number(q.c139||0)*8882 + Number(q.c1313||0)*10698;
-      sub += ch;
-      const frames=Number(q.frame||0) || (Number(q.c60||0)+Number(q.c90||0)+Number(q.c139||0)+Number(q.c1313||0));
-      sub += frames*1121 + (Number(q.cover||0)||frames)*1173;
-    } else if(t.indexOf("pipe")>=0){
-      sub += Number(q.demo||0)*202.2 + Number(q.exc||0)*89 + Number(q.refill||0)*22 + Number(q.plate||0)*306.14;
-      [[63,69,12],[75,96,15],[90,139,17],[110,199,19]].forEach(function(x){
-        const n=Number(q["p"+x[0]]||0); sub += n*x[1] + n*x[2];
-      });
-    } else if(t.indexOf("cc")>=0){
+    if(String(type||"").toLowerCase().indexOf("cc")>=0){
       [[q.box,158.12],[q.metal,684.6],[q.murum,173.51],[q.spread_metal||q.spreadM,249.75],[q.spread_mur||q.spreadU,147.47],[q.cc,4915.01],[q.test,2656],[q.plate,306.14]].forEach(function(p){ sub+=Number(p[0]||0)*Number(p[1]); });
     } else {
       [[q.box,156.56],[q.murum,210.42],[q.paver,740.51],[q.vata,23.68],[q.test,608],[q.plate,306.14]].forEach(function(p){ sub+=Number(p[0]||0)*Number(p[1]); });
@@ -2045,7 +2030,7 @@
       const rows=remote.length?remote:loadLocalBills();
       el._rows=rows;
       el.innerHTML=rows.length?("<table class='mb-live'><thead><tr><th>Sr</th><th>તારીખ</th><th>પ્રકાર</th><th>કામ</th><th>ગામ</th><th>રકમ</th><th></th></tr></thead><tbody>"+rows.slice(0,40).map(function(b,i){
-        const day=String(b.day||b.ts||"").slice(0,10);
+        const day=dayOf(b.ts||b.day);
         return "<tr><td>"+(i+1)+"</td><td>"+day+"</td><td>"+(b.type||"")+"</td><td>"+(b.work_name||"")+"</td><td>"+(b.village||"")+"</td><td>₹ "+Number(b.net||b.amounting||0).toLocaleString("en-IN")+"</td><td><button type='button' class='btn btn-w' data-bdel='"+i+"' title='ડિલીટ'>🗑</button></td></tr>";
       }).join("")+"</tbody></table>"):"<div>હજુ બિલ નથી</div>";
       el.querySelectorAll("[data-bdel]").forEach(function(btn){
@@ -2054,12 +2039,12 @@
           const b=el._rows[+this.dataset.bdel];
           if(!b||!confirm("આ બિલ ડિલીટ કરો?")) return;
           const left=loadLocalBills().filter(function(x){
-            return !((x.work_name||"")===(b.work_name||"") && String(x.mb_no||"")===String(b.mb_no||"") && String(x.ts||x.day||"").slice(0,10)===String(b.ts||b.day||"").slice(0,10));
+            return !((x.work_name||"")===(b.work_name||"") && String(x.mb_no||"")===String(b.mb_no||"") && dayOf(x.ts||x.day)===dayOf(b.ts||b.day));
           });
           localStorage.setItem(localBillKey(), JSON.stringify(left));
           const done=function(){ renderBillList(); if(typeof renderLetterBills==="function") renderLetterBills(); };
           if(b.id){
-            fetch(base+"/api/db/bills/delete",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({id:b.id})}).then(done).catch(done);
+            fetch(base+"/api/db/bills/delete",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({id:b.id,work_name:b.work_name||"",ts:b.ts||"",mb_no:b.mb_no||""})}).then(done).catch(done);
           } else done();
         };
       });
@@ -2069,13 +2054,21 @@
     const n=new Date();
     return n.getFullYear()+"-"+String(n.getMonth()+1).padStart(2,"0")+"-"+String(n.getDate()).padStart(2,"0");
   }
+  function dayOf(v){
+    if(!v) return "";
+    const s=String(v);
+    if(s.indexOf("T")<0) return s.slice(0,10);
+    const d=new Date(s);
+    if(isNaN(d.getTime())) return s.slice(0,10);
+    return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+  }
   function renderLetterBills(){
     const el=document.getElementById("letterList");
     const di=document.getElementById("letterDate");
     if(!el) return;
     const ds=(di && di.value) || "";
     if(!ds){ el.innerHTML="<div class='mail-empty'><div class='box'>📫</div>પહેલાં તારીખ પસંદ કરો</div>"; el._rows=[]; return; }
-    const local=loadLocalBills().filter(function(b){ return String(b.day||b.ts||"").slice(0,10)===ds; });
+    const local=loadLocalBills().filter(function(b){ return dayOf(b.ts||b.day)===ds; });
     function paint(rows){
       const seen={};
       const uniq=[];
@@ -2424,14 +2417,6 @@ function onLetterDate(){
       const base=(typeof API!=="undefined"?API:"");
       body.type=billKind()==="cc"?"CC":billKind()==="gutter"?"Gutter":billKind()==="pipe"?"Pipe":"Paver";
       body.qty=q;
-      const liveNet=(function(){
-        let sub=0;
-        if(billKind()==="gutter"||billKind()==="pipe") gpLines().forEach(function(r){ sub+=Number(r.qty||0)*r.rate; });
-        else billItems().forEach(function(row,i){ sub+=Number((document.getElementById("billQ"+(i+1))||{}).value||0)*row[2]; });
-        return Math.floor(sub*1.18);
-      })();
-      body.net=liveNet||0;
-      body.bill_amount=liveNet||0;
       const bt=(document.getElementById("billType")||{}).value||"cc"; const url=base+(bt==="cc"?"/api/bill/cc":bt==="gutter"?"/api/bill/gutter":bt==="pipe"?"/api/bill/pipe":"/api/bill/paver");
       const res=await fetch(url,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
       const data=await res.json();
@@ -2439,6 +2424,12 @@ function onLetterDate(){
       try{
         const pick=document.getElementById("billPick");
         const pickName=pick && pick.options[pick.selectedIndex] ? pick.options[pick.selectedIndex].textContent : "";
+        const liveNet=(function(){
+          let sub=0;
+          if(billKind()==="gutter"||billKind()==="pipe") gpLines().forEach(function(r){ sub+=Number(r.qty||0)*r.rate; });
+          else billItems().forEach(function(row,i){ sub+=Number((document.getElementById("billQ"+(i+1))||{}).value||0)*row[2]; });
+          return Math.floor(sub*1.18);
+        })();
         pushLocalBill({
           ts:new Date().toISOString(),
           day:todayStr(),
@@ -2725,7 +2716,7 @@ function onLetterDate(){
     return n===2 || n===4;
   }
   function tourDayShift(step){
-    const base=window._tourDs || new Date().toISOString().slice(0,10);
+    const base=window._tourDs || todayStr();
     const dt=new Date(base+"T00:00:00");
     dt.setDate(dt.getDate()+step);
     const ds=dt.getFullYear()+"-"+String(dt.getMonth()+1).padStart(2,"0")+"-"+String(dt.getDate()).padStart(2,"0");
@@ -3420,11 +3411,11 @@ function onLetterDate(){
     diaryEst = est || null;
     wrap.classList.remove("hidden");
     (function(){
-      const today=new Date().toISOString().slice(0,10);
+      const today=todayStr();
       const m=est?metaFor(est.work_name||""):{};
       const saved=(est&&(est.meas_date||m.meas_date))||"";
       const fromSave=est&&(est.rows||est.meas_date);
-      document.getElementById("dDate").value = fromSave ? String(saved||est.ts||today).slice(0,10) : today;
+      document.getElementById("dDate").value = fromSave ? dayOf(saved||est.ts||today) : today;
     })();
     (function(){
       const wsel=document.getElementById("dWork");
@@ -3756,7 +3747,7 @@ function onLetterDate(){
           }
           return r.bill;
         })();
-        return "<div class='work-row' data-done='"+i+"'><span>"+String(r.ts||"").slice(0,10)+" · "+(r.work_name||"")+"<br>એસ્ટિમેટ "+inr0(r.amounting)+" · બિલ "+inr0(billShow)+
+        return "<div class='work-row' data-done='"+i+"'><span>"+dayOf(r.ts||r.day)+" · "+(r.work_name||"")+"<br>એસ્ટિમેટ "+inr0(r.amounting)+" · બિલ "+inr0(billShow)+
           "</span><span><button type='button' class='btn btn-w' data-done='"+i+"' title='જોવું / એડિટ'>👁</button> "+
           "<button type='button' class='btn btn-w' data-del='"+i+"' title='ડિલીટ'>🗑</button></span></div>";
       }).join("") : "<div>હજુ Work Done નથી</div>";
@@ -3779,7 +3770,7 @@ function onLetterDate(){
         b.onclick=function(){
           const s=window._doneRecent[+this.dataset.del];
           if (!s || !confirm("ડિલીટ કરો?")) return;
-          fetch(API+"/api/db/site/delete",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({id:s.id})})
+          fetch(API+"/api/db/site/delete",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({id:s.id,work_name:s.work_name||"",ts:s.ts||""})})
             .then(function(){ renderDoneList(); });
         };
       });
@@ -3805,7 +3796,7 @@ function onLetterDate(){
         return true;
       }).slice(0,30);
       el.innerHTML = rec.length ? rec.map((r,i)=>
-        '<div class="work-row" data-pick="'+i+'"><span>'+ (r.ts||"").slice(0,10)+' · '+(r.type||"")+' · '+(r.work_name||r.village||r.taluka||"")+
+        '<div class="work-row" data-pick="'+i+'"><span>'+ dayOf(r.ts||r.day)+' · '+(r.type||"")+' · '+(r.work_name||r.village||r.taluka||"")+
         '</span><button type="button" class="btn btn-w">પસંદ</button></div>'
       ).join("") : "<div>હજુ એસ્ટિમેટ નથી</div>";
       window._siteRecent=rec;
@@ -3843,7 +3834,7 @@ function onLetterDate(){
     if (rec) {
       rec.innerHTML = (s.recent || []).length
         ? s.recent.map((r) => {
-            const d = (r.ts || "").slice(0, 10);
+            const d = dayOf(r.ts || r.day);
             return "<div><span>" + d + " · " + r.type + " · " + (r.village || r.taluka) + "</span><b>" + inr0(r.amounting) + "</b></div>";
           }).join("")
         : "<div><span>હજુ એસ્ટિમેટ નથી</span><b></b></div>";
@@ -3858,7 +3849,7 @@ function onLetterDate(){
   function loadStats() {
     fetch(API + "/api/db/estimates").then((r) => r.json()).then(function (d) {
       const items = mergeEstLists(d.items || []);
-      const today = new Date().toISOString().slice(0,10);
+      const today = todayStr();
       const talMap = {};
       let cc=0, pv=0, gt=0, pp=0, amt=0, tod=0;
       items.forEach(function (x) {
@@ -3868,7 +3859,7 @@ function onLetterDate(){
         else if (tp==="pipe") pp++;
         else cc++;
         amt += Number(x.amounting||0);
-        if (String(x.ts||"").slice(0,10)===today) tod++;
+        if (dayOf(x.ts||x.day)===today) tod++;
         const tk=x.taluka||"—";
         talMap[tk]=(talMap[tk]||0)+1;
       });
@@ -3880,7 +3871,7 @@ function onLetterDate(){
         const filt=window.DASH_RANGE||"all";
         const now=new Date();
         const shown=items.filter(function(r){
-          const ds=String(r.ts||"").slice(0,10);
+          const ds=dayOf(r.ts||r.day);
           if(filt==="all"||!ds) return true;
           const d=new Date(ds+"T00:00:00");
           if(filt==="today") return ds===today;
@@ -3892,7 +3883,7 @@ function onLetterDate(){
           const tp=normType(r.type, r.work_name)||"cc";
           const lab=tp==="paver"?"Paver":tp==="gutter"?"Gutter":tp==="pipe"?"Pipe":"CC";
           const badge=tp==="paver"?"pv":tp==="gutter"?"gt":tp==="pipe"?"pp":"cc";
-          return "<tr><td>"+String(r.ts||"").slice(0,10)+"</td><td><span class='badge "+badge+"'>"+lab+"</span></td><td>"+(r.work_name||r.village||"—")+"<div class='sub'>Taluka: "+(r.taluka||"—")+"</div></td><td><b>"+inr0(r.amounting)+"</b></td></tr>";
+          return "<tr><td>"+dayOf(r.ts||r.day)+"</td><td><span class='badge "+badge+"'>"+lab+"</span></td><td>"+(r.work_name||r.village||"—")+"<div class='sub'>Taluka: "+(r.taluka||"—")+"</div></td><td><b>"+inr0(r.amounting)+"</b></td></tr>";
         }).join("") : "<tr><td colspan='4'>હજુ એસ્ટિમેટ નથી</td></tr>";
       }
     }).catch(function(){
