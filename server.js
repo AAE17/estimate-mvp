@@ -527,24 +527,38 @@ function recalcXlsxFile(xlsxPath) {
 }
 
 function convertWithSoffice(xlsxPath) {
-  return loQueue(async function () {
-    const dir = path.dirname(xlsxPath);
-    const pdfPath = xlsxPath.replace(/\.xlsx$/i, ".pdf");
-    try { if (fs.existsSync(pdfPath)) fs.unlinkSync(pdfPath); } catch (_e) {}
-    const args = [loSharedArg(), "--headless", "--norestore", "--nolockcheck", "--convert-to", "pdf", "--outdir", dir, xlsxPath];
-    stopSoffice();
-    try {
-      await runSoffice(args, 55000);
-    } catch (err) {
-      console.error("pdf convert", err.message || err);
-    }
-    if (!fs.existsSync(pdfPath)) {
-      stopSoffice();
-      resetLoProfile();
-      await runSoffice(args, 55000);
-    }
-    if (!fs.existsSync(pdfPath)) throw new Error("pdf missing");
-    return pdfPath;
+  return loQueue(function () {
+    return new Promise((resolve, reject) => {
+      const dir = path.dirname(xlsxPath);
+      const pdfPath = xlsxPath.replace(/\.xlsx$/i, ".pdf");
+      try { if (fs.existsSync(pdfPath)) fs.unlinkSync(pdfPath); } catch (_e) {}
+      if (!fs.existsSync(LO_DIR)) fs.mkdirSync(LO_DIR, { recursive: true });
+      const child = spawn(sofficeBin(), [
+        "-env:UserInstallation=file:///tmp/lo-profile",
+        "--headless", "--norestore", "--nolockcheck",
+        "--convert-to", "pdf", "--outdir", dir, xlsxPath
+      ], { stdio: "ignore" });
+      let done = false;
+      const finish = (err) => {
+        if (done) return;
+        done = true;
+        clearTimeout(timer);
+        clearInterval(poll);
+        let ok = false;
+        try { ok = fs.existsSync(pdfPath) && fs.statSync(pdfPath).size > 500; } catch (_e) {}
+        if (ok) return resolve(pdfPath);
+        try { child.kill("SIGKILL"); } catch (_e) {}
+        reject(err || new Error("pdf missing"));
+      };
+      const poll = setInterval(() => {
+        try {
+          if (fs.existsSync(pdfPath) && fs.statSync(pdfPath).size > 500) finish(null);
+        } catch (_e) {}
+      }, 400);
+      const timer = setTimeout(() => finish(new Error("soffice timeout")), 70000);
+      child.on("error", (err) => finish(err));
+      child.on("close", () => setTimeout(() => finish(new Error("pdf missing")), 500));
+    });
   });
 }
 
@@ -665,12 +679,18 @@ async function writeAndRespond(req, res, wb, d, prefix, areas, kind) {
       if (produced !== pdfFull && fs.existsSync(produced)) fs.copyFileSync(produced, pdfFull);
       if (!fs.existsSync(pdfFull) && fs.existsSync(produced)) fs.copyFileSync(produced, pdfFull);
       if (!fs.existsSync(pdfFull)) throw new Error("pdf missing");
-      await addPdfMargins(pdfFull);
+      try { await addPdfMargins(pdfFull); } catch (em) { console.error("pdf margin", em.message || em); }
       pdfUrl = `/api/download/${pdfName}`;
     } catch (e1) {
-      pdfError =
-        "PDF LibreOffice vagar nathi. Render Settings ma Runtime = Docker karo (Dockerfile repo ma che).";
-      logEvent("pdf_fail", { error: String(e1.message || e1), kind }, req);
+      console.error("pdf fail", e1.message || e1);
+      try {
+        await sheetsToPdf(wb, pdfFull);
+        if (fs.existsSync(pdfFull) && fs.statSync(pdfFull).size > 500) pdfUrl = `/api/download/${pdfName}`;
+        else throw new Error("pdf missing");
+      } catch (_e2) {
+        pdfError = "PDF ન બની: " + String(e1.message || e1);
+        logEvent("pdf_fail", { error: String(e1.message || e1), kind }, req);
+      }
     }
   }
 
