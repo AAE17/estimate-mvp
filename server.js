@@ -440,72 +440,93 @@ function sofficeBin() {
   return "soffice";
 }
 
-function loInstallArg() {
-  const dir = path.join(OUT_DIR, "lo-profile");
+const LO_XCU =
+  '<?xml version="1.0" encoding="UTF-8"?>\n' +
+  '<oor:items xmlns:oor="http://openoffice.org/2001/registry" xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">\n' +
+  '<item oor:path="/org.openoffice.Office.Calc/Formula/Load"><prop oor:name="OOXMLRecalcMode" oor:op="fuse"><value>0</value></prop></item>\n' +
+  "</oor:items>\n";
+
+let loChain = Promise.resolve();
+function loQueue(job) {
+  const run = loChain.then(job, job);
+  loChain = run.then(
+    function () {},
+    function () {}
+  );
+  return run;
+}
+
+function loJobProfile(tag) {
+  const dir = path.join(OUT_DIR, tag + "-" + Date.now() + "-" + Math.random().toString(36).slice(2, 6));
   const user = path.join(dir, "user");
   fs.mkdirSync(user, { recursive: true });
-  const xcu = path.join(user, "registrymodifications.xcu");
-  if (!fs.existsSync(xcu)) {
-    fs.writeFileSync(
-      xcu,
-      '<?xml version="1.0" encoding="UTF-8"?>\n' +
-        '<oor:items xmlns:oor="http://openoffice.org/2001/registry" xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">\n' +
-        '<item oor:path="/org.openoffice.Office.Calc/Formula/Load"><prop oor:name="OOXMLRecalcMode" oor:op="fuse"><value>0</value></prop></item>\n' +
-        "</oor:items>\n"
-    );
-  }
-  return "-env:UserInstallation=file://" + dir;
+  fs.writeFileSync(path.join(user, "registrymodifications.xcu"), LO_XCU);
+  return { arg: "-env:UserInstallation=file://" + dir, dir: dir };
 }
 
 function recalcXlsxFile(xlsxPath) {
-  return new Promise((resolve) => {
-    const tmp = path.join(path.dirname(xlsxPath), "recalc-" + Date.now());
-    fs.mkdirSync(tmp, { recursive: true });
-    execFile(
-      sofficeBin(),
-      [loInstallArg(), "--headless", "--norestore", "--nolockcheck", "--convert-to", "xlsx", "--outdir", tmp, xlsxPath],
-      { timeout: 120000 },
-      () => {
-        const produced = path.join(tmp, path.basename(xlsxPath));
-        try {
-          if (fs.existsSync(produced) && fs.statSync(produced).size > 1000) fs.copyFileSync(produced, xlsxPath);
-        } catch (_e) {}
-        try { fs.rmSync(tmp, { recursive: true, force: true }); } catch (_e2) {}
-        resolve();
-      }
-    );
+  return loQueue(function () {
+    return new Promise((resolve) => {
+      const tmp = path.join(path.dirname(xlsxPath), "recalc-" + Date.now() + "-" + Math.random().toString(36).slice(2, 6));
+      const prof = loJobProfile("prof-recalc");
+      fs.mkdirSync(tmp, { recursive: true });
+      execFile(
+        sofficeBin(),
+        [prof.arg, "--headless", "--norestore", "--nolockcheck", "--convert-to", "xlsx", "--outdir", tmp, xlsxPath],
+        { timeout: 60000 },
+        (err) => {
+          const produced = path.join(tmp, path.basename(xlsxPath));
+          const name = path.basename(xlsxPath);
+          if (err) console.error("xlsx resave fail", name, err.message || err);
+          else {
+            try {
+              if (fs.existsSync(produced) && fs.statSync(produced).size > 1000) fs.copyFileSync(produced, xlsxPath);
+              else console.error("xlsx resave fail", name, "no output");
+            } catch (e) {
+              console.error("xlsx resave fail", name, e.message || e);
+            }
+          }
+          try { fs.rmSync(tmp, { recursive: true, force: true }); } catch (_e) {}
+          try { fs.rmSync(prof.dir, { recursive: true, force: true }); } catch (_e2) {}
+          resolve();
+        }
+      );
+    });
   });
 }
 
 function convertWithSoffice(xlsxPath) {
-  return new Promise((resolve, reject) => {
-    const dir = path.dirname(xlsxPath);
-    const pdfPath = xlsxPath.replace(/\.xlsx$/i, ".pdf");
-    const filter =
-      'pdf:calc_pdf_Export:{"SinglePageSheets":{"type":"boolean","value":"true"}}';
-    const args = [loInstallArg(), "--headless", "--norestore", "--nolockcheck", "--convert-to", filter, "--outdir", dir, xlsxPath];
-    execFile(
-      sofficeBin(),
-      args,
-      { timeout: 120000 },
-      (err) => {
-        if (err) {
-          execFile(
-            sofficeBin(),
-            [loInstallArg(), "--headless", "--norestore", "--nolockcheck", "--convert-to", "pdf", "--outdir", dir, xlsxPath],
-            { timeout: 120000 },
-            (err2) => {
-              if (err2) return reject(err2);
-              if (!fs.existsSync(pdfPath)) return reject(new Error("pdf missing"));
-              resolve(pdfPath);
-            }
-          );
-          return;
-        }
+  return loQueue(function () {
+    return new Promise((resolve, reject) => {
+      const dir = path.dirname(xlsxPath);
+      const pdfPath = xlsxPath.replace(/\.xlsx$/i, ".pdf");
+      const filter = 'pdf:calc_pdf_Export:{"SinglePageSheets":{"type":"boolean","value":"true"}}';
+      const prof = loJobProfile("prof-pdf");
+      function finish(err) {
+        try { fs.rmSync(prof.dir, { recursive: true, force: true }); } catch (_e) {}
+        if (err) return reject(err);
         if (!fs.existsSync(pdfPath)) return reject(new Error("pdf missing"));
         resolve(pdfPath);
       }
-    );
+      execFile(
+        sofficeBin(),
+        [prof.arg, "--headless", "--norestore", "--nolockcheck", "--convert-to", filter, "--outdir", dir, xlsxPath],
+        { timeout: 60000 },
+        (err) => {
+          if (!err && fs.existsSync(pdfPath)) return finish(null);
+          const prof2 = loJobProfile("prof-pdf2");
+          execFile(
+            sofficeBin(),
+            [prof2.arg, "--headless", "--norestore", "--nolockcheck", "--convert-to", "pdf", "--outdir", dir, xlsxPath],
+            { timeout: 60000 },
+            (err2) => {
+              try { fs.rmSync(prof2.dir, { recursive: true, force: true }); } catch (_e) {}
+              finish(err2 || (!fs.existsSync(pdfPath) ? new Error("pdf missing") : null));
+            }
+          );
+        }
+      );
+    });
   });
 }
 
@@ -611,7 +632,7 @@ async function writeAndRespond(req, res, wb, d, prefix, areas, kind) {
   const pdfFull = path.join(OUT_DIR, pdfName);
   await wb.xlsx.writeFile(xlsxFull);
   await patchFitXml(xlsxFull);
-  if (output === "xlsx" || output === "both" || output === "pdf") {
+  if ((output === "xlsx" || output === "both") && String(process.env.XLSX_RESAVE == null ? "1" : process.env.XLSX_RESAVE) !== "0") {
     await recalcXlsxFile(xlsxFull);
     await patchFitXml(xlsxFull);
   }
@@ -2226,6 +2247,19 @@ app.post("/api/letter/fwd", async (req, res) => {
         try { ws.mergeCells(colName(left) + top + ":" + colName(right) + bottom); } catch (_e) {}
       }
       const saved = listMerges();
+      const borderSave = saved.map(function (m) {
+        const cells = [];
+        for (let r = m.top; r <= m.bottom; r++) {
+          for (let c = m.left; c <= m.right; c++) {
+            let border = null;
+            try { border = JSON.parse(JSON.stringify(ws.getRow(r).getCell(c).border || {})); } catch (_e) {}
+            if (border && (border.top || border.left || border.bottom || border.right)) {
+              cells.push({ dr: r - m.top, dc: c - m.left, border: border });
+            }
+          }
+        }
+        return cells;
+      });
       const spans = [];
       saved.forEach(function (m) {
         if (m.top === templateRow && m.bottom === templateRow) spans.push([m.left, m.right]);
@@ -2255,12 +2289,15 @@ app.post("/api/letter/fwd", async (req, res) => {
         }
       }
       clearMerges();
-      saved.forEach(function (m) {
+      saved.forEach(function (m, mi) {
         let top = m.top;
         let bottom = m.bottom;
         if (top >= templateRow + 1) { top += extra; bottom += extra; }
         else if (bottom >= templateRow + 1) bottom += extra;
         applyMerge(top, m.left, bottom, m.right);
+        (borderSave[mi] || []).forEach(function (b) {
+          try { ws.getRow(top + b.dr).getCell(m.left + b.dc).border = b.border; } catch (_e) {}
+        });
       });
       for (let i = 1; i <= extra; i++) {
         const r = templateRow + i;
