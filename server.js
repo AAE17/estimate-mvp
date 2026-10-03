@@ -680,10 +680,8 @@ function startPdfJob(xlsxFull, pdfName) {
 
 async function writeAndRespond(req, res, wb, d, prefix, areas, kind) {
   const output = d.output || "xlsx";
-  if (output !== "pdf" && wb.calcProperties) wb.calcProperties.fullCalcOnLoad = true;
-  if (output !== "pdf") {
-    try { bakeFormulaResults(wb); } catch (_e) {}
-  }
+  if (wb.calcProperties) wb.calcProperties.fullCalcOnLoad = true;
+  try { bakeFormulaResults(wb); } catch (_e) {}
   dropBadNames(wb);
   unlockSheets(wb);
   applyOnePage(wb, areas);
@@ -695,7 +693,7 @@ async function writeAndRespond(req, res, wb, d, prefix, areas, kind) {
   const pdfFull = path.join(OUT_DIR, pdfName);
   await wb.xlsx.writeFile(xlsxFull);
   await patchFitXml(xlsxFull);
-  if ((output === "xlsx" || output === "both") && String(process.env.XLSX_RESAVE || "0") === "1") {
+  if (output === "xlsx" || output === "both") {
     await recalcXlsxFile(xlsxFull);
     await patchFitXml(xlsxFull);
   }
