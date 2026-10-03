@@ -1383,8 +1383,8 @@
   <div id="busy" class="hidden" aria-live="assertive">
     <div class="box">
       <div class="spin"></div>
-      <b>બની રહ્યું છે…</b>
-      <p class="muted" style="margin:0">Excel / PDF તૈયાર થાય ત્યાં સુધી રાહ જુઓ</p>
+      <b id="busyTitle">બની રહ્યું છે…</b>
+      <p id="busyNote" class="muted" style="margin:0">થોડી રાહ જુઓ</p>
     </div>
   </div>
 
@@ -2161,6 +2161,7 @@ function onLetterDate(){
       };
       const dx=await postJson(base+"/api/letter/fwd", payload);
       let files=showFiles(base, dx, []);
+      if(typeof setBusy==="function") setBusy(false);
       payload.output="pdf";
       const dp=await postJson(base+"/api/letter/fwd", payload);
       showFiles(base, dp, files);
@@ -2466,6 +2467,8 @@ function onLetterDate(){
       }catch(e){}
       let files=showFiles(base, dx, []);
       if(want==="both"){
+        document.querySelectorAll("#s-bill .dl").forEach(function(b){ b.disabled=false; });
+        if(typeof setBusy==="function") setBusy(false);
         body.output="pdf";
         const dp=await postJson(url, body);
         showFiles(base, dp, files);
@@ -4299,9 +4302,11 @@ function startScan(camera) {
     }
     liveF24();
   }
-  function setBusy(on) {
+  function setBusy(on, title) {
     const b = document.getElementById("busy");
     if (b) b.classList.toggle("hidden", !on);
+    const t = document.getElementById("busyTitle");
+    if (t && title) t.textContent = title;
     document.querySelectorAll("#s-form input, #s-form select, #s-form textarea, #s-form button, #s-bill input, #s-bill select, #s-bill textarea, #s-bill button").forEach((el) => {
       el.disabled = !!on;
     });
@@ -4737,8 +4742,7 @@ function startScan(camera) {
         msg.textContent = "Grant Head અને Year પસંદ કરો.";
         return;
       }
-      setBusy(true);
-      msg.textContent = kind === "pdf" ? "PDF બની રહ્યું છે…" : "બની રહ્યું છે…";
+      setBusy(true, kind === "pdf" ? "PDF બની રહ્યું છે…" : "Excel બની રહ્યું છે…");
       const body = {
         output: kind || "xlsx",
         type: currentType,
@@ -4800,7 +4804,8 @@ function startScan(camera) {
       let files = showFiles(API, data, []);
       if (!files.length) throw new Error("ફાઇલ ન બની");
       if (kind === "both") {
-        msg.textContent = "Excel તૈયાર. PDF બની રહ્યું છે…";
+        setBusy(false);
+        msg.textContent = "Excel તૈયાર. PDF પાછળથી આવશે.";
         body.output = "pdf";
         const dp = await postJson(API + url, body);
         files = showFiles(API, dp, files);
