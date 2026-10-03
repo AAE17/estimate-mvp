@@ -558,7 +558,7 @@ function convertWithSoffice(xlsxPath) {
           if (fs.existsSync(pdfPath) && fs.statSync(pdfPath).size > 500) finish(null);
         } catch (_e) {}
       }, 400);
-      const timer = setTimeout(() => finish(new Error("soffice timeout")), 70000);
+      const timer = setTimeout(() => finish(new Error("soffice timeout")), 180000);
       child.on("error", (err) => finish(err));
       child.on("close", () => setTimeout(() => finish(new Error("pdf missing")), 500));
     });
@@ -654,6 +654,27 @@ function sheetsToPdf(wb, pdfPath) {
   });
 }
 
+function unlockSheets(wb) {
+  wb.worksheets.forEach(function (ws) {
+    ws.sheetProtection = undefined;
+  });
+}
+
+const pdfJobs = {};
+function startPdfJob(xlsxFull, pdfName) {
+  const id = pdfName.replace(/\.pdf$/i, "");
+  pdfJobs[id] = { status: "run" };
+  convertWithSoffice(xlsxFull).then(function (produced) {
+    const pdfFull = path.join(OUT_DIR, pdfName);
+    if (produced !== pdfFull && fs.existsSync(produced)) fs.copyFileSync(produced, pdfFull);
+    if (!fs.existsSync(pdfFull)) throw new Error("pdf missing");
+    pdfJobs[id] = { status: "ok", pdf: "/api/download/" + pdfName };
+  }).catch(function (e) {
+    pdfJobs[id] = { status: "fail", error: String(e.message || e) };
+  });
+  return id;
+}
+
 async function writeAndRespond(req, res, wb, d, prefix, areas, kind) {
   const output = d.output || "xlsx";
   if (output !== "pdf" && wb.calcProperties) wb.calcProperties.fullCalcOnLoad = true;
@@ -661,6 +682,7 @@ async function writeAndRespond(req, res, wb, d, prefix, areas, kind) {
     try { bakeFormulaResults(wb); } catch (_e) {}
   }
   dropBadNames(wb);
+  unlockSheets(wb);
   applyOnePage(wb, areas);
   const safe = String(d.village || "gam").replace(/[^a-zA-Z0-9._-]+/g, "_");
   const stamp = Date.now();
@@ -677,19 +699,9 @@ async function writeAndRespond(req, res, wb, d, prefix, areas, kind) {
 
   let pdfUrl = null;
   let pdfError = null;
+  let pdfJob = null;
   if (output === "pdf" || output === "both") {
-    try {
-      await convertWithSoffice(xlsxFull);
-      const produced = xlsxFull.replace(/\.xlsx$/i, ".pdf");
-      if (produced !== pdfFull && fs.existsSync(produced)) fs.copyFileSync(produced, pdfFull);
-      if (!fs.existsSync(pdfFull) && fs.existsSync(produced)) fs.copyFileSync(produced, pdfFull);
-      if (!fs.existsSync(pdfFull)) throw new Error("pdf missing");
-      pdfUrl = `/api/download/${pdfName}`;
-    } catch (e1) {
-      pdfError = "PDF ન બની: " + String(e1.message || e1);
-      console.error("pdf fail", pdfError);
-      logEvent("pdf_fail", { error: String(e1.message || e1), kind }, req);
-    }
+    pdfJob = startPdfJob(xlsxFull, pdfName);
   }
 
   const Lm = Number(d.length_m || 0);
@@ -739,6 +751,7 @@ async function writeAndRespond(req, res, wb, d, prefix, areas, kind) {
     ok: true,
     xlsx: wantXlsx ? `/api/download/${xlsxName}` : null,
     pdf: pdfUrl,
+    pdf_job: pdfJob,
     pdf_error: pdfError,
   });
 }
@@ -1273,6 +1286,14 @@ app.get("/api/download/:name", (req, res) => {
   const full = path.join(OUT_DIR, name);
   if (!fs.existsSync(full)) return res.status(404).json({ ok: false });
   res.download(full, name);
+});
+
+app.get("/api/pdf-job/:id", (req, res) => {
+  const job = pdfJobs[req.params.id];
+  if (!job) return res.json({ ok: false, error: "job નથી" });
+  if (job.status === "ok") return res.json({ ok: true, pdf: job.pdf });
+  if (job.status === "fail") return res.json({ ok: false, error: job.error || "PDF ન બની" });
+  res.json({ ok: true, pending: true });
 });
 
 
