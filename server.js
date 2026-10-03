@@ -49,6 +49,240 @@ function setVal(ws, addr, v) {
   ws.getCell(addr).value = v;
 }
 
+function findLabelRow(ws, re) {
+  let hit = 0;
+  if (!ws) return 0;
+  ws.eachRow(function (row, n) {
+    if (hit) return;
+    if (re.test(String(cellText(row.getCell(1)) || ""))) hit = n;
+  });
+  return hit;
+}
+
+function bakeFormulaResults(wb) {
+  const PENDING = { pending: true };
+  const formulas = [];
+  wb.worksheets.forEach(function (ws) {
+    if (!ws) return;
+    ws.eachRow(function (row) {
+      row.eachCell(function (cell) {
+        const v = cell.value;
+        if (v && typeof v === "object" && v.formula) {
+          formulas.push({ ws: ws, addr: cell.address, formula: String(v.formula).replace(/^=/, "") });
+        }
+      });
+    });
+  });
+  const done = {};
+  function findWs(name) {
+    const n = String(name || "").replace(/^'|'$/g, "");
+    return wb.getWorksheet(n) || wb.worksheets.find(function (w) { return w && String(w.name).toLowerCase() === n.toLowerCase(); });
+  }
+  function rawOf(ws, addr) {
+    const cell = ws.getCell(addr);
+    const v = cell.value;
+    if (v && typeof v === "object" && v.formula) return undefined;
+    if (v == null || v === "") return 0;
+    if (typeof v === "number") return v;
+    if (typeof v === "string") return v;
+    if (typeof v === "object") {
+      if (Array.isArray(v.richText)) return v.richText.map(function (t) { return t.text; }).join("");
+      if (v.text != null) return v.text;
+      if (v.result != null) return v.result;
+    }
+    return 0;
+  }
+  function isPend(v) { return !!(v && v.pending); }
+  function num(v) {
+    if (isPend(v)) return v;
+    if (typeof v === "number") return v;
+    if (typeof v === "string") {
+      const n = Number(String(v).replace(/,/g, ""));
+      return isNaN(n) ? 0 : n;
+    }
+    if (Array.isArray(v)) {
+      let s = 0;
+      for (let i = 0; i < v.length; i++) {
+        const n = num(v[i]);
+        if (isPend(n)) return n;
+        s += n;
+      }
+      return s;
+    }
+    return 0;
+  }
+  function cellVal(sheet, addr) {
+    const ws = findWs(sheet);
+    if (!ws) return 0;
+    const k = ws.name + "!" + String(addr).toUpperCase();
+    if (Object.prototype.hasOwnProperty.call(done, k)) return done[k];
+    const raw = rawOf(ws, addr);
+    if (raw === undefined) return PENDING;
+    return raw;
+  }
+  function rangeVals(sheet, a, b) {
+    const pa = String(a).toUpperCase().replace(/\$/g, "").match(/^([A-Z]+)(\d+)$/);
+    const pb = String(b).toUpperCase().replace(/\$/g, "").match(/^([A-Z]+)(\d+)$/);
+    if (!pa || !pb) return [0];
+    const c1 = colLetterToNum(pa[1]);
+    const c2 = colLetterToNum(pb[1]);
+    const r1 = Number(pa[2]);
+    const r2 = Number(pb[2]);
+    const out = [];
+    for (let r = Math.min(r1, r2); r <= Math.max(r1, r2); r++) {
+      for (let c = Math.min(c1, c2); c <= Math.max(c1, c2); c++) {
+        let col = "";
+        let n = c;
+        while (n > 0) { const m = (n - 1) % 26; col = String.fromCharCode(65 + m) + col; n = Math.floor((n - 1) / 26); }
+        const v = cellVal(sheet, col + r);
+        if (isPend(v)) return PENDING;
+        out.push(v);
+      }
+    }
+    return out;
+  }
+  function evalFormula(formula, sheet) {
+    const s = String(formula || "");
+    let i = 0;
+    function skip() { while (s[i] === " ") i++; }
+    function pendJoin(a, b, op) {
+      if (isPend(a) || isPend(b)) return PENDING;
+      if (op === "+") return num(a) + num(b);
+      if (op === "-") return num(a) - num(b);
+      if (op === "*") return num(a) * num(b);
+      if (op === "/") { const d = num(b); return d ? num(a) / d : 0; }
+      return 0;
+    }
+    function parseExpr() { return parseAdd(); }
+    function parseAdd() {
+      let v = parseMul();
+      while (true) {
+        skip();
+        if (s[i] === "+") { i++; v = pendJoin(v, parseMul(), "+"); }
+        else if (s[i] === "-") { i++; v = pendJoin(v, parseMul(), "-"); }
+        else break;
+      }
+      return v;
+    }
+    function parseMul() {
+      let v = parseUnary();
+      while (true) {
+        skip();
+        if (s[i] === "*") { i++; v = pendJoin(v, parseUnary(), "*"); }
+        else if (s[i] === "/") { i++; v = pendJoin(v, parseUnary(), "/"); }
+        else if (s[i] === "%") { i++; v = isPend(v) ? v : num(v) / 100; }
+        else break;
+      }
+      return v;
+    }
+    function parseUnary() {
+      skip();
+      if (s[i] === "-") { i++; const v = parseUnary(); return isPend(v) ? v : -num(v); }
+      if (s[i] === "+") { i++; return parseUnary(); }
+      return parsePrim();
+    }
+    function parseRef(sheetName) {
+      const m = s.slice(i).match(/^(\$?[A-Z]{1,3}\$?\d+)(?::(\$?[A-Z]{1,3}\$?\d+))?/i);
+      if (!m) return 0;
+      i += m[0].length;
+      if (m[2]) {
+        const vals = rangeVals(sheetName, m[1], m[2]);
+        if (isPend(vals)) return vals;
+        return vals.length ? vals[0] : 0;
+      }
+      return cellVal(sheetName, m[1].replace(/\$/g, ""));
+    }
+    function parsePrim() {
+      skip();
+      if (s[i] === "(") { i++; const v = parseExpr(); skip(); if (s[i] === ")") i++; return v; }
+      if (s[i] === "'") {
+        i++;
+        let name = "";
+        while (i < s.length && s[i] !== "'") name += s[i++];
+        if (s[i] === "'") i++;
+        if (s[i] === "!") i++;
+        return parseRef(name);
+      }
+      if (/[0-9.]/.test(s[i] || "")) {
+        let j = i;
+        while (/[0-9.]/.test(s[j] || "")) j++;
+        const n = Number(s.slice(i, j));
+        i = j;
+        skip();
+        if (s[i] === "%") { i++; return n / 100; }
+        return n;
+      }
+      let k = i;
+      while (k < s.length && s[k] !== "!" && s[k] !== "(" && "+-*/, )".indexOf(s[k]) < 0) k++;
+      if (s[k] === "!") {
+        const name = s.slice(i, k);
+        i = k + 1;
+        return parseRef(name);
+      }
+      const token = s.slice(i, k);
+      const upper = token.toUpperCase();
+      if ((upper === "SUM" || upper === "ROUNDUP" || upper === "ROUNDDOWN" || upper === "TRUNC") && s[k] === "(") {
+        i = k + 1;
+        const args = [];
+        while (i < s.length) {
+          skip();
+          if (s[i] === ")") { i++; break; }
+          args.push(parseArg());
+          skip();
+          if (s[i] === ",") { i++; continue; }
+          if (s[i] === ")") i++;
+          break;
+        }
+        if (args.some(isPend)) return PENDING;
+        if (upper === "SUM") {
+          return args.reduce(function (a, b) {
+            if (Array.isArray(b)) return a + b.reduce(function (x, y) { return x + num(y); }, 0);
+            return a + num(b);
+          }, 0);
+        }
+        const digits = args.length > 1 ? num(args[1]) : 0;
+        const p = Math.pow(10, digits || 0);
+        const x = num(args[0]) * p;
+        if (upper === "ROUNDUP") return (x < 0 ? Math.floor(x) : Math.ceil(x)) / p;
+        return (x < 0 ? Math.ceil(x) : Math.floor(x)) / p;
+      }
+      if (/^\$?[A-Z]{1,3}\$?\d+$/i.test(token)) {
+        i = k;
+        return cellVal(sheet, token.replace(/\$/g, ""));
+      }
+      i = Math.max(k, i + 1);
+      return 0;
+    }
+    function parseArg() {
+      skip();
+      const m = s.slice(i).match(/^(\$?[A-Z]{1,3}\$?\d+):(\$?[A-Z]{1,3}\$?\d+)/i);
+      if (m) {
+        i += m[0].length;
+        return rangeVals(sheet, m[1], m[2]);
+      }
+      return parseExpr();
+    }
+    const val = parseExpr();
+    skip();
+    if (i < s.length) return PENDING;
+    return val;
+  }
+  for (let pass = 0; pass < formulas.length + 2; pass++) {
+    let moved = 0;
+    formulas.forEach(function (item) {
+      const k = item.ws.name + "!" + item.addr.toUpperCase();
+      if (Object.prototype.hasOwnProperty.call(done, k)) return;
+      const val = evalFormula(item.formula, item.ws.name);
+      if (isPend(val)) return;
+      if (typeof val === "number" && !isFinite(val)) return;
+      done[k] = val;
+      item.ws.getCell(item.addr).value = { formula: item.formula, result: val };
+      moved++;
+    });
+    if (!moved) break;
+  }
+}
+
 function cellText(cell) {
   const v = cell.value;
   if (v == null || v === "") return "";
@@ -317,6 +551,8 @@ function sheetsToPdf(wb, pdfPath) {
 }
 
 async function writeAndRespond(req, res, wb, d, prefix, areas, kind) {
+  unshareFormulas(wb);
+  bakeFormulaResults(wb);
   if (wb.calcProperties) wb.calcProperties.fullCalcOnLoad = true;
   dropBadNames(wb);
   applyOnePage(wb, areas);
@@ -366,23 +602,28 @@ async function writeAndRespond(req, res, wb, d, prefix, areas, kind) {
     pdf: pdfUrl
   }, req);
   try {
-    const isBill = String(kind||"").indexOf("bill")>=0;
-    const rec = dbAppend(isBill ? DB_BILL : DB_EST, {
-      kind: isBill ? "bill" : "estimate",
-      type: d.type || (kind === "estimate_paver" || kind === "bill_paver" ? "Paver" : kind === "bill_gutter" ? "Gutter" : kind === "bill_pipe" ? "Pipe" : "CC"),
-      village: d.village, taluka: d.taluka, jilla: d.jilla,
-      work_name: d.work_name || "",
-      fund_head: d.fund_head || d.grant || "",
-      amounting: Number(d.net || d.amounting || d.ts_amount || 0),
-      net: Number(d.net || 0),
-      day: d.day || new Date().toISOString().slice(0,10),
-      length_m: Lm, width_m: Wm, area: areaM,
-      brass: (kind === "estimate_paver" || kind === "bill_paver") ? areaM * 10.7584 / 100 : 0,
-      prepared_by: d.prepared_by || "",
-      mb_no: d.mb_no || ""
-    });
-    if (typeof sbOn === "function" && sbOn()) {
-      sbInsert(isBill ? "bills" : "estimates", rec).catch(function(e){ console.error(e.message); });
+    const kindStr = String(kind || "");
+    const isBill = /^bill_(paver|cc|gutter|pipe)$/.test(kindStr);
+    const isEst = /^estimate_/.test(kindStr);
+    if (isBill || isEst) {
+      const net = Number(d.net || 0);
+      const rec = dbAppend(isBill ? DB_BILL : DB_EST, {
+        kind: isBill ? "bill" : "estimate",
+        type: d.type || (kind === "estimate_paver" || kind === "bill_paver" ? "Paver" : kind === "bill_gutter" ? "Gutter" : kind === "bill_pipe" ? "Pipe" : "CC"),
+        village: d.village, taluka: d.taluka, jilla: d.jilla,
+        work_name: d.work_name || "",
+        fund_head: d.fund_head || d.grant || "",
+        amounting: isBill ? (net || Number(d.amounting || 0)) : Number(d.amounting || 0),
+        net: net,
+        day: d.day || new Date().toISOString().slice(0, 10),
+        length_m: Lm, width_m: Wm, area: areaM,
+        brass: (kind === "estimate_paver" || kind === "bill_paver") ? areaM * 10.7584 / 100 : 0,
+        prepared_by: d.prepared_by || "",
+        mb_no: d.mb_no || ""
+      });
+      if (typeof sbOn === "function" && sbOn()) {
+        sbInsert(isBill ? "bills" : "estimates", rec).catch(function (e) { console.error(e.message); });
+      }
     }
   } catch (_e) {}
   const wantXlsx = output === "xlsx" || output === "both";
@@ -1118,6 +1359,7 @@ app.post("/api/estimate/gutter", async (req, res) => {
       setVal(meas, "G58", 0);
       setVal(meas, "I58", 0);
     }
+    meas.getCell("K58").value = { formula: "C58*E58*G58*I58" };
     setVal(meas, "C2", work);
     setVal(abs, "C2", work);
     if (test) setVal(test, "B1", work);
@@ -1583,7 +1825,7 @@ app.post("/api/bill/paver", async (req, res) => {
       "Bill": "A1:G19",
       "COMP-14MU NAN": "A1:H21"
     };
-    await writeAndRespond(req, res, wb, d, "BILL_PAVER", areas, "bill_paver");
+    await writeAndRespond(req, res, wb, Object.assign({}, d, { net: e13 }), "BILL_PAVER", areas, "bill_paver");
   } catch (err) {
     res.status(500).json({ ok: false, error: String(err.message || err) });
   }
@@ -1681,7 +1923,7 @@ app.post("/api/bill/cc", async (req, res) => {
       "Bill": "A1:G21",
       "COMP-14MU NAN": "A1:H21"
     };
-    await writeAndRespond(req, res, wb, Object.assign({}, d, { type: "CC" }), "BILL_CC", areas, "bill_cc");
+    await writeAndRespond(req, res, wb, Object.assign({}, d, { type: "CC", net: net }), "BILL_CC", areas, "bill_cc");
   } catch (err) {
     res.status(500).json({ ok: false, error: String(err.message || err) });
   }
@@ -2006,16 +2248,36 @@ function fillBillPaComp(pa, bill, comp, d){
   const grant = d.fund_head || d.grant || "";
   const gam = d.village || d.gam || "";
   let tal = String(d.taluka || "").trim().replace(/^તા\.\s*/, "");
+  const talLabel = tal ? ("તા. " + tal) : "";
   const agency = d.agency || "સરપંચ શ્રી ગ્રામ પંચાયત";
+  const wo = d.work_order || d.as_details || "";
+  const subdiv = d.subdiv || d.subdiv_address || "";
+  const aae = d.prepared_by || d.aae || "";
+  const measDate = d.meas_date || d.date || "";
+  const mb = d.mb_no || "";
+  const pg1 = d.page_from || "";
+  const pg2 = d.page_to || "";
   if (pa) {
-    setVal(pa, "G2", grant);
+    setVal(pa, "H2", grant);
+    setVal(pa, "G6", subdiv);
     setVal(pa, "C7", work);
-    setVal(pa, "I7", tal ? ("તા. "+tal) : "");
+    setVal(pa, "J7", talLabel);
+    setVal(pa, "G9", talLabel);
+    setVal(pa, "J8", gam);
     setVal(pa, "G8", agency);
-    setVal(pa, "I8", gam);
-    setVal(pa, "H9", d.work_order || d.as_details || "");
+    setVal(pa, "I9", wo);
   }
-  if (bill) setVal(bill, "A1", work);
+  if (bill) {
+    setVal(bill, "A1", work);
+    const mbRow = findLabelRow(bill, /^MB NO/i);
+    if (mbRow) {
+      setVal(bill, "A" + (mbRow - 2), aae ? ("શ્રી- " + aae) : "");
+      setVal(bill, "B" + (mbRow - 1), measDate);
+      setVal(bill, "B" + mbRow, mb);
+      setVal(bill, "D" + mbRow, pg1);
+      setVal(bill, "F" + mbRow, pg2);
+    }
+  }
   if (comp) {
     setVal(comp, "C2", grant);
     setVal(comp, "C3", work);
@@ -2026,10 +2288,11 @@ function fillBillPaComp(pa, bill, comp, d){
     setVal(comp, "C8", agency);
     setVal(comp, "F8", gam);
     setVal(comp, "C9", d.start_date || "");
-    setVal(comp, "C10", d.meas_date || d.date || "");
-    setVal(comp, "C13", d.mb_no || "");
-    setVal(comp, "E13", d.page_from || "");
-    setVal(comp, "G13", d.page_to || "");
+    setVal(comp, "C10", measDate);
+    setVal(comp, "D12", mb);
+    setVal(comp, "F12", pg1);
+    setVal(comp, "H12", pg2);
+    setVal(comp, "A20", talLabel);
   }
 }
 
@@ -2043,10 +2306,12 @@ function putBillLine(bill, addr, qty, rate) {
 function putBillTotals(bill, sub, row) {
   const gst = Math.round(sub * 0.18 * 100) / 100;
   const tot = Math.round((sub + gst) * 100) / 100;
+  const net = Math.floor(sub * 1.18);
   setVal(bill, "E" + row, Math.round(sub * 100) / 100);
   setVal(bill, "E" + (row + 1), gst);
   setVal(bill, "E" + (row + 2), tot);
-  setVal(bill, "E" + (row + 3), Math.floor(sub + gst));
+  setVal(bill, "E" + (row + 3), net);
+  return net;
 }
 
 app.post("/api/bill/gutter", async (req, res) => {
@@ -2079,7 +2344,9 @@ app.post("/api/bill/gutter", async (req, res) => {
     sub += putBillLine(bill, "B28", n("cover") || ch, 1173);
     sub += putBillLine(bill, "B29", n("cc"), 3652.31);
     sub += putBillLine(bill, "B30", n("plate"), 306.14);
-    putBillTotals(bill, sub, 31);
+    const net = putBillTotals(bill, sub, 31);
+    if (comp) setVal(comp, "C11", net);
+    d.net = net;
     await writeAndRespond(req, res, wb, d, "BILL_GUTTER", {
       "21 No. P.A. Form": "A1:I36", Bill: "A1:G40", "COMP-14MU NAN": "A1:H21"
     }, "bill_gutter");
@@ -2111,7 +2378,9 @@ app.post("/api/bill/pipe", async (req, res) => {
     });
     sub += putBillLine(bill, "B16", n("refill"), 22);
     sub += putBillLine(bill, "B17", n("plate"), 306.14);
-    putBillTotals(bill, sub, 18);
+    const net = putBillTotals(bill, sub, 18);
+    if (comp) setVal(comp, "C11", net);
+    d.net = net;
     await writeAndRespond(req, res, wb, d, "BILL_PIPE", {
       "21 No. P.A. Form": "A1:I36", Bill: "A1:G40", "COMP-14MU NAN": "A1:H21"
     }, "bill_pipe");
@@ -2121,6 +2390,9 @@ app.post("/api/bill/pipe", async (req, res) => {
 });
 
 
-app.listen(PORT, () => {
-  console.log("ParaState MVP on " + PORT);
-});
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log("ParaState MVP on " + PORT);
+  });
+}
+module.exports = { bakeFormulaResults };
