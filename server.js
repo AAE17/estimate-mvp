@@ -456,23 +456,23 @@ function loQueue(job) {
   return run;
 }
 
-function loJobProfile(tag) {
-  const dir = path.join(OUT_DIR, tag + "-" + Date.now() + "-" + Math.random().toString(36).slice(2, 6));
+function loSharedArg() {
+  const dir = path.join(OUT_DIR, "lo-profile");
   const user = path.join(dir, "user");
   fs.mkdirSync(user, { recursive: true });
-  fs.writeFileSync(path.join(user, "registrymodifications.xcu"), LO_XCU);
-  return { arg: "-env:UserInstallation=file://" + dir, dir: dir };
+  const xcu = path.join(user, "registrymodifications.xcu");
+  if (!fs.existsSync(xcu)) fs.writeFileSync(xcu, LO_XCU);
+  return "-env:UserInstallation=file://" + dir;
 }
 
 function recalcXlsxFile(xlsxPath) {
   return loQueue(function () {
     return new Promise((resolve) => {
       const tmp = path.join(path.dirname(xlsxPath), "recalc-" + Date.now() + "-" + Math.random().toString(36).slice(2, 6));
-      const prof = loJobProfile("prof-recalc");
       fs.mkdirSync(tmp, { recursive: true });
       execFile(
         sofficeBin(),
-        [prof.arg, "--headless", "--norestore", "--nolockcheck", "--convert-to", "xlsx", "--outdir", tmp, xlsxPath],
+        [loSharedArg(), "--headless", "--norestore", "--nolockcheck", "--convert-to", "xlsx", "--outdir", tmp, xlsxPath],
         { timeout: 60000 },
         (err) => {
           const produced = path.join(tmp, path.basename(xlsxPath));
@@ -487,7 +487,6 @@ function recalcXlsxFile(xlsxPath) {
             }
           }
           try { fs.rmSync(tmp, { recursive: true, force: true }); } catch (_e) {}
-          try { fs.rmSync(prof.dir, { recursive: true, force: true }); } catch (_e2) {}
           resolve();
         }
       );
@@ -501,27 +500,20 @@ function convertWithSoffice(xlsxPath) {
       const dir = path.dirname(xlsxPath);
       const pdfPath = xlsxPath.replace(/\.xlsx$/i, ".pdf");
       const filter = 'pdf:calc_pdf_Export:{"SinglePageSheets":{"type":"boolean","value":"true"}}';
-      const prof = loJobProfile("prof-pdf");
-      function finish(err) {
-        try { fs.rmSync(prof.dir, { recursive: true, force: true }); } catch (_e) {}
-        if (err) return reject(err);
-        if (!fs.existsSync(pdfPath)) return reject(new Error("pdf missing"));
-        resolve(pdfPath);
-      }
       execFile(
         sofficeBin(),
-        [prof.arg, "--headless", "--norestore", "--nolockcheck", "--convert-to", filter, "--outdir", dir, xlsxPath],
+        [loSharedArg(), "--headless", "--norestore", "--nolockcheck", "--convert-to", filter, "--outdir", dir, xlsxPath],
         { timeout: 60000 },
         (err) => {
-          if (!err && fs.existsSync(pdfPath)) return finish(null);
-          const prof2 = loJobProfile("prof-pdf2");
+          if (!err && fs.existsSync(pdfPath)) return resolve(pdfPath);
           execFile(
             sofficeBin(),
-            [prof2.arg, "--headless", "--norestore", "--nolockcheck", "--convert-to", "pdf", "--outdir", dir, xlsxPath],
+            [loSharedArg(), "--headless", "--norestore", "--nolockcheck", "--convert-to", "pdf", "--outdir", dir, xlsxPath],
             { timeout: 60000 },
             (err2) => {
-              try { fs.rmSync(prof2.dir, { recursive: true, force: true }); } catch (_e) {}
-              finish(err2 || (!fs.existsSync(pdfPath) ? new Error("pdf missing") : null));
+              if (err2) return reject(err2);
+              if (!fs.existsSync(pdfPath)) return reject(new Error("pdf missing"));
+              resolve(pdfPath);
             }
           );
         }
@@ -621,6 +613,7 @@ function sheetsToPdf(wb, pdfPath) {
 
 async function writeAndRespond(req, res, wb, d, prefix, areas, kind) {
   if (wb.calcProperties) wb.calcProperties.fullCalcOnLoad = true;
+  try { bakeFormulaResults(wb); } catch (_e) {}
   dropBadNames(wb);
   applyOnePage(wb, areas);
   const output = d.output || "xlsx";
@@ -632,7 +625,7 @@ async function writeAndRespond(req, res, wb, d, prefix, areas, kind) {
   const pdfFull = path.join(OUT_DIR, pdfName);
   await wb.xlsx.writeFile(xlsxFull);
   await patchFitXml(xlsxFull);
-  if ((output === "xlsx" || output === "both") && String(process.env.XLSX_RESAVE == null ? "1" : process.env.XLSX_RESAVE) !== "0") {
+  if ((output === "xlsx" || output === "both") && String(process.env.XLSX_RESAVE || "0") === "1") {
     await recalcXlsxFile(xlsxFull);
     await patchFitXml(xlsxFull);
   }
