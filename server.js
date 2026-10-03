@@ -2,7 +2,7 @@ const express = require("express");
 const cors = require("cors");
 const fs = require("fs");
 const path = require("path");
-const { execFile, spawn } = require("child_process");
+const { execFile, execFileSync, spawn } = require("child_process");
 const ExcelJS = require("exceljs");
 const PDFDocument = require("pdfkit");
 const Tesseract = require("tesseract.js");
@@ -460,32 +460,35 @@ const LO_DIR = "/tmp/lo-profile";
 
 function resetLoProfile() {
   try { fs.rmSync(LO_DIR, { recursive: true, force: true }); } catch (_e) {}
-  const user = path.join(LO_DIR, "user");
-  fs.mkdirSync(user, { recursive: true });
-  fs.writeFileSync(path.join(user, "registrymodifications.xcu"), LO_XCU);
+  fs.mkdirSync(LO_DIR, { recursive: true });
 }
 
 function loSharedArg() {
-  if (!fs.existsSync(path.join(LO_DIR, "user", "registrymodifications.xcu"))) resetLoProfile();
+  if (!fs.existsSync(LO_DIR)) fs.mkdirSync(LO_DIR, { recursive: true });
   return "-env:UserInstallation=file:///tmp/lo-profile";
+}
+
+function stopSoffice() {
+  try { execFileSync("pkill", ["-9", "-f", "soffice"], { stdio: "ignore" }); } catch (_e) {}
+  [path.join(LO_DIR, ".lock"), path.join(LO_DIR, "user", ".lock")].forEach(function (p) {
+    try { fs.rmSync(p, { force: true }); } catch (_e) {}
+  });
 }
 
 function runSoffice(args, timeoutMs) {
   return new Promise((resolve, reject) => {
     let done = false;
-    const child = spawn(sofficeBin(), args, { detached: true, stdio: "ignore" });
+    const child = spawn(sofficeBin(), args, { stdio: "ignore" });
     const timer = setTimeout(() => {
       if (done) return;
       done = true;
-      try { process.kill(-child.pid, "SIGKILL"); } catch (_e) {
-        try { child.kill("SIGKILL"); } catch (_e2) {}
-      }
-      console.error("soffice timeout", args.join(" "));
+      try { child.kill("SIGKILL"); } catch (_e) {}
+      stopSoffice();
       resetLoProfile();
       const err = new Error("soffice timeout");
       err.timeout = true;
       reject(err);
-    }, timeoutMs || 60000);
+    }, timeoutMs || 55000);
     child.on("error", (err) => {
       if (done) return;
       done = true;
@@ -527,37 +530,22 @@ function convertWithSoffice(xlsxPath) {
   return loQueue(async function () {
     const dir = path.dirname(xlsxPath);
     const pdfPath = xlsxPath.replace(/\.xlsx$/i, ".pdf");
-    const filter = 'pdf:calc_pdf_Export:{"SinglePageSheets":{"type":"boolean","value":"true"}}';
     try { if (fs.existsSync(pdfPath)) fs.unlinkSync(pdfPath); } catch (_e) {}
+    const args = [loSharedArg(), "--headless", "--norestore", "--nolockcheck", "--convert-to", "pdf", "--outdir", dir, xlsxPath];
+    stopSoffice();
     try {
-      await runSoffice(
-        [loSharedArg(), "--headless", "--norestore", "--nolockcheck", "--convert-to", filter, "--outdir", dir, xlsxPath],
-        60000
-      );
+      await runSoffice(args, 55000);
     } catch (err) {
-      if (err && err.timeout) throw err;
-      if (!fs.existsSync(pdfPath)) {
-        await runSoffice(
-          [loSharedArg(), "--headless", "--norestore", "--nolockcheck", "--convert-to", "pdf", "--outdir", dir, xlsxPath],
-          45000
-        );
-      }
+      console.error("pdf convert", err.message || err);
+    }
+    if (!fs.existsSync(pdfPath)) {
+      stopSoffice();
+      resetLoProfile();
+      await runSoffice(args, 55000);
     }
     if (!fs.existsSync(pdfPath)) throw new Error("pdf missing");
     return pdfPath;
   });
-}
-
-function warmLibreOffice() {
-  const src = path.join(__dirname, "skeleton-cc.xlsx");
-  if (!fs.existsSync(src)) return;
-  const tmp = "/tmp/lo-warm.xlsx";
-  try { fs.copyFileSync(src, tmp); } catch (_e) { return; }
-  convertWithSoffice(tmp).then(() => {
-    try { fs.unlinkSync("/tmp/lo-warm.pdf"); } catch (_e) {}
-    try { fs.unlinkSync(tmp); } catch (_e) {}
-    console.log("lo warm ok");
-  }).catch((e) => console.error("lo warm fail", e.message || e));
 }
 
 async function addPdfMargins(pdfPath) {
@@ -2634,9 +2622,9 @@ app.post("/api/bill/pipe", async (req, res) => {
 
 
 if (require.main === module) {
+  resetLoProfile();
   app.listen(PORT, () => {
     console.log("ParaState MVP on " + PORT);
-    warmLibreOffice();
   });
 }
 module.exports = { bakeFormulaResults };
