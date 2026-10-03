@@ -4679,6 +4679,16 @@ function startScan(camera) {
   });
 
   function isIos(){ return /iPhone|iPad|iPod/i.test(navigator.userAgent||""); }
+  async function waitPdf(job){
+    for (let i = 0; i < 40; i++) {
+      await new Promise(function(r){ setTimeout(r, 3000); });
+      const res = await fetch(API + "/api/pdf-job/" + job);
+      const j = await res.json();
+      if (j && j.pdf) return j.pdf;
+      if (j && j.error) throw new Error(j.error);
+    }
+    throw new Error("PDF વધુ સમય લે છે");
+  }
   async function postJson(url, body){
     const res = await fetch(url, {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(body)});
     const data = await res.json();
@@ -4791,19 +4801,14 @@ function startScan(camera) {
         });
       }catch(e){}
       let files = showFiles(API, data, []);
-      if (!files.length) throw new Error((data && data.pdf_error) || "ફાઇલ ન બની");
-      if (kind === "both") {
-        setBusy(false);
-        msg.textContent = "Excel તૈયાર. PDF પાછળથી આવશે.";
-        body.output = "pdf";
-        const dp = await postJson(API + url, body);
-        files = showFiles(API, dp, files);
-        msg.textContent = dp.pdf ? "Excel અને PDF તૈયાર." : "Excel તૈયાર." + (dp.pdf_error ? " PDF: " + dp.pdf_error : "");
-      } else {
-        msg.textContent = data.pdf
-          ? "PDF તૈયાર."
-          : "Excel તૈયાર." + (data.pdf_error ? " PDF: " + data.pdf_error : "");
+      if (data && data.pdf_job) {
+        msg.textContent = "PDF બની રહી છે…";
+        const pdf = await waitPdf(data.pdf_job);
+        data.pdf = pdf;
+        files = showFiles(API, data, files);
       }
+      if (!files.length) throw new Error((data && data.pdf_error) || "ફાઇલ ન બની");
+      msg.textContent = data.pdf ? (kind === "both" ? "Excel અને PDF તૈયાર." : "PDF તૈયાર.") : "Excel તૈયાર.";
     } catch (e) {
       msg.textContent = "ભૂલ: " + (e && e.message ? e.message : e);
     } finally {
