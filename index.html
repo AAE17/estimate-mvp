@@ -4690,34 +4690,22 @@ function startScan(camera) {
     if(data && data.xlsx) fresh.push({name:"Excel", url:base+data.xlsx});
     if(data && data.pdf) fresh.push({name:"PDF", url:base+data.pdf});
     fresh.forEach(function(f){ files.push(f); });
-    if(files.length) fileDock(files);
-    fresh.forEach(function(f){ window.open(f.url, "_blank"); });
-    return files;
-  }
-  function fileDock(files){
-    files=(files||[]).filter(function(f){ return f && f.url; });
     const old=document.getElementById("fileDock");
     if(old) old.remove();
-    if(!files.length) return;
-    const bar=document.createElement("div");
-    bar.id="fileDock";
-    bar.style.cssText="position:fixed;left:0;right:0;bottom:0;z-index:99999;display:flex;gap:8px;align-items:stretch;padding:10px 12px calc(10px + env(safe-area-inset-bottom));background:#0f172a;box-shadow:0 -6px 18px rgba(0,0,0,.28);";
-    files.forEach(function(f){
+    fresh.forEach(function(f){
       const a=document.createElement("a");
       a.href=f.url;
       a.target="_blank";
       a.rel="noopener";
-      a.textContent=f.name==="PDF"?"PDF ડાઉનલોડ":"Excel ડાઉનલોડ";
-      a.style.cssText="flex:1;display:flex;align-items:center;justify-content:center;min-height:52px;background:#15803d;color:#fff;text-decoration:none;font-weight:700;font-size:18px;border-radius:12px;";
-      bar.appendChild(a);
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
     });
-    const x=document.createElement("button");
-    x.type="button";
-    x.textContent="બંધ";
-    x.style.cssText="min-width:64px;min-height:52px;background:transparent;color:#fff;border:1px solid #94a3b8;border-radius:12px;font-size:16px;";
-    x.onclick=function(){ bar.remove(); };
-    bar.appendChild(x);
-    document.body.appendChild(bar);
+    return files;
+  }
+  function fileDock(){
+    const old=document.getElementById("fileDock");
+    if(old) old.remove();
   }
   function giveFiles(wins, files){
     files.forEach(function(f,i){ if(wins[i] && !wins[i].closed){ try{ wins[i].location.href=f.url; }catch(e){} } });
@@ -4802,7 +4790,7 @@ function startScan(camera) {
         });
       }catch(e){}
       let files = showFiles(API, data, []);
-      if (!files.length) throw new Error("ફાઇલ ન બની");
+      if (!files.length) throw new Error((data && data.pdf_error) || "ફાઇલ ન બની");
       if (kind === "both") {
         setBusy(false);
         msg.textContent = "Excel તૈયાર. PDF પાછળથી આવશે.";
