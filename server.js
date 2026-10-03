@@ -538,6 +538,7 @@ function convertWithSoffice(xlsxPath) {
         "--headless", "--norestore", "--nolockcheck", "--nologo",
         "--convert-to", "pdf", "--outdir", dir, xlsxPath
       ], {
+        detached: true,
         stdio: ["ignore", "pipe", "pipe"],
         env: Object.assign({}, process.env, { SAL_USE_VCLPLUGIN: "svp", HOME: "/tmp" })
       });
@@ -555,12 +556,12 @@ function convertWithSoffice(xlsxPath) {
         clearInterval(poll);
         try { fs.rmSync(profile, { recursive: true, force: true }); } catch (_e) {}
         if (ready()) return resolve(pdfPath);
-        try { child.kill("SIGKILL"); } catch (_e) {}
+        try { process.kill(-child.pid, "SIGKILL"); } catch (_e) { try { child.kill("SIGKILL"); } catch (_e2) {} }
         const extra = log.replace(/\s+/g, " ").trim().slice(0, 160);
         reject(new Error((err && err.message ? err.message : "pdf missing") + (extra ? " | " + extra : "")));
       };
       const poll = setInterval(() => { if (ready()) finish(null); }, 500);
-      const timer = setTimeout(() => finish(new Error("soffice timeout")), 180000);
+      const timer = setTimeout(() => finish(new Error("soffice timeout")), 100000);
       child.on("error", (err) => finish(err));
       child.on("close", () => setTimeout(() => finish(new Error("pdf missing")), 2000));
     });
