@@ -343,10 +343,11 @@ function applyOnePage(wb, areas) {
     const lastR = Number(m[4]);
 
     ws.pageSetup.paperSize = 9;
-    ws.pageSetup.orientation = lastC > 10 ? "landscape" : "portrait";
+    ws.pageSetup.orientation = lastC > 12 ? "landscape" : "portrait";
     ws.pageSetup.fitToPage = true;
     ws.pageSetup.fitToWidth = 1;
     ws.pageSetup.fitToHeight = 1;
+    delete ws.pageSetup.scale;
     ws.pageSetup.horizontalCentered = true;
     ws.pageSetup.horizontalDpi = 300;
     ws.pageSetup.verticalDpi = 300;
@@ -406,12 +407,13 @@ async function patchFitXml(xlsxPath) {
     xml = xml.replace(/<pageSetup\b([^>]*)\/>/, (_all, attrs) => {
       let a = String(attrs)
         .replace(/\s+scale="[^"]*"/g, "")
+        .replace(/\s+orientation="[^"]*"/g, "")
         .replace(/\s+horizontalDpi="[^"]*"/g, "")
         .replace(/\s+verticalDpi="[^"]*"/g, "")
         .replace(/\s+fitToWidth="[^"]*"/g, "")
         .replace(/\s+fitToHeight="[^"]*"/g, "")
         .replace(/\s+paperSize="[^"]*"/g, "");
-      return `<pageSetup${a} paperSize="9" fitToWidth="1" fitToHeight="1" horizontalDpi="300" verticalDpi="300"/>`;
+      return `<pageSetup${a} paperSize="9" orientation="portrait" fitToWidth="1" fitToHeight="1" horizontalDpi="300" verticalDpi="300"/>`;
     });
     xml = xml.replace(/<pageMargins[^/]*\/>/, '<pageMargins left="0.5" right="0.5" top="0.5" bottom="0.5" header="0.25" footer="0.25"/>');
     if (!/<pageMargins /.test(xml)) {
@@ -1560,7 +1562,7 @@ app.post("/api/estimate/gutter", async (req, res) => {
     await writeAndRespond(req, res, wb, d, "GUTTER", {
       Estimate: "A1:I41",
       Abstract: "A1:F46",
-      Measurement: "A1:K63",
+      Measurement: "A1:L63",
       "TEST-SITE": "A1:G36"
     }, "estimate_gutter");
   } catch (e) {
@@ -2507,7 +2509,7 @@ app.post("/api/estimate/pipe", async (req, res) => {
     setVal(meas, "E40", Number(d.pPlate||1));
     if (test) setVal(test, "C12", 1);
     await writeAndRespond(req, res, wb, d, "PIPE", {
-      Estimate: "A1:I41", Abstract: "A1:F30", Measurement: "A1:K42", "TEST-SITE": "A1:G36"
+      Estimate: "A1:I41", Abstract: "A1:F30", Measurement: "A1:L42", "TEST-SITE": "A1:G36"
     }, "estimate_pipe");
   } catch (e) {
     res.status(500).json({ ok: false, error: String(e.message || e) });
