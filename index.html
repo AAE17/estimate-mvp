@@ -2148,8 +2148,8 @@ function onLetterDate(){
     try{
       if(typeof setBusy==="function") setBusy(true);
       const base=(typeof API!=="undefined"?API:"");
-      const res=await fetch(base+"/api/letter/fwd",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
-        output:"both",
+      const payload={
+        output:"xlsx",
         letter_no:vashi.trim(),
         date:dateTxt,
         taluka:picks[0].taluka||"",
@@ -2158,14 +2158,12 @@ function onLetterDate(){
         items:picks,
         rb:rb,
         nani:nani
-      })});
-      const data=await res.json();
-      if(!data.ok) throw new Error(data.error||"fail");
-      const files=[];
-      if(data.xlsx) files.push({name:"Excel", url:base+data.xlsx});
-      if(data.pdf) files.push({name:"PDF", url:base+data.pdf});
-      fileDock(files);
-      files.forEach(function(f){ window.open(f.url,"_blank"); });
+      };
+      const dx=await postJson(base+"/api/letter/fwd", payload);
+      let files=showFiles(base, dx, []);
+      payload.output="pdf";
+      const dp=await postJson(base+"/api/letter/fwd", payload);
+      showFiles(base, dp, files);
     }catch(e){ alert("પત્ર ભૂલ: "+e.message); }
     finally{ if(typeof setBusy==="function") setBusy(false); }
   }
@@ -2438,9 +2436,9 @@ function onLetterDate(){
       body.type=billKind()==="cc"?"CC":billKind()==="gutter"?"Gutter":billKind()==="pipe"?"Pipe":"Paver";
       body.qty=q;
       const bt=(document.getElementById("billType")||{}).value||"cc"; const url=base+(bt==="cc"?"/api/bill/cc":bt==="gutter"?"/api/bill/gutter":bt==="pipe"?"/api/bill/pipe":"/api/bill/paver");
-      const res=await fetch(url,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
-      const data=await res.json();
-      if(!data.ok) throw new Error(data.error||"fail");
+      const want=fmt||"both";
+      body.output = want==="pdf" ? "pdf" : "xlsx";
+      const dx=await postJson(url, body);
       try{
         const pick=document.getElementById("billPick");
         const pickName=pick && pick.options[pick.selectedIndex] ? pick.options[pick.selectedIndex].textContent : "";
@@ -2465,11 +2463,13 @@ function onLetterDate(){
           as_amount: Number(val("billAmt")||0),
           fund_head: (typeof billFundHead==="function"?billFundHead():"")
         });
-        body.net=liveNet||0; body.day=todayStr(); body.amounting=liveNet||Number(val("billAmt")||0);
       }catch(e){}
-      if(data.xlsx) window.open(base+data.xlsx,"_blank");
-      if(data.pdf) window.open(base+data.pdf,"_blank");
-      fileDock([data.xlsx?{name:"Excel",url:base+data.xlsx}:null, data.pdf?{name:"PDF",url:base+data.pdf}:null]);
+      let files=showFiles(base, dx, []);
+      if(want==="both"){
+        body.output="pdf";
+        const dp=await postJson(url, body);
+        showFiles(base, dp, files);
+      }
     }catch(e){ alert("બિલ ભૂલ: "+e.message); }
     finally{
       document.querySelectorAll("#s-bill .dl").forEach(function(b){ b.disabled=false; });
@@ -4673,6 +4673,22 @@ function startScan(camera) {
   });
 
   function isIos(){ return /iPhone|iPad|iPod/i.test(navigator.userAgent||""); }
+  async function postJson(url, body){
+    const res = await fetch(url, {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(body)});
+    const data = await res.json();
+    if(!data.ok) throw new Error(data.error||"fail");
+    return data;
+  }
+  function showFiles(base, data, keep){
+    const files=(keep||[]).slice();
+    const fresh=[];
+    if(data && data.xlsx) fresh.push({name:"Excel", url:base+data.xlsx});
+    if(data && data.pdf) fresh.push({name:"PDF", url:base+data.pdf});
+    fresh.forEach(function(f){ files.push(f); });
+    if(files.length) fileDock(files);
+    fresh.forEach(function(f){ window.open(f.url, "_blank"); });
+    return files;
+  }
   function fileDock(files){
     files=(files||[]).filter(function(f){ return f && f.url; });
     const old=document.getElementById("fileDock");
@@ -4759,13 +4775,8 @@ function startScan(camera) {
         gBedW:num("gBedW"), gBedT:num("gBedT")
       };
       const url = currentType === "paver" ? "/api/estimate/paver" : currentType === "gutter" ? "/api/estimate/gutter" : currentType === "pipe" ? "/api/estimate/pipe" : "/api/estimate/cc";
-      const res = await fetch(API + url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body)
-      });
-      const data = await res.json();
-      if (!data.ok) throw new Error(data.error || "fail");
+      body.output = kind === "pdf" ? "pdf" : "xlsx";
+      const data = await postJson(API + url, body);
       try{
         if(typeof saveSiteMeta==="function") saveSiteMeta(val("work_name"),{
           taluka:val("taluka"),
@@ -4786,17 +4797,19 @@ function startScan(camera) {
           width_m: num("width_m")
         });
       }catch(e){}
-      const files=[];
-      if (data.xlsx) files.push({name:"Excel", url:API+data.xlsx});
-      if (data.pdf) files.push({name:"PDF", url:API+data.pdf});
+      let files = showFiles(API, data, []);
       if (!files.length) throw new Error("ફાઇલ ન બની");
-      fileDock(files);
-      files.forEach(function(f){ window.open(f.url, "_blank"); });
-      msg.textContent = data.pdf && data.xlsx
-        ? "Excel અને PDF તૈયાર."
-        : data.pdf
+      if (kind === "both") {
+        msg.textContent = "Excel તૈયાર. PDF બની રહ્યું છે…";
+        body.output = "pdf";
+        const dp = await postJson(API + url, body);
+        files = showFiles(API, dp, files);
+        msg.textContent = dp.pdf ? "Excel અને PDF તૈયાર." : "Excel તૈયાર." + (dp.pdf_error ? " PDF: " + dp.pdf_error : "");
+      } else {
+        msg.textContent = data.pdf
           ? "PDF તૈયાર."
           : "Excel તૈયાર." + (data.pdf_error ? " PDF: " + data.pdf_error : "");
+      }
     } catch (e) {
       msg.textContent = "ભૂલ: " + (e && e.message ? e.message : e);
     } finally {
