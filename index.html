@@ -3588,6 +3588,21 @@ function onLetterDate(){
       taluka:(document.getElementById("dTaluka")||{}).value||(diaryEst&&diaryEst.taluka)||"",
       amounting:Number((document.getElementById("dAmtIn")||{}).value||0),
       rows:DIARY,
+      gp:(function(){
+        const t=diaryType();
+        if(t!=="gutter" && t!=="pipe") return null;
+        const s=gpState(t);
+        const x=gpSiteItems(t);
+        const byDia={};
+        (s.pipes||[]).forEach(function(p){ byDia[p.dia]=(byDia[p.dia]||0)+parseMix(p.l); });
+        const ch={};
+        let frame=0;
+        (s.ch||[]).forEach(function(c){ const n=Number(c.n||0); ch[c.k]=(ch[c.k]||0)+n; frame+=n; });
+        const demoOn=!!(s.demo && s.demo.open);
+        const demo=demoOn ? parseMix(s.demo.l)*Number(s.demo.w||0)*(t==="pipe"?1:Number(s.demo.t||0)) : 0;
+        const cc=demoOn ? parseMix(s.cc.l)*Number(s.cc.w||0)*Number(s.cc.t||0) : 0;
+        return { byDia:byDia, ch:ch, demo:demo, exc:x.exc, refill:x.refill, plate:Number(s.plate||0), frame:frame, cover:frame, cc:cc };
+      })(),
       test_qty:Number((document.getElementById("kTest")||{}).value||1),
       name_plate:Number((document.getElementById("kPlate")||{}).value||0),
       exc_d:Number((document.getElementById("dExcD")||{}).value||0.2),
@@ -3596,7 +3611,8 @@ function onLetterDate(){
     };
   }
   function renderKachuSheets(){
-    const p=mbPaverTotals();
+    const t=diaryType();
+    const p=(t==="gutter"||t==="pipe")?gpSiteItems(t):(t==="cc"?mbCcTotals():mbPaverTotals());
     const inr0=function(x){return "₹ "+Number(x||0).toLocaleString("en-IN",{maximumFractionDigits:2});};
     const abs=document.getElementById("kachuAbs");
     const meas=document.getElementById("kachuMeas");
@@ -3607,23 +3623,30 @@ function onLetterDate(){
       });
       h += "<div><span>GST 18%</span><b>"+inr0(p.gst)+"</b></div>";
       h += "<div><span>Total</span><b>"+inr0(p.tot)+"</b></div>";
-      h += "<div><span>Est</span><b>"+inr0(p.est)+"</b></div>";
-      h += "<div><span>Net</span><b>"+inr0(p.net)+"</b></div>";
       abs.innerHTML=h;
     }
     if (meas) {
-      let h="<div><span>Sr · L × W × D</span><b>Qty</b></div>";
-      const excD=Number((document.getElementById("dExcD")||{}).value||0.2);
-      const dustD=Number((document.getElementById("dDustD")||{}).value||0.1);
-      DIARY.forEach(function(s,i){
-        const L=parseMix(s.l), W=parseMix(s.w);
-        if (!L && !W) return;
-        h += "<div><span>"+(i+1)+" · "+L+" × "+W+" × "+excD+"</span><b>"+(Math.round(L*W*excD*1000)/1000)+"</b></div>";
-        h += "<div><span>ડસ્ટ "+dustD+"</span><b>"+(Math.round(L*W*dustD*1000)/1000)+"</b></div>";
-      });
-      h += "<div><span>H11 ÷1.5 · I11 rounddown · J11</span><b>"+p.boxes+" · "+p.boxes+" · "+(Math.round(p.collect*100)/100)+"</b></div>";
-      h += "<div><span>બ્લોક SMT / વાટા</span><b>"+(Math.round(p.area*100)/100)+" / "+(Math.round(p.vata*100)/100)+"</b></div>";
-      meas.innerHTML=h;
+      if(t==="gutter"||t==="pipe"){
+        const s=gpState(t);
+        let h="<div><span>Dia · L × W × D</span><b>Qty</b></div>";
+        (s.pipes||[]).forEach(function(p0,i){
+          const L=parseMix(p0.l), W=Number(p0.w||0), D=Number(p0.d||0);
+          h += "<div><span>"+(i+1)+" · "+p0.dia+" · "+L+" × "+W+" × "+D+"</span><b>"+(Math.round(L*W*D*1000)/1000)+"</b></div>";
+        });
+        meas.innerHTML=h;
+      } else {
+        let h="<div><span>Sr · L × W × D</span><b>Qty</b></div>";
+        const excD=Number((document.getElementById("dExcD")||{}).value||0.2);
+        const dustD=Number((document.getElementById("dDustD")||{}).value||0.1);
+        DIARY.forEach(function(s,i){
+          const L=parseMix(s.l), W=parseMix(s.w);
+          if (!L && !W) return;
+          h += "<div><span>"+(i+1)+" · "+L+" × "+W+" × "+excD+"</span><b>"+(Math.round(L*W*excD*1000)/1000)+"</b></div>";
+          h += "<div><span>ડસ્ટ "+dustD+"</span><b>"+(Math.round(L*W*dustD*1000)/1000)+"</b></div>";
+        });
+        if(t==="paver") h += "<div><span>બ્લોક SMT / વાટા</span><b>"+(Math.round(p.area*100)/100)+" / "+(Math.round(p.vata*100)/100)+"</b></div>";
+        meas.innerHTML=h;
+      }
     }
   }
   function fillKachuPreview(p){ renderKachuSheets(); }
@@ -3644,7 +3667,7 @@ function onLetterDate(){
         fileDock(d.xlsx?[{name:"Excel", url:API+d.xlsx}]:[]);
         if (typeof fillKachuPreview==="function" && d.preview) fillKachuPreview(d.preview);
         return fetch(API+"/api/db/kachu",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
-          type:"paver",
+          type:diaryType(),
           work_name:body.work_name,
           village:body.village,
           amounting:body.amounting,
