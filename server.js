@@ -431,7 +431,7 @@ async function patchFitXml(xlsxPath) {
 }
 
 function sofficeBin() {
-  const list = ["/usr/lib/libreoffice/program/soffice.bin", "/usr/bin/soffice", "/usr/bin/libreoffice"];
+  const list = ["/usr/bin/soffice", "/usr/bin/libreoffice", "/usr/lib/libreoffice/program/soffice.bin"];
   for (const b of list) {
     try { if (fs.existsSync(b)) return b; } catch (_e) {}
   }
@@ -563,7 +563,7 @@ function convertWithSoffice(xlsxPath) {
       const poll = setInterval(() => { if (ready()) finish(null); }, 500);
       const timer = setTimeout(() => finish(new Error("soffice timeout")), 100000);
       child.on("error", (err) => finish(err));
-      child.on("close", () => setTimeout(() => finish(new Error("pdf missing")), 2000));
+      child.on("close", () => setTimeout(() => { if (ready()) finish(null); }, 1500));
     });
   });
 }
