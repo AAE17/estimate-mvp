@@ -1996,8 +1996,25 @@
 
   function billNetFromQty(q, type){
     q=q||{};
+    const tp=String(type||"").toLowerCase();
     let sub=0;
-    if(String(type||"").toLowerCase().indexOf("cc")>=0){
+    function add(qty, rate){ sub += Number(qty||0)*Number(rate||0); }
+    if(tp.indexOf("gutter")>=0 || tp.indexOf("pipe")>=0){
+      const pipe=tp.indexOf("pipe")>=0;
+      add(q.demo, pipe?202.2:1030.81);
+      add(q.exc, 89);
+      const dias=pipe?[[63,69,12],[75,96,15],[90,139,17],[110,199,19]]:[[225,421,88],[300,672,119],[450,817,171],[600,1331,228],[900,2476,340],[1200,4121,440]];
+      dias.forEach(function(d){ const qq=Number(q["p"+d[0]]||0); add(qq, d[1]); add(qq, d[2]); });
+      if(!pipe){
+        [["60",5138],["90",7343],["139",8882],["1313",10698]].forEach(function(c){ add(q["c"+c[0]], c[1]); });
+        const ch=Number(q.frame||0)||["60","90","139","1313"].reduce(function(a,k){ return a+Number(q["c"+k]||0); },0);
+        add(ch, 1121);
+        add(q.cover!=null && q.cover!=="" ? q.cover : ch, 1173);
+        add(q.cc, 3652.31);
+      }
+      add(q.refill, 22);
+      add(q.plate, 306.14);
+    } else if(tp.indexOf("cc")>=0){
       [[q.box,158.12],[q.metal,684.6],[q.murum,173.51],[q.spread_metal||q.spreadM,249.75],[q.spread_mur||q.spreadU,147.47],[q.cc,4915.01],[q.test,2656],[q.plate,306.14]].forEach(function(p){ sub+=Number(p[0]||0)*Number(p[1]); });
     } else {
       [[q.box,156.56],[q.murum,210.42],[q.paver,740.51],[q.vata,23.68],[q.test,608],[q.plate,306.14]].forEach(function(p){ sub+=Number(p[0]||0)*Number(p[1]); });
@@ -2005,11 +2022,11 @@
     return Math.floor(sub*1.18);
   }
   function letterAmt(b){
+    if(b && Number(b.net||0)) return Number(b.net);
     if(b && b.qty){
       const n=billNetFromQty(b.qty, b.type);
       if(n) return n;
     }
-    if(b && Number(b.net||0)) return Number(b.net);
     return Number(b && b.amounting||0);
   }
   function localBillKey(){ return "copilot_local_bills"; }
@@ -2144,8 +2161,11 @@ function onLetterDate(){
       })});
       const data=await res.json();
       if(!data.ok) throw new Error(data.error||"fail");
-      if(data.xlsx) window.open(base+data.xlsx,"_blank");
-      if(data.pdf) window.open(base+data.pdf,"_blank");
+      const files=[];
+      if(data.xlsx) files.push({name:"Excel", url:base+data.xlsx});
+      if(data.pdf) files.push({name:"PDF", url:base+data.pdf});
+      fileDock(files);
+      files.forEach(function(f){ window.open(f.url,"_blank"); });
     }catch(e){ alert("પત્ર ભૂલ: "+e.message); }
     finally{ if(typeof setBusy==="function") setBusy(false); }
   }
@@ -2449,6 +2469,7 @@ function onLetterDate(){
       }catch(e){}
       if(data.xlsx) window.open(base+data.xlsx,"_blank");
       if(data.pdf) window.open(base+data.pdf,"_blank");
+      fileDock([data.xlsx?{name:"Excel",url:base+data.xlsx}:null, data.pdf?{name:"PDF",url:base+data.pdf}:null]);
     }catch(e){ alert("બિલ ભૂલ: "+e.message); }
     finally{
       document.querySelectorAll("#s-bill .dl").forEach(function(b){ b.disabled=false; });
@@ -2754,7 +2775,7 @@ function onLetterDate(){
     if(l) l.style.display=v==="leave"?"block":"none";
   }
   function tourDateOf(x){
-    return String(x.date||x.ts||x.created_at||x.bill_date||"").slice(0,10);
+    return dayOf(x && (x.date||x.ts||x.created_at||x.bill_date||x.day)||"");
   }
   function tourPack(){
     const est=TOUR_REMOTE.est || (typeof loadLocalEst==="function"?loadLocalEst():[]);
@@ -3624,6 +3645,7 @@ function onLetterDate(){
       .then(function(d){
         if (!d.ok) throw new Error(d.error||"fail");
         if (d.xlsx) window.open(API+d.xlsx,"_blank");
+        fileDock(d.xlsx?[{name:"Excel", url:API+d.xlsx}]:[]);
         if (typeof fillKachuPreview==="function" && d.preview) fillKachuPreview(d.preview);
         return fetch(API+"/api/db/kachu",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
           type:"paver",
@@ -3649,6 +3671,7 @@ function onLetterDate(){
       .then(function(d){
         if (!d.ok) throw new Error(d.error||"fail");
         if (d.pdf) window.open(API+d.pdf,"_blank");
+        fileDock(d.pdf?[{name:"PDF", url:API+d.pdf}]:[]);
       })
       .catch(function(e){ alert(e.message); })
       .finally(function(){ if (typeof setBusy==="function") setBusy(false); });
@@ -4650,7 +4673,31 @@ function startScan(camera) {
   });
 
   function isIos(){ return /iPhone|iPad|iPod/i.test(navigator.userAgent||""); }
-  function fileDock(){ return; }
+  function fileDock(files){
+    files=(files||[]).filter(function(f){ return f && f.url; });
+    const old=document.getElementById("fileDock");
+    if(old) old.remove();
+    if(!files.length) return;
+    const bar=document.createElement("div");
+    bar.id="fileDock";
+    bar.style.cssText="position:fixed;left:0;right:0;bottom:0;z-index:99999;display:flex;gap:8px;align-items:stretch;padding:10px 12px calc(10px + env(safe-area-inset-bottom));background:#0f172a;box-shadow:0 -6px 18px rgba(0,0,0,.28);";
+    files.forEach(function(f){
+      const a=document.createElement("a");
+      a.href=f.url;
+      a.target="_blank";
+      a.rel="noopener";
+      a.textContent=f.name==="PDF"?"PDF ડાઉનલોડ":"Excel ડાઉનલોડ";
+      a.style.cssText="flex:1;display:flex;align-items:center;justify-content:center;min-height:52px;background:#15803d;color:#fff;text-decoration:none;font-weight:700;font-size:18px;border-radius:12px;";
+      bar.appendChild(a);
+    });
+    const x=document.createElement("button");
+    x.type="button";
+    x.textContent="બંધ";
+    x.style.cssText="min-width:64px;min-height:52px;background:transparent;color:#fff;border:1px solid #94a3b8;border-radius:12px;font-size:16px;";
+    x.onclick=function(){ bar.remove(); };
+    bar.appendChild(x);
+    document.body.appendChild(bar);
+  }
   function giveFiles(wins, files){
     files.forEach(function(f,i){ if(wins[i] && !wins[i].closed){ try{ wins[i].location.href=f.url; }catch(e){} } });
     if(isIos() || !wins.length) fileDock(files);
