@@ -2,7 +2,7 @@ const express = require("express");
 const cors = require("cors");
 const fs = require("fs");
 const path = require("path");
-const { execFile } = require("child_process");
+const { execFile, spawn } = require("child_process");
 const ExcelJS = require("exceljs");
 const PDFDocument = require("pdfkit");
 const Tesseract = require("tesseract.js");
@@ -456,70 +456,108 @@ function loQueue(job) {
   return run;
 }
 
-function loSharedArg() {
-  const dir = path.join(OUT_DIR, "lo-profile");
-  const user = path.join(dir, "user");
+const LO_DIR = "/tmp/lo-profile";
+
+function resetLoProfile() {
+  try { fs.rmSync(LO_DIR, { recursive: true, force: true }); } catch (_e) {}
+  const user = path.join(LO_DIR, "user");
   fs.mkdirSync(user, { recursive: true });
-  const xcu = path.join(user, "registrymodifications.xcu");
-  if (!fs.existsSync(xcu)) fs.writeFileSync(xcu, LO_XCU);
-  return "-env:UserInstallation=file://" + dir;
+  fs.writeFileSync(path.join(user, "registrymodifications.xcu"), LO_XCU);
+}
+
+function loSharedArg() {
+  if (!fs.existsSync(path.join(LO_DIR, "user", "registrymodifications.xcu"))) resetLoProfile();
+  return "-env:UserInstallation=file:///tmp/lo-profile";
+}
+
+function runSoffice(args, timeoutMs) {
+  return new Promise((resolve, reject) => {
+    let done = false;
+    const child = spawn(sofficeBin(), args, { detached: true, stdio: "ignore" });
+    const timer = setTimeout(() => {
+      if (done) return;
+      done = true;
+      try { process.kill(-child.pid, "SIGKILL"); } catch (_e) {
+        try { child.kill("SIGKILL"); } catch (_e2) {}
+      }
+      console.error("soffice timeout", args.join(" "));
+      resetLoProfile();
+      const err = new Error("soffice timeout");
+      err.timeout = true;
+      reject(err);
+    }, timeoutMs || 60000);
+    child.on("error", (err) => {
+      if (done) return;
+      done = true;
+      clearTimeout(timer);
+      reject(err);
+    });
+    child.on("close", (code) => {
+      if (done) return;
+      done = true;
+      clearTimeout(timer);
+      if (code) reject(new Error("soffice exit " + code));
+      else resolve();
+    });
+  });
 }
 
 function recalcXlsxFile(xlsxPath) {
-  return loQueue(function () {
-    return new Promise((resolve) => {
-      const tmp = path.join(path.dirname(xlsxPath), "recalc-" + Date.now() + "-" + Math.random().toString(36).slice(2, 6));
-      fs.mkdirSync(tmp, { recursive: true });
-      execFile(
-        sofficeBin(),
+  return loQueue(async function () {
+    const tmp = path.join(path.dirname(xlsxPath), "recalc-" + Date.now() + "-" + Math.random().toString(36).slice(2, 6));
+    fs.mkdirSync(tmp, { recursive: true });
+    const name = path.basename(xlsxPath);
+    try {
+      await runSoffice(
         [loSharedArg(), "--headless", "--norestore", "--nolockcheck", "--convert-to", "xlsx", "--outdir", tmp, xlsxPath],
-        { timeout: 60000 },
-        (err) => {
-          const produced = path.join(tmp, path.basename(xlsxPath));
-          const name = path.basename(xlsxPath);
-          if (err) console.error("xlsx resave fail", name, err.message || err);
-          else {
-            try {
-              if (fs.existsSync(produced) && fs.statSync(produced).size > 1000) fs.copyFileSync(produced, xlsxPath);
-              else console.error("xlsx resave fail", name, "no output");
-            } catch (e) {
-              console.error("xlsx resave fail", name, e.message || e);
-            }
-          }
-          try { fs.rmSync(tmp, { recursive: true, force: true }); } catch (_e) {}
-          resolve();
-        }
+        60000
       );
-    });
+      const produced = path.join(tmp, name);
+      if (fs.existsSync(produced) && fs.statSync(produced).size > 1000) fs.copyFileSync(produced, xlsxPath);
+      else console.error("xlsx resave fail", name, "no output");
+    } catch (e) {
+      console.error("xlsx resave fail", name, e.message || e);
+    } finally {
+      try { fs.rmSync(tmp, { recursive: true, force: true }); } catch (_e) {}
+    }
   });
 }
 
 function convertWithSoffice(xlsxPath) {
-  return loQueue(function () {
-    return new Promise((resolve, reject) => {
-      const dir = path.dirname(xlsxPath);
-      const pdfPath = xlsxPath.replace(/\.xlsx$/i, ".pdf");
-      const filter = 'pdf:calc_pdf_Export:{"SinglePageSheets":{"type":"boolean","value":"true"}}';
-      execFile(
-        sofficeBin(),
+  return loQueue(async function () {
+    const dir = path.dirname(xlsxPath);
+    const pdfPath = xlsxPath.replace(/\.xlsx$/i, ".pdf");
+    const filter = 'pdf:calc_pdf_Export:{"SinglePageSheets":{"type":"boolean","value":"true"}}';
+    try { if (fs.existsSync(pdfPath)) fs.unlinkSync(pdfPath); } catch (_e) {}
+    try {
+      await runSoffice(
         [loSharedArg(), "--headless", "--norestore", "--nolockcheck", "--convert-to", filter, "--outdir", dir, xlsxPath],
-        { timeout: 60000 },
-        (err) => {
-          if (!err && fs.existsSync(pdfPath)) return resolve(pdfPath);
-          execFile(
-            sofficeBin(),
-            [loSharedArg(), "--headless", "--norestore", "--nolockcheck", "--convert-to", "pdf", "--outdir", dir, xlsxPath],
-            { timeout: 60000 },
-            (err2) => {
-              if (err2) return reject(err2);
-              if (!fs.existsSync(pdfPath)) return reject(new Error("pdf missing"));
-              resolve(pdfPath);
-            }
-          );
-        }
+        60000
       );
-    });
+    } catch (err) {
+      if (err && err.timeout) throw err;
+      if (!fs.existsSync(pdfPath)) {
+        await runSoffice(
+          [loSharedArg(), "--headless", "--norestore", "--nolockcheck", "--convert-to", "pdf", "--outdir", dir, xlsxPath],
+          45000
+        );
+      }
+    }
+    if (!fs.existsSync(pdfPath)) throw new Error("pdf missing");
+    return pdfPath;
   });
+}
+
+function warmLibreOffice() {
+  const src = path.join(__dirname, "skeleton-cc.xlsx");
+  if (!fs.existsSync(src)) return;
+  const tmp = "/tmp/lo-warm.xlsx";
+  try { fs.copyFileSync(src, tmp); } catch (_e) { return; }
+  convertWithSoffice(tmp).then(() => {
+    try { fs.unlinkSync("/tmp/lo-warm.pdf"); } catch (_e) {}
+    try { fs.unlinkSync(tmp); } catch (_e) {}
+    console.log("lo warm ok");
+  }).catch((e) => console.error("lo warm fail", e.message || e));
 }
 
 async function addPdfMargins(pdfPath) {
@@ -2598,6 +2636,7 @@ app.post("/api/bill/pipe", async (req, res) => {
 if (require.main === module) {
   app.listen(PORT, () => {
     console.log("ParaState MVP on " + PORT);
+    warmLibreOffice();
   });
 }
 module.exports = { bakeFormulaResults };
