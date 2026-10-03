@@ -4680,14 +4680,14 @@ function startScan(camera) {
 
   function isIos(){ return /iPhone|iPad|iPod/i.test(navigator.userAgent||""); }
   async function waitPdf(job){
-    for (let i = 0; i < 40; i++) {
+    for (let i = 0; i < 70; i++) {
       await new Promise(function(r){ setTimeout(r, 3000); });
       const res = await fetch(API + "/api/pdf-job/" + job);
       const j = await res.json();
       if (j && j.pdf) return j.pdf;
       if (j && j.error) throw new Error(j.error);
     }
-    throw new Error("PDF વધુ સમય લે છે");
+    throw new Error("PDF હજુ બની રહી છે. એક વાર ફરી PDF દબાવો.");
   }
   async function postJson(url, body){
     const res = await fetch(url, {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(body)});
