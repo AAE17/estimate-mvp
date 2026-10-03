@@ -21,7 +21,7 @@ RUN mkdir -p /usr/share/fonts/truetype/custom \
 RUN mkdir -p /etc/libreoffice/registry /root/.config/libreoffice/4/user \
  && printf '%s\n' \
  '<?xml version="1.0" encoding="UTF-8"?>' \
- '<oor:data xmlns:oor="http://openoffice.org/2001/registry">' \
+ '<oor:data xmlns:oor="http://openoffice.org/2001/registry" xmlns:xs="http://www.w3.org/2001/XMLSchema">' \
  ' <dependency file="main"/>' \
  ' <oor:component-data oor:name="Calc" oor:package="org.openoffice.Office">' \
  '  <node oor:name="Formula"><node oor:name="Load">' \
