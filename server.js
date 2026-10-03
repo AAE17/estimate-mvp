@@ -431,11 +431,9 @@ async function patchFitXml(xlsxPath) {
 }
 
 function sofficeBin() {
-  const list = ["soffice", "libreoffice", "/usr/bin/soffice", "/usr/bin/libreoffice"];
+  const list = ["/usr/lib/libreoffice/program/soffice.bin", "/usr/bin/soffice", "/usr/bin/libreoffice"];
   for (const b of list) {
-    try {
-      if (b.startsWith("/") && fs.existsSync(b)) return b;
-    } catch (_e) {}
+    try { if (fs.existsSync(b)) return b; } catch (_e) {}
   }
   return "soffice";
 }
@@ -531,36 +529,40 @@ function convertWithSoffice(xlsxPath) {
     return new Promise((resolve, reject) => {
       const dir = path.dirname(xlsxPath);
       const pdfPath = xlsxPath.replace(/\.xlsx$/i, ".pdf");
+      const profile = "/tmp/lo-" + Date.now();
+      fs.mkdirSync(profile, { recursive: true });
       try { if (fs.existsSync(pdfPath)) fs.unlinkSync(pdfPath); } catch (_e) {}
-      if (!fs.existsSync(LO_DIR)) fs.mkdirSync(LO_DIR, { recursive: true });
+      let log = "";
       const child = spawn(sofficeBin(), [
-        "-env:UserInstallation=file:///tmp/lo-profile",
-        "--headless", "--norestore", "--nolockcheck",
+        "-env:UserInstallation=file://" + profile,
+        "--headless", "--norestore", "--nolockcheck", "--nologo",
         "--convert-to", "pdf", "--outdir", dir, xlsxPath
       ], {
-        stdio: "ignore",
+        stdio: ["ignore", "pipe", "pipe"],
         env: Object.assign({}, process.env, { SAL_USE_VCLPLUGIN: "svp", HOME: "/tmp" })
       });
+      if (child.stdout) child.stdout.on("data", (b) => { log += b.toString(); });
+      if (child.stderr) child.stderr.on("data", (b) => { log += b.toString(); });
       let done = false;
+      const ready = () => {
+        try { return fs.existsSync(pdfPath) && fs.statSync(pdfPath).size > 800; } catch (_e) { return false; }
+      };
       const finish = (err) => {
         if (done) return;
+        if (!ready() && !err) return;
         done = true;
         clearTimeout(timer);
         clearInterval(poll);
-        let ok = false;
-        try { ok = fs.existsSync(pdfPath) && fs.statSync(pdfPath).size > 500; } catch (_e) {}
-        if (ok) return resolve(pdfPath);
+        try { fs.rmSync(profile, { recursive: true, force: true }); } catch (_e) {}
+        if (ready()) return resolve(pdfPath);
         try { child.kill("SIGKILL"); } catch (_e) {}
-        reject(err || new Error("pdf missing"));
+        const extra = log.replace(/\s+/g, " ").trim().slice(0, 160);
+        reject(new Error((err && err.message ? err.message : "pdf missing") + (extra ? " | " + extra : "")));
       };
-      const poll = setInterval(() => {
-        try {
-          if (fs.existsSync(pdfPath) && fs.statSync(pdfPath).size > 500) finish(null);
-        } catch (_e) {}
-      }, 400);
+      const poll = setInterval(() => { if (ready()) finish(null); }, 500);
       const timer = setTimeout(() => finish(new Error("soffice timeout")), 180000);
       child.on("error", (err) => finish(err));
-      child.on("close", () => setTimeout(() => finish(new Error("pdf missing")), 500));
+      child.on("close", () => setTimeout(() => finish(new Error("pdf missing")), 2000));
     });
   });
 }
