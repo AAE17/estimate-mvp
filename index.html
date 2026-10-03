@@ -4741,7 +4741,7 @@ function startScan(camera) {
         msg.textContent = "Grant Head અને Year પસંદ કરો.";
         return;
       }
-      setBusy(true, kind === "pdf" ? "PDF બની રહ્યું છે…" : "Excel બની રહ્યું છે…");
+      setBusy(true, kind === "pdf" ? "PDF બની રહ્યું છે…" : kind === "both" ? "Excel અને PDF બની રહ્યા છે…" : "Excel બની રહ્યું છે…");
       const body = {
         output: kind || "xlsx",
         type: currentType,
@@ -4778,7 +4778,7 @@ function startScan(camera) {
         gBedW:num("gBedW"), gBedT:num("gBedT")
       };
       const url = currentType === "paver" ? "/api/estimate/paver" : currentType === "gutter" ? "/api/estimate/gutter" : currentType === "pipe" ? "/api/estimate/pipe" : "/api/estimate/cc";
-      body.output = kind === "pdf" ? "pdf" : "xlsx";
+      body.output = kind === "pdf" ? "pdf" : kind === "both" ? "both" : "xlsx";
       const data = await postJson(API + url, body);
       try{
         if(typeof saveSiteMeta==="function") saveSiteMeta(val("work_name"),{
