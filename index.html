@@ -1996,8 +1996,23 @@
 
   function billNetFromQty(q, type){
     q=q||{};
+    const t=String(type||"").toLowerCase();
     let sub=0;
-    if(String(type||"").toLowerCase().indexOf("cc")>=0){
+    if(t.indexOf("gutter")>=0){
+      sub += Number(q.demo||0)*1030.81 + Number(q.exc||0)*89 + Number(q.refill||0)*22 + Number(q.cc||0)*3652.31 + Number(q.plate||0)*306.14;
+      [[225,421,88],[300,672,119],[450,817,171],[600,1331,228],[900,2476,340],[1200,4121,440]].forEach(function(x){
+        const n=Number(q["p"+x[0]]||0); sub += n*x[1] + n*x[2];
+      });
+      const ch=Number(q.c60||0)*5138 + Number(q.c90||0)*7343 + Number(q.c139||0)*8882 + Number(q.c1313||0)*10698;
+      sub += ch;
+      const frames=Number(q.frame||0) || (Number(q.c60||0)+Number(q.c90||0)+Number(q.c139||0)+Number(q.c1313||0));
+      sub += frames*1121 + (Number(q.cover||0)||frames)*1173;
+    } else if(t.indexOf("pipe")>=0){
+      sub += Number(q.demo||0)*202.2 + Number(q.exc||0)*89 + Number(q.refill||0)*22 + Number(q.plate||0)*306.14;
+      [[63,69,12],[75,96,15],[90,139,17],[110,199,19]].forEach(function(x){
+        const n=Number(q["p"+x[0]]||0); sub += n*x[1] + n*x[2];
+      });
+    } else if(t.indexOf("cc")>=0){
       [[q.box,158.12],[q.metal,684.6],[q.murum,173.51],[q.spread_metal||q.spreadM,249.75],[q.spread_mur||q.spreadU,147.47],[q.cc,4915.01],[q.test,2656],[q.plate,306.14]].forEach(function(p){ sub+=Number(p[0]||0)*Number(p[1]); });
     } else {
       [[q.box,156.56],[q.murum,210.42],[q.paver,740.51],[q.vata,23.68],[q.test,608],[q.plate,306.14]].forEach(function(p){ sub+=Number(p[0]||0)*Number(p[1]); });
@@ -2409,6 +2424,14 @@ function onLetterDate(){
       const base=(typeof API!=="undefined"?API:"");
       body.type=billKind()==="cc"?"CC":billKind()==="gutter"?"Gutter":billKind()==="pipe"?"Pipe":"Paver";
       body.qty=q;
+      const liveNet=(function(){
+        let sub=0;
+        if(billKind()==="gutter"||billKind()==="pipe") gpLines().forEach(function(r){ sub+=Number(r.qty||0)*r.rate; });
+        else billItems().forEach(function(row,i){ sub+=Number((document.getElementById("billQ"+(i+1))||{}).value||0)*row[2]; });
+        return Math.floor(sub*1.18);
+      })();
+      body.net=liveNet||0;
+      body.bill_amount=liveNet||0;
       const bt=(document.getElementById("billType")||{}).value||"cc"; const url=base+(bt==="cc"?"/api/bill/cc":bt==="gutter"?"/api/bill/gutter":bt==="pipe"?"/api/bill/pipe":"/api/bill/paver");
       const res=await fetch(url,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
       const data=await res.json();
@@ -2416,12 +2439,6 @@ function onLetterDate(){
       try{
         const pick=document.getElementById("billPick");
         const pickName=pick && pick.options[pick.selectedIndex] ? pick.options[pick.selectedIndex].textContent : "";
-        const liveNet=(function(){
-          let sub=0;
-          if(billKind()==="gutter"||billKind()==="pipe") gpLines().forEach(function(r){ sub+=Number(r.qty||0)*r.rate; });
-          else billItems().forEach(function(row,i){ sub+=Number((document.getElementById("billQ"+(i+1))||{}).value||0)*row[2]; });
-          return Math.floor(sub*1.18);
-        })();
         pushLocalBill({
           ts:new Date().toISOString(),
           day:todayStr(),
