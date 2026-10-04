@@ -716,6 +716,21 @@ function sheetMerges(ws) {
   return { skip: skip, span: span };
 }
 
+function drawPlain(doc, text, x, y, opt, size) {
+  doc.font("Helvetica");
+  doc.fontSize(size || 9);
+  doc.fillColor("#14211A");
+  doc.text(String(text == null ? "" : text), x, y, Object.assign({}, opt, { continued: false }));
+}
+
+function drawSafe(doc, text, x, y, opt, size, hasFont) {
+  try {
+    drawMixed(doc, text, x, y, opt, size, hasFont);
+  } catch (_e) {
+    try { drawPlain(doc, text, x, y, opt, size); } catch (_e2) {}
+  }
+}
+
 function drawMixed(doc, text, x, y, opt, size, hasFont) {
   const runs = String(text == null ? "" : text).match(/[\u0A80-\u0AFF]+|[A-Za-z]+|[^A-Za-z\u0A80-\u0AFF]+/g) || [String(text || "")];
   function use(g) {
@@ -784,9 +799,31 @@ function sheetsToPdf(wb, pdfPath) {
 
       const top = 26;
       const rowH = (pageH - 8) / maxR;
-      const colW = pageW / maxC;
+      const widths = [];
+      let sumW = 0;
+      for (let c = 1; c <= maxC; c++) {
+        let w = 10;
+        try {
+          const cw = Number(ws.getColumn(c).width);
+          if (cw > 0) w = cw;
+        } catch (_e) {}
+        widths[c] = w;
+        sumW += w;
+      }
+      if (!sumW) sumW = maxC * 10;
       const fontSize = Math.max(7, Math.min(11, rowH - 2));
-      drawMixed(doc, ws.name, 18, 10, { width: pageW, height: 14 }, fontSize, hasFont);
+      const xs = [];
+      let xCursor = 18;
+      for (let c = 1; c <= maxC; c++) {
+        xs[c] = xCursor;
+        xCursor += pageW * (widths[c] / sumW);
+      }
+      function spanW(c, n) {
+        let w = 0;
+        for (let i = 0; i < n; i++) w += pageW * ((widths[c + i] || 10) / sumW);
+        return Math.max(8, w - 2);
+      }
+      drawSafe(doc, ws.name, 18, 10, { width: pageW, height: 14 }, fontSize, hasFont);
 
       doc.fillColor("#14211A");
       for (let r = 1; r <= maxR; r++) {
@@ -797,9 +834,8 @@ function sheetsToPdf(wb, pdfPath) {
           const t = (grid[r] && grid[r][c]) || "";
           if (!t) continue;
           const sp = merges.span[r + "," + c] || { c: 1, r: 1 };
-          const x = 22 + (c - 1) * colW;
-          drawMixed(doc, t, x, y, {
-            width: Math.max(8, colW * sp.c - 2),
+          drawSafe(doc, t, xs[c], y, {
+            width: spanW(c, sp.c),
             height: Math.max(4, rowH * sp.r - 0.5),
             ellipsis: true,
             lineBreak: false
@@ -1666,21 +1702,45 @@ async function sbDelete(table, id) {
   const js = await r.json().catch(function () { return []; });
   return Array.isArray(js) ? js.length : 0;
 }
-async function sbUpload(name, buf) {
-  const r = await fetch(SB_URL + "/storage/v1/object/site-media/" + name, {
+async function sbUploadFile(name, buf, contentType) {
+  const key = sbAuthKey();
+  const safe = String(name || "file").replace(/^\/+/, "");
+  const r = await fetch(SB_URL + "/storage/v1/object/site-media/" + safe, {
     method: "POST",
     headers: {
-      apikey: SB_KEY,
-      Authorization: "Bearer " + SB_KEY,
-      "Content-Type": "image/jpeg",
+      apikey: key,
+      Authorization: "Bearer " + key,
+      "Content-Type": contentType || "application/octet-stream",
       "x-upsert": "true"
     },
     body: buf
   });
   if (!r.ok) throw new Error(await r.text());
-  return SB_URL + "/storage/v1/object/public/site-media/" + name;
+  return SB_URL + "/storage/v1/object/public/site-media/" + safe;
 }
 
+async function keepFile(url) {
+  const s = String(url || "");
+  if (!s || /^https?:\/\//i.test(s) || !sbOn()) return { url: s, error: "" };
+  const name = path.basename(s.split("?")[0]);
+  if (!name) return { url: s, error: "" };
+  const full = path.join(OUT_DIR, name);
+  if (!fs.existsSync(full)) return { url: s, error: "ફાઇલ ડિસ્ક પર નથી" };
+  const ext = path.extname(name).toLowerCase();
+  const type = ext === ".pdf"
+    ? "application/pdf"
+    : "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+  try {
+    const pub = await sbUploadFile("bills/" + name, fs.readFileSync(full), type);
+    return { url: pub, error: "" };
+  } catch (e) {
+    return { url: s, error: String(e.message || e) };
+  }
+}
+
+async function sbUpload(name, buf) {
+  return sbUploadFile(name, buf, "image/jpeg");
+}
 
 app.post("/api/estimate/gutter", async (req, res) => {
   try {
@@ -1985,6 +2045,9 @@ app.post("/api/db/site/delete", async (req, res) => {
 
 app.post("/api/db/kachu", async (req, res) => {
   const b = req.body || {};
+  const xlsxKeep = await keepFile(b.xlsx || (b.preview && b.preview.xlsx) || "");
+  const pdfKeep = await keepFile(b.pdf || (b.preview && b.preview.pdf) || "");
+  const fileError = [xlsxKeep.error, pdfKeep.error].filter(Boolean).join(" | ");
   const rec = dbAppend(DB_KACHU, {
     type: b.type || "paver",
     work_name: b.work_name || "",
@@ -1994,16 +2057,16 @@ app.post("/api/db/kachu", async (req, res) => {
     net: Number(b.net || 0),
     test_qty: Number(b.test_qty || 0),
     name_plate: Number(b.name_plate || 0),
-    preview: b.preview || {},
-    xlsx: b.xlsx || "",
-    pdf: b.pdf || ""
+    preview: Object.assign({}, b.preview || {}, { xlsx: xlsxKeep.url, pdf: pdfKeep.url }),
+    xlsx: xlsxKeep.url,
+    pdf: pdfKeep.url
   });
   let error = "";
   if (sbOn()) {
     try { await sbInsert("kachu_bills", rec); }
     catch (e) { error = String(e.message || e); console.error("kachu save", error); }
   } else error = "Supabase જોડાયેલું નથી — રીડિપ્લોય પર કાચું બિલ રહેશે નહીં";
-  res.json({ ok: !error, id: rec.id, error: error });
+  res.json({ ok: !error, id: rec.id, error: error, file_error: fileError, xlsx: xlsxKeep.url, pdf: pdfKeep.url });
 });
 app.get("/api/db/kachu", async (_req, res) => {
   try { if (sbOn()) return res.json({ ok: true, items: await sbSelect("kachu_bills", 200) }); }
@@ -2491,6 +2554,8 @@ app.post("/api/mb", async (req, res) => {
       const a6 = ws.getCell("A6");
       a6.value = "SPREADING BINDING";
       a6.numFmt = "@";
+      const colA = ws.getColumn(1);
+      if (!colA.width || colA.width < 24) colA.width = 24;
       setVal(ws, "P1", null);
       setVal(ws, "P2", null);
       const a7 = ws.getCell("A7");
