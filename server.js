@@ -697,16 +697,27 @@ async function writeAndRespond(req, res, wb, d, prefix, areas, kind) {
   const pdfFull = path.join(OUT_DIR, pdfName);
   await wb.xlsx.writeFile(xlsxFull);
   await patchFitXml(xlsxFull);
-  if (output === "xlsx" || output === "both") {
+  const wantXlsx = output === "xlsx" || output === "both";
+  const wantPdf = output === "pdf" || output === "both";
+  let pdfJob = null;
+  if (wantPdf) pdfJob = pdfName.replace(/\.pdf$/i, "");
+  if (output === "xlsx") {
     await recalcXlsxFile(xlsxFull);
     await patchFitXml(xlsxFull);
   }
-
-  let pdfUrl = null;
-  let pdfError = null;
-  let pdfJob = null;
-  if (output === "pdf" || output === "both") {
-    pdfJob = startPdfJob(xlsxFull, pdfName);
+  if (wantPdf) {
+    pdfJobs[pdfJob] = { status: "run" };
+    setImmediate(function () {
+      const prep = output === "both" ? recalcXlsxFile(xlsxFull).then(function () { return patchFitXml(xlsxFull); }) : Promise.resolve();
+      prep.then(function () { return convertWithSoffice(xlsxFull); }).then(function (produced) {
+        const pdfFull = path.join(OUT_DIR, pdfName);
+        if (produced !== pdfFull && fs.existsSync(produced)) fs.copyFileSync(produced, pdfFull);
+        if (!fs.existsSync(pdfFull)) throw new Error("pdf missing");
+        pdfJobs[pdfJob] = { status: "ok", pdf: "/api/download/" + pdfName };
+      }).catch(function (e) {
+        pdfJobs[pdfJob] = { status: "fail", error: String(e.message || e) };
+      });
+    });
   }
 
   const Lm = Number(d.length_m || 0);
@@ -751,13 +762,13 @@ async function writeAndRespond(req, res, wb, d, prefix, areas, kind) {
       }
     }
   } catch (_e) {}
-  const wantXlsx = output === "xlsx" || output === "both";
+  const wantXlsxOut = output === "xlsx" || output === "both";
   res.json({
     ok: true,
-    xlsx: wantXlsx ? `/api/download/${xlsxName}` : null,
-    pdf: pdfUrl,
+    xlsx: wantXlsxOut ? `/api/download/${xlsxName}` : null,
+    pdf: null,
     pdf_job: pdfJob,
-    pdf_error: pdfError,
+    pdf_error: null,
   });
 }
 
@@ -1070,19 +1081,18 @@ app.post("/api/estimate/cc", async (req, res) => {
     const taluka = d.taluka || "";
     const say = Number(d.amounting || 0);
 
-    const r2 = (n) => Math.round(Number(n || 0) * 100) / 100;
-    const a1 = r2(boxQty * 158.12);
-    const a2 = r2(btQty * 684.6);
-    const a3 = r2(murQty * 173.51);
-    const a4 = r2(btQty * 249.75);
-    const a5 = r2(murQty * 147.47);
+    const a1 = boxQty * 156.56;
+    const a2 = btQty * 677.83;
+    const a3 = murQty * 171.8;
+    const a4 = btQty * 247.28;
+    const a5 = murQty * 146.01;
     const a6r = 0;
-    const a6c = r2(ccQty * 4915.01);
+    const a6c = ccQty * 4866.35;
     const a7 = 2656;
     const a8 = 306.14;
-    const tot = r2(a1 + a2 + a3 + a4 + a5 + a6r + a6c + a7 + a8);
-    const gst = r2(tot * 0.18);
-    const grand = r2(tot + gst);
+    const tot = a1 + a2 + a3 + a4 + a5 + a6r + a6c + a7 + a8;
+    const gst = tot * 0.18;
+    const grand = tot + gst;
 
     setVal(face, "F3", d.division);
     setVal(face, "G3", d.jilla);
