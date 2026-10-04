@@ -685,6 +685,7 @@ function startPdfJob(xlsxFull, pdfName) {
 async function writeAndRespond(req, res, wb, d, prefix, areas, kind) {
   const output = d.output || "xlsx";
   if (wb.calcProperties) wb.calcProperties.fullCalcOnLoad = true;
+  try { unshareFormulas(wb); } catch (_e) {}
   try { bakeFormulaResults(wb); } catch (_e) {}
   dropBadNames(wb);
   unlockSheets(wb);
@@ -1053,11 +1054,9 @@ app.post("/api/estimate/cc", async (req, res) => {
       throw new Error("skeleton-cc.xlsx sheets missing");
     }
 
-    const segList = Array.isArray(d.segs) ? d.segs.filter(function (r) { return Number(r && r.l || 0) > 0; }) : [];
-    const segArea = segList.reduce(function (a, r) { return a + Number(r.l || 0) * Number(r.w || 0); }, 0);
-    const L = segList.length ? segList.reduce(function (a, r) { return a + Number(r.l || 0); }, 0) : Number(d.length_m);
-    const W = segList.length && L ? segArea / L : Number(d.width_m);
-    const boxT = segList.length && segList[0].exc != null ? Number(segList[0].exc) : Number(d.box_thick_m);
+    const L = Number(d.length_m);
+    const W = Number(d.width_m);
+    const boxT = Number(d.box_thick_m);
     const btT = Number(d.bt_thick_m);
     const voids = Number(d.voids);
     const murPct = Number(d.murrum_pct);
@@ -1141,25 +1140,27 @@ app.post("/api/estimate/cc", async (req, res) => {
     if (abs) {
       setVal(abs, "B2", work);
       setVal(abs, "A4", boxQty);
-      setVal(abs, "F4", a1);
+      abs.getCell("F4").value = { formula: "A4*D5" };
       setVal(abs, "A6", btQty);
-      setVal(abs, "F6", a2);
+      abs.getCell("F6").value = { formula: "A6*D7" };
       setVal(abs, "A8", murQty);
-      setVal(abs, "F8", a3);
+      abs.getCell("F8").value = { formula: "A8*D9" };
       setVal(abs, "C10", "Item No. :- 4 Spreading the stone aggregates for soiling and W. B. M. including filling the inter stices forming the surface to required camber and gradient (excluding spreading of blindage) (ii) 40 mm to 63 mm size aggreates (HB)");
       setVal(abs, "A10", btQty);
-      setVal(abs, "F10", a4);
+      abs.getCell("F10").value = { formula: "A10*D11" };
       setVal(abs, "A12", murQty);
-      setVal(abs, "F12", a5);
+      abs.getCell("F12").value = { formula: "A12*D13" };
       setVal(abs, "A14", 0);
-      setVal(abs, "F14", a6r);
+      abs.getCell("F14").value = { formula: "A14*D15" };
       setVal(abs, "A16", ccQty);
-      setVal(abs, "F16", a6c);
+      abs.getCell("F16").value = { formula: "A16*D17" };
       setVal(abs, "C18", "Item No :- 7 Testing charges for Kapchi,Metal,Sand,Cement,C.C. Cube as per schedule of testing");
+      abs.getCell("F18").value = { formula: "A18*D18" };
       setVal(abs, "C20", "Item No :- 8 Providing and fixing number plate of marble stone of required size set in C. M. 1 : 4 including finishing and engraving letters etc. complete.");
-      setVal(abs, "F22", tot);
-      setVal(abs, "F23", gst);
-      setVal(abs, "F24", grand);
+      abs.getCell("F20").value = { formula: "A20*D21" };
+      abs.getCell("F22").value = { formula: "F4+F6+F8+F10+F12+F14+F16+F18+F20" };
+      abs.getCell("F23").value = { formula: "F22*0.18" };
+      abs.getCell("F24").value = { formula: "F22+F23" };
       setVal(abs, "F25", say);
       abs.getCell("A32").value = taluka;
     }
@@ -1211,11 +1212,9 @@ app.post("/api/estimate/paver", async (req, res) => {
     setVal(face, "H18", d.taluka);
     setVal(face, "G40", d.taluka);
 
-    const segList = Array.isArray(d.segs) ? d.segs.filter(function (r) { return Number(r && r.l || 0) > 0; }) : [];
-    const segArea = segList.reduce(function (a, r) { return a + Number(r.l || 0) * Number(r.w || 0); }, 0);
-    const L = segList.length ? segList.reduce(function (a, r) { return a + Number(r.l || 0); }, 0) : Number(d.length_m);
-    const W = segList.length && L ? segArea / L : Number(d.width_m);
-    const area = segList.length ? segArea : L * W;
+    const L = Number(d.length_m);
+    const W = Number(d.width_m);
+    const area = L * W;
     const boxQty = area * Number(d.box_thick_m);
     const murQty = area * 0.1;
     const vata = 2 * L + 2 * W;
@@ -1485,32 +1484,6 @@ async function sbUpload(name, buf) {
 }
 
 
-
-function writeMeasureLines(ws, startRow, lines, abs, absAddr) {
-  const rows = (lines && lines.length) ? lines : [{ l: 0, w: 0, t: 0 }];
-  const extra = rows.length - 1;
-  if (extra > 0) ws.spliceRows(startRow + 1, 0, ...new Array(extra).fill([]));
-  let vol = 0;
-  rows.forEach(function (ln, i) {
-    const r = startRow + i;
-    const q = Math.round(Number(ln.l || 0) * Number(ln.w || 0) * Number(ln.t || 0) * 1000) / 1000;
-    vol += q;
-    setVal(ws, "C" + r, 1);
-    setVal(ws, "D" + r, "x");
-    setVal(ws, "E" + r, Number(ln.l || 0));
-    setVal(ws, "F" + r, "x");
-    setVal(ws, "G" + r, Number(ln.w || 0));
-    setVal(ws, "H" + r, "x");
-    setVal(ws, "I" + r, Number(ln.t || 0));
-    setVal(ws, "J" + r, "=");
-    setVal(ws, "K" + r, q);
-  });
-  vol = Math.round(vol * 1000) / 1000;
-  setVal(ws, "K" + (startRow + rows.length), vol);
-  if (abs && absAddr) setVal(abs, absAddr, vol);
-  return vol;
-}
-
 app.post("/api/estimate/gutter", async (req, res) => {
   try {
     const d = req.body || {};
@@ -1578,23 +1551,15 @@ app.post("/api/estimate/gutter", async (req, res) => {
     setVal(meas, "E37", n("gCh139"));
     setVal(meas, "E38", n("gCh1313"));
     setVal(meas, "E62", n("gPlate") || 1);
-    const gNr = Array.isArray(d.gNr) ? d.gNr : [];
-    const ccLines = gNr.filter(function (r) { return Number(r && r.l || 0) > 0; }).map(function (r) {
-      return { l: Number(r.l || 0), w: Number(r.w || d.gBedW || 0), t: Number(r.d || d.gBedT || 0) };
-    });
-    writeMeasureLines(meas, 58, ccLines, abs, "A36");
-    const demoLines = gDe.filter(function (r) { return Number(r && r.l || 0) > 0; }).map(function (r) {
-      return { l: Number(r.l || 0), w: Number(r.w || 0.45), t: Number(r.d || 0.1) };
-    });
-    if (demoLines.length > 1) writeMeasureLines(meas, 5, demoLines, abs, "A4");
-    const exLines = gEx.filter(function (r) { return Number(r && r.l || 0) > 0; }).map(function (r) {
-      return { l: Number(r.l || 0), w: Number(r.w || 0), t: Number(r.d || 0), dia: Number(r.dia || 0) };
-    });
-    if (exLines.length) {
-      const exQty = exLines.reduce(function (a, r) { return a + r.l * r.w * r.t; }, 0);
-      setVal(meas, "K16", Math.round(exQty * 1000) / 1000);
-      setVal(abs, "A6", Math.round(exQty * 1000) / 1000);
+    const pipeL = rows.reduce((a, r) => a + r.L, 0);
+    if (demoL > 0) {
+      setVal(meas, "G58", n("gBedW") || 0.45);
+      setVal(meas, "I58", n("gBedT") || 0.05);
+    } else {
+      setVal(meas, "G58", 0);
+      setVal(meas, "I58", 0);
     }
+    meas.getCell("K58").value = { formula: "C58*E58*G58*I58" };
     setVal(meas, "C2", work);
     setVal(abs, "C2", work);
     if (test) setVal(test, "B1", work);
@@ -2610,19 +2575,10 @@ app.post("/api/estimate/pipe", async (req, res) => {
     setVal(meas, "E5", demoL);
     setVal(meas, "G5", demoW);
     [[63,"E9","G9","I9",0.45,0.9],[75,"E10","G10","I10",0.45,0.9],[90,"E11","G11","I11",0.45,0.9],[110,"E12","G12","I12",0.45,0.9]].forEach(function(row){
-      const lines = pEx.filter(function (r) { return Number(r.dia)===row[0] && Number(r.l||0)>0; });
-      if (lines.length <= 1) {
-        const wd=lastWD(row[0], row[4], row[5]);
-        setVal(meas, row[1], sumDia(row[0]));
-        setVal(meas, row[2], wd.w);
-        setVal(meas, row[3], wd.d);
-      } else {
-        const vol = lines.reduce(function (a, r) { return a + Number(r.l||0)*Number(r.w||row[4])*Number(r.d||row[5]); }, 0);
-        setVal(meas, row[1], Number(lines[0].l||0));
-        setVal(meas, row[2], Number(lines[0].w||row[4]));
-        setVal(meas, row[3], Number(lines[0].d||row[5]));
-        setVal(meas, "K"+row[1].replace(/^[A-Z]+/, ""), Math.round(vol*1000)/1000);
-      }
+      const wd=lastWD(row[0], row[4], row[5]);
+      setVal(meas, row[1], sumDia(row[0]));
+      setVal(meas, row[2], wd.w);
+      setVal(meas, row[3], wd.d);
     });
     setVal(meas, "E40", Number(d.pPlate||1));
     if (test) setVal(test, "C12", 1);
