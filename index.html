@@ -4289,9 +4289,10 @@ function startScan(camera) {
     const t = Number(ccT || 0.1);
     const boxQty = area * 0.3;
     const metalTot = area * 0.12 * 1.15;
-    const murQty = metalTot * 0.25;
+    const murPct = num("murrum_pct") || 25;
+    const murQty = metalTot * (murPct / 100);
     const ccQty = area * t;
-    const tot = boxQty * 156.56 + metalTot * 677.83 + murQty * 171.8 + metalTot * 247.28 + murQty * 146.01 + ccQty * 4866.35 + 2656 + 306.14;
+    const tot = boxQty * 158.12 + metalTot * 684.6 + murQty * 173.51 + metalTot * 249.75 + murQty * 147.47 + ccQty * 4915.01 + 2656 + 306.14;
     return tot + tot * 0.18;
   }
   function lengthFromAmount(type, amt) {
@@ -4685,7 +4686,7 @@ function startScan(camera) {
       const metalTot = area * num("bt_thick_m") * (1 + num("voids"));
       const murQty = metalTot * (num("murrum_pct") / 100);
       const ccQty = area * num("cc_thick_m");
-      const tot = boxQty * 156.56 + metalTot * 677.83 + murQty * 171.8 + metalTot * 247.28 + murQty * 146.01 + ccQty * 4866.35 + 2656 + 306.14;
+      const tot = boxQty * 158.12 + metalTot * 684.6 + murQty * 173.51 + metalTot * 249.75 + murQty * 147.47 + ccQty * 4915.01 + 2656 + 306.14;
       f24 = tot + tot * 0.18;
     }
     document.getElementById("liveF24").textContent = inr(f24);
