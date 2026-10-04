@@ -723,6 +723,7 @@ async function writeAndRespond(req, res, wb, d, prefix, areas, kind) {
   const Lm = Number(d.length_m || 0);
   const Wm = Number(d.width_m || 0);
   const areaM = Lm * Wm;
+  const pdfUrl = null;
   logEvent(kind, {
     village: d.village,
     taluka: d.taluka,
