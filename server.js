@@ -43,12 +43,19 @@ function logEvent(kind, payload, req) {
 
 function unshareFormulas(wb) {
   (wb.worksheets || []).forEach(function (ws) {
-    ws.eachRow(function (row) {
-      row.eachCell(function (cell) {
+    ws.eachRow({ includeEmpty: true }, function (row) {
+      row.eachCell({ includeEmpty: true }, function (cell) {
         try {
-          if (cell.formula && String(cell.formulaType || "") === "shared") {
-            const f = cell.formula;
-            cell.value = { formula: f };
+          const model = cell.model || {};
+          const f = cell.formula || model.formula || model.sharedFormula;
+          if (f || model.sharedFormula || model.si != null || String(cell.formulaType || "") === "shared") {
+            if (f) cell.value = { formula: String(f).replace(/^=/, "") };
+            if (cell.model) {
+              delete cell.model.sharedFormula;
+              delete cell.model.si;
+              delete cell.model.shareType;
+              cell.model.formulaType = undefined;
+            }
           }
         } catch (_e) {}
       });
@@ -685,11 +692,11 @@ function startPdfJob(xlsxFull, pdfName) {
 async function writeAndRespond(req, res, wb, d, prefix, areas, kind) {
   const output = d.output || "xlsx";
   if (wb.calcProperties) wb.calcProperties.fullCalcOnLoad = true;
-  try { unshareFormulas(wb); } catch (_e) {}
   try { bakeFormulaResults(wb); } catch (_e) {}
   dropBadNames(wb);
   unlockSheets(wb);
   applyOnePage(wb, areas);
+  try { unshareFormulas(wb); } catch (_e) {}
   const safe = String(d.village || "gam").replace(/[^a-zA-Z0-9._-]+/g, "_");
   const stamp = Date.now();
   const xlsxName = `${prefix}_${safe}_${stamp}.xlsx`;
@@ -1140,27 +1147,25 @@ app.post("/api/estimate/cc", async (req, res) => {
     if (abs) {
       setVal(abs, "B2", work);
       setVal(abs, "A4", boxQty);
-      abs.getCell("F4").value = { formula: "A4*D5" };
+      setVal(abs, "F4", a1);
       setVal(abs, "A6", btQty);
-      abs.getCell("F6").value = { formula: "A6*D7" };
+      setVal(abs, "F6", a2);
       setVal(abs, "A8", murQty);
-      abs.getCell("F8").value = { formula: "A8*D9" };
+      setVal(abs, "F8", a3);
       setVal(abs, "C10", "Item No. :- 4 Spreading the stone aggregates for soiling and W. B. M. including filling the inter stices forming the surface to required camber and gradient (excluding spreading of blindage) (ii) 40 mm to 63 mm size aggreates (HB)");
       setVal(abs, "A10", btQty);
-      abs.getCell("F10").value = { formula: "A10*D11" };
+      setVal(abs, "F10", a4);
       setVal(abs, "A12", murQty);
-      abs.getCell("F12").value = { formula: "A12*D13" };
+      setVal(abs, "F12", a5);
       setVal(abs, "A14", 0);
-      abs.getCell("F14").value = { formula: "A14*D15" };
+      setVal(abs, "F14", a6r);
       setVal(abs, "A16", ccQty);
-      abs.getCell("F16").value = { formula: "A16*D17" };
-      abs.getCell("F18").value = { formula: "A18*D18" };
-      abs.getCell("F20").value = { formula: "A20*D21" };
-      abs.getCell("F22").value = { formula: "F4+F6+F8+F10+F12+F14+F16+F18+F20" };
-      abs.getCell("F23").value = { formula: "F22*0.18" };
-      abs.getCell("F24").value = { formula: "F22+F23" };
+      setVal(abs, "F16", a6c);
       setVal(abs, "C18", "Item No :- 7 Testing charges for Kapchi,Metal,Sand,Cement,C.C. Cube as per schedule of testing");
       setVal(abs, "C20", "Item No :- 8 Providing and fixing number plate of marble stone of required size set in C. M. 1 : 4 including finishing and engraving letters etc. complete.");
+      setVal(abs, "F22", tot);
+      setVal(abs, "F23", gst);
+      setVal(abs, "F24", grand);
       setVal(abs, "F25", say);
       abs.getCell("A32").value = taluka;
     }
@@ -1484,44 +1489,12 @@ async function sbUpload(name, buf) {
 }
 
 
-
-function round3(n){ return Math.round(Number(n||0)*1000)/1000; }
-function writeFormLines(ws, startRow, lines){
-  const rows = (lines && lines.length) ? lines : [{ l:0, w:0, t:0, label:"" }];
-  const extra = rows.length - 1;
-  if (extra > 0) ws.spliceRows(startRow + 1, 0, ...new Array(extra).fill([]));
-  let vol = 0;
-  rows.forEach(function(ln, i){
-    const r = startRow + i;
-    const q = round3(Number(ln.l||0) * Number(ln.w||0) * Number(ln.t||0));
-    vol += q;
-    setVal(ws, "B"+r, ln.label || "");
-    setVal(ws, "C"+r, 1);
-    setVal(ws, "D"+r, "x");
-    setVal(ws, "E"+r, Number(ln.l||0));
-    setVal(ws, "F"+r, "x");
-    setVal(ws, "G"+r, Number(ln.w||0));
-    setVal(ws, "H"+r, "x");
-    setVal(ws, "I"+r, Number(ln.t||0));
-    setVal(ws, "J"+r, "=");
-    setVal(ws, "K"+r, q);
-  });
-  const totRow = startRow + rows.length;
-  setVal(ws, "G"+totRow, "Total Qty");
-  setVal(ws, "K"+totRow, round3(vol));
-  return { vol: round3(vol), extra: extra, totRow: totRow };
-}
-function linkQty(abs, qtyAddr, measCell, rateCol){
-  abs.getCell(qtyAddr).value = { formula: "Measurement!"+measCell };
-  const row = String(qtyAddr).replace(/^[A-Z]+/, "");
-  abs.getCell("F"+row).value = { formula: qtyAddr+"*"+rateCol+row };
-}
-
 app.post("/api/estimate/gutter", async (req, res) => {
   try {
     const d = req.body || {};
     const wb = new ExcelJS.Workbook();
     await wb.xlsx.readFile(path.join(__dirname, "skeleton-gutter.xlsx"));
+    unshareFormulas(wb);
     const face = wb.getWorksheet("Estimate");
     const abs = wb.getWorksheet("Abstract");
     const meas = wb.getWorksheet("Measurement");
@@ -1568,33 +1541,50 @@ app.post("/api/estimate/gutter", async (req, res) => {
       { L: sumDia(900), W: wd900.w, D: wd900.d, E: "E13", G: "G13", I: "I13" },
       { L: sumDia(1200), W: wd1200.w, D: wd1200.d, E: "E14", G: "G14", I: "I14" }
     ];
-    unshareFormulas(wb);
-    const demoLines = gDe.filter(function(r){ return Number(r.l||0)>0; }).map(function(r){
-      return { l:Number(r.l||0), w:Number(r.w||0.45), t:Number(r.d||0.1), label:"Demolition" };
+    rows.forEach(function (r) {
+      setVal(meas, r.E, r.L);
+      setVal(meas, r.G, r.W);
+      setVal(meas, r.I, r.D);
     });
-    const demo = writeFormLines(meas, 5, demoLines.length?demoLines:[{l:0,w:0,t:0,label:"Demolition"}]);
-    const dias = [225,300,450,600,900,1200];
-    const exLines = [];
-    dias.forEach(function(dia){
-      gEx.filter(function(r){ return Number(r.dia)===dia && Number(r.l||0)>0; }).forEach(function(r){
-        exLines.push({ l:Number(r.l||0), w:Number(r.w||0), t:Number(r.d||0), label: dia+" mm" });
-      });
-    });
-    const ex = writeFormLines(meas, 9 + demo.extra, exLines.length?exLines:[{l:0,w:0,t:0}]);
-    const shift = demo.extra + ex.extra;
-    setVal(meas, "E"+(35+shift), n("gCh60"));
-    setVal(meas, "E"+(36+shift), n("gCh90"));
-    setVal(meas, "E"+(37+shift), n("gCh139"));
-    setVal(meas, "E"+(38+shift), n("gCh1313"));
-    const gNr = Array.isArray(d.gNr) ? d.gNr : [];
-    const ccLines = gNr.filter(function(r){ return Number(r.l||0)>0; }).map(function(r){
-      return { l:Number(r.l||0), w:Number(r.w||0), t:Number(r.d||0), label:"New CC" };
-    });
-    const cc = writeFormLines(meas, 58 + shift, ccLines.length?ccLines:[{l:0,w:0,t:0,label:"New CC"}]);
-    setVal(meas, "E"+(62+shift+cc.extra), n("gPlate") || 1);
-    linkQty(abs, "A4", "K"+demo.totRow, "D");
-    linkQty(abs, "A6", "K"+ex.totRow, "D");
-    linkQty(abs, "A36", "K"+cc.totRow, "D");
+    const demoL = gDe.reduce((a,r)=>a+Number(r.l||0),0);
+    const demoW = Number((gDe[0]&&gDe[0].w)||0.45);
+    const demoD = Number((gDe[0]&&gDe[0].d)||0.10);
+    setVal(meas, "E5", demoL);
+    setVal(meas, "G5", demoW);
+    setVal(meas, "I5", demoD);
+    setVal(meas, "E35", n("gCh60"));
+    setVal(meas, "E36", n("gCh90"));
+    setVal(meas, "E37", n("gCh139"));
+    setVal(meas, "E38", n("gCh1313"));
+    setVal(meas, "E62", n("gPlate") || 1);
+    const pipeL = rows.reduce((a, r) => a + r.L, 0);
+    if (demoL > 0) {
+      setVal(meas, "G58", n("gBedW") || 0.45);
+      setVal(meas, "I58", n("gBedT") || 0.05);
+    } else {
+      setVal(meas, "G58", 0);
+      setVal(meas, "I58", 0);
+    }
+    const gNr = Array.isArray(d.gNr)?d.gNr:[];
+    const cc = gNr.filter(function(r){ return Number(r.l||0)>0; });
+    const ccL = cc.reduce(function(a,r){ return a+Number(r.l||0); },0);
+    const ccW = Number((cc[0]&&cc[0].w)||0);
+    const ccT = Number((cc[0]&&cc[0].d)||0);
+    const ccVol = cc.reduce(function(a,r){ return a+Number(r.l||0)*Number(r.w||0)*Number(r.d||0); },0);
+    setVal(meas, "E58", ccL);
+    setVal(meas, "G58", ccW);
+    setVal(meas, "I58", ccT);
+    setVal(meas, "K58", Math.round(ccVol*1000)/1000);
+    setVal(abs, "A36", Math.round(ccVol*1000)/1000);
+    setVal(abs, "F36", Math.round(ccVol*3652.31*100)/100);
+    const exVol = gEx.reduce(function(a,r){ return a+Number(r.l||0)*Number(r.w||0)*Number(r.d||0); },0);
+    setVal(meas, "K16", Math.round(exVol*1000)/1000);
+    setVal(abs, "A6", Math.round(exVol*1000)/1000);
+    setVal(abs, "F6", Math.round(exVol*89*100)/100);
+    const demoVol = gDe.reduce(function(a,r){ return a+Number(r.l||0)*Number(r.w||0.45)*Number(r.d||0.1); },0);
+    setVal(meas, "K6", Math.round(demoVol*1000)/1000);
+    setVal(abs, "A4", Math.round(demoVol*1000)/1000);
+    setVal(abs, "F4", Math.round(demoVol*1030.81*100)/100);
     setVal(meas, "C2", work);
     setVal(abs, "C2", work);
     if (test) setVal(test, "B1", work);
@@ -1602,7 +1592,7 @@ app.post("/api/estimate/gutter", async (req, res) => {
     await writeAndRespond(req, res, wb, d, "GUTTER", {
       Estimate: "A1:I41",
       Abstract: "A1:F46",
-      Measurement: "A1:L90",
+      Measurement: "A1:L63",
       "TEST-SITE": "A1:G36"
     }, "estimate_gutter");
   } catch (e) {
