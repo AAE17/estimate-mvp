@@ -1184,12 +1184,16 @@ app.post("/api/estimate/cc", async (req, res) => {
       setVal(abs, "A14", 0);
       abs.getCell("C14").value = { formula: "Measurement!A" + (20 + extra) };
       abs.getCell("A16").value = { formula: "Measurement!K" + ccRow };
+      abs.getCell("F16").value = { formula: "ROUND(A16*D17,2)" };
       abs.getCell("C16").value = { formula: "Measurement!A" + (23 + extra) };
       setVal(abs, "A18", 1);
+      abs.getCell("F18").value = { formula: "A18*D18" };
       abs.getCell("A20").value = { formula: "Measurement!K" + plateRow };
-      abs.getCell("C20").value = { formula: "Measurement!A" + (26 + extra) };
+      abs.getCell("C20").value = { formula: "Measurement!A" + (29 + extra) };
+      abs.getCell("F20").value = { formula: "ROUND(A20*D21,2)" };
       abs.getCell("F22").value = { formula: "F4+F6+F8+F10+F12+F14+F16+F18+F20" };
-      setVal(abs, "F25", say);
+      abs.getCell("F23").value = { formula: "ROUND(F22*0.18,2)" };
+      abs.getCell("F24").value = { formula: "F22+F23" };
       abs.getCell("A32").value = taluka;
     }
     if (ra) {
