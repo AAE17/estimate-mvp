@@ -3602,7 +3602,7 @@ function onLetterDate(){
         const demoOn=!!(s.demo && s.demo.open);
         const demo=demoOn ? parseMix(s.demo.l)*Number(s.demo.w||0)*(t==="pipe"?1:Number(s.demo.t||0)) : 0;
         const cc=demoOn ? parseMix(s.cc.l)*Number(s.cc.w||0)*Number(s.cc.t||0) : 0;
-        return { byDia:byDia, ch:ch, demo:demo, exc:x.exc, refill:x.refill, plate:Number(s.plate||0), frame:frame, cover:frame, cc:cc, pipes:s.pipes||[], ccLine:s.cc||null, demoLine:s.demo||null };
+        return { byDia:byDia, ch:ch, demo:demo, exc:x.exc, refill:x.refill, plate:Number(s.plate||0), frame:frame, cover:frame, cc:cc };
       })(),
       test_qty:Number((document.getElementById("kTest")||{}).value||1),
       name_plate:Number((document.getElementById("kPlate")||{}).value||0),
@@ -4791,7 +4791,6 @@ function startScan(camera) {
         gEx: (typeof GEX!=="undefined"?GEX:[]),
         gNr: (typeof GNR!=="undefined"?GNR:[]),
         gDe: (typeof GDE!=="undefined"?GDE:[]),
-        segs: (typeof SEGS!=="undefined"?SEGS:[]),
         gCh60:chNos("60"), gCh90:chNos("90"), gCh139:chNos("139"), gCh1313:chNos("1313"),
         gPlate:num("gPlate"),
         pEx: (typeof PEX!=="undefined"?PEX:[]),
