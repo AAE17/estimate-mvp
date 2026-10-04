@@ -9,7 +9,7 @@
     :root { --g:#1B5D45; --s:#C45C26; --p:#F3EEE4; --i:#14211A; --l:#d7d0c4; }
     * { box-sizing: border-box; }
     body { margin:0; font-family:"Noto Sans Gujarati",system-ui,sans-serif; background:var(--p); color:var(--i); }
-    #fileDock { display:none !important; }
+    #fileDock { position:fixed; left:12px; right:12px; bottom:12px; z-index:80; }
     body { background:#f3f6fb; }
     body.dark { background:#0b1220; color:#e5eef7; }
     body.dark header.topbar { background:#111827; color:#e5eef7; border-bottom-color:#1f2937; }
@@ -2040,8 +2040,6 @@
     localStorage.setItem(localBillKey(), JSON.stringify(all.slice(0,100)));
     renderLetterBills();
     renderBillList();
-    const base=(typeof API!=="undefined"?API:"");
-    fetch(base+"/api/db/bills",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(rec)}).catch(function(){});
   }
   function renderBillList(){
     const el=document.getElementById("billList");
@@ -2426,19 +2424,19 @@ function onLetterDate(){
       village:val("billGam"), gam:val("billGam"), taluka:val("billTal"),
       subdiv:val("billSub"), subdiv_address:val("billSub"),
       work_order:val("billWO"), as_details:val("billASDet"),
-      ts_details:val("billTS"), amounting:Number(val("billAmt")||0), ts_amount:Number(val("billTSAmt")||val("billAmt")||0),
+      ts_details:val("billTS"), amounting:Number(val("billAmt")||0), as_amount:Number(val("billAmt")||0), ts_amount:Number(val("billTSAmt")||val("billAmt")||0),
       start_date:val("billStart"), meas_date:val("billDate"), date:val("billDate"), day:val("billDate")||todayStr(),
       mb_no:val("billNo"), page_from:val("billPg1"), page_to:val("billPg2"),
       agency:"સરપંચ શ્રી ગ્રામ પંચાયત", prepared_by:val("billAAE")||((typeof prGet==="function"&&prGet().name)||""),
       qty:q, area:q.paver, box_qty:q.box, mur_qty:q.murum
     };
+    const want=fmt||"both";
     try{
       if(typeof setBusy==="function") setBusy(true, want==="pdf"?"PDF બની રહ્યું છે…":want==="both"?"Excel અને PDF બની રહ્યા છે…":"Excel બની રહ્યું છે…");
       const base=(typeof API!=="undefined"?API:"");
       body.type=billKind()==="cc"?"CC":billKind()==="gutter"?"Gutter":billKind()==="pipe"?"Pipe":"Paver";
       body.qty=q;
       const bt=(document.getElementById("billType")||{}).value||"cc"; const url=base+(bt==="cc"?"/api/bill/cc":bt==="gutter"?"/api/bill/gutter":bt==="pipe"?"/api/bill/pipe":"/api/bill/paver");
-      const want=fmt||"both";
       body.output = want==="pdf" ? "pdf" : want==="both" ? "both" : "xlsx";
       const dx=await postJson(url, body);
       try{
@@ -3723,8 +3721,7 @@ function onLetterDate(){
       .then(function(r){return r.json();})
       .then(function(d){
         if (!d.ok) throw new Error(d.error||"fail");
-        if (d.xlsx) window.open(API+d.xlsx,"_blank");
-        fileDock(d.xlsx?[{name:"Excel", url:API+d.xlsx}]:[]);
+        showFiles(API, d, []);
         if (typeof fillKachuPreview==="function" && d.preview) fillKachuPreview(d.preview);
         return saveKachuDb(body, d);
       })
@@ -3739,8 +3736,7 @@ function onLetterDate(){
       const d=await postJson(API+"/api/mb", body);
       if (d.pdf_job) d.pdf = await waitPdf(d.pdf_job);
       if (!d.pdf) throw new Error("PDF ન બની");
-      window.open(API+d.pdf,"_blank");
-      fileDock([{name:"PDF", url:API+d.pdf}]);
+      showFiles(API, { pdf: d.pdf }, []);
       await saveKachuDb(body, d);
     }catch(e){ alert(e.message); }
     finally{ if (typeof setBusy==="function") setBusy(false); }
@@ -4791,28 +4787,35 @@ function startScan(camera) {
     if(!data.ok) throw new Error(data.error||"fail");
     return data;
   }
+  function fileHref(base, u){
+    const s=String(u||"");
+    if(/^https?:\/\//i.test(s)) return s;
+    return (base||"")+s;
+  }
   function showFiles(base, data, keep){
     const files=(keep||[]).slice();
-    const fresh=[];
-    if(data && data.xlsx) fresh.push({name:"Excel", url:base+data.xlsx});
-    if(data && data.pdf) fresh.push({name:"PDF", url:base+data.pdf});
-    fresh.forEach(function(f){ files.push(f); });
+    if(data && data.xlsx) files.push({name:"Excel", url:fileHref(base, data.xlsx)});
+    if(data && data.pdf) files.push({name:"PDF", url:fileHref(base, data.pdf)});
+    fileDock(files);
+    return files;
+  }
+  function fileDock(files){
     const old=document.getElementById("fileDock");
     if(old) old.remove();
-    fresh.forEach(function(f){
+    if(!files || !files.length) return;
+    const box=document.createElement("div");
+    box.id="fileDock";
+    box.style.cssText="position:fixed;left:12px;right:12px;bottom:12px;z-index:80;background:#fff;border:1px solid #1B5D45;border-radius:14px;padding:8px;box-shadow:0 8px 24px rgba(0,0,0,.18)";
+    files.forEach(function(f){
       const a=document.createElement("a");
       a.href=f.url;
       a.target="_blank";
       a.rel="noopener";
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
+      a.textContent=(f.name||"ફાઇલ")+" ડાઉનલોડ";
+      a.style.cssText="display:inline-block;margin:4px;background:#1B5D45;color:#fff;padding:10px 14px;border-radius:10px;text-decoration:none;font-weight:700";
+      box.appendChild(a);
     });
-    return files;
-  }
-  function fileDock(){
-    const old=document.getElementById("fileDock");
-    if(old) old.remove();
+    document.body.appendChild(box);
   }
   function giveFiles(wins, files){
     files.forEach(function(f,i){ if(wins[i] && !wins[i].closed){ try{ wins[i].location.href=f.url; }catch(e){} } });
