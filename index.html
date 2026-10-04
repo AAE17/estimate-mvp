@@ -1037,7 +1037,7 @@
       <div class="pillbar" id="sitePills">
         <button type="button" class="on" id="st2" onclick="siteTab('new')">નવું કામ</button>
         <button type="button" id="st1" onclick="siteTab('ong')">Ongoing</button>
-        <button type="button" id="st3" onclick="siteTab('done')">સેવ થયેલું</button>
+        <button type="button" id="st3" onclick="siteTab('done')">પૂરું થયેલું</button>
       </div>
       </div>
       <div class="freeze-gap"></div>
@@ -1088,7 +1088,7 @@
           </div>
           <div class="work">
             <p class="muted" style="margin:0 0 8px">વર્કિંગ સ્પેસ — ખાલી માપ લખો</p>
-            <div id="dHead" class="map-row head"><span>Sr</span><span>Length</span><span>Width</span><span id="dHeadD">Depth</span><span></span></div>
+            <div id="dHead" class="map-row head"><span>Sr</span><span>Length</span><span>Width</span><span id="dHeadD">ખોદકામ ઊંડાઈ</span><span></span></div>
             <div id="dRows"></div>
             <div id="gpSite" class="hidden"></div>
             <div class="head" id="kTestRow" style="margin-top:8px">
@@ -1096,14 +1096,14 @@
               <div class="field" id="wrapDustD"><label>બાઈન્ડિંગ જાડાઈ</label><input id="dDustD" type="number" step="0.01" placeholder="0.10" oninput="liveMbBill()"></div>
               <div class="est-l2" id="lineCc3" class="est-l2 est-l3">
                 <div class="field"><label>C.C. Road Thickness</label><input id="dCcT" type="number" step="0.01" placeholder="0.10" oninput="liveMbBill()"></div>
-                <div class="field"><label>Test Report (Job)</label><input id="kTest" type="number" min="0" max="1" value="1" oninput="liveMbBill()"></div>
-                <div class="field"><label>Name Plate (Job)</label><input id="kPlate" type="number" min="0" max="1" value="0" oninput="liveMbBill()"></div>
+                <div class="field"><label>Test Report (Job)</label><input id="kTest" type="number" min="0" max="1" step="1" value="1" oninput="liveMbBill()"></div>
+                <div class="field"><label>Name Plate (Job)</label><input id="kPlate" type="number" min="0" max="1" step="1" value="0" oninput="liveMbBill()"></div>
               </div>
             </div>
             <div class="actions" style="margin-top:8px">
               <button type="button" class="btn btn-g" onclick="workIsDone()">Check, કામ ખરેખર પૂરું થયું?</button>
-              <button type="button" class="btn btn-s hidden" id="btnKachu" onclick="showKachu()">📄 કાચું બિલ Excel</button>
-              <button type="button" class="btn btn-s hidden" id="btnKachuPdf" onclick="pdfKachu()">📄 કાચું બીલ PDF</button>
+              <button type="button" class="btn btn-s hidden" id="btnKachu" onclick="showKachu()">📄 કાચું બિલ (MB) Excel</button>
+              <button type="button" class="btn btn-s hidden" id="btnKachuPdf" onclick="pdfKachu()">📄 કાચું બિલ (MB) PDF</button>
             </div>
             <div class="actions" id="siteMediaBtns" style="margin-top:6px">
               <button type="button" class="btn btn-s" onclick="togglePlan()">Site Plan</button>
@@ -1545,6 +1545,7 @@
     });
   }
   function show(id) {
+    { const fd = document.getElementById("fileDock"); if (fd) fd.remove(); }
     ["s-hi","s-type","s-form","s-site","s-tour","s-pr","s-bill","s-letter"].forEach(s => {
       const el = document.getElementById(s);
       if (el) el.classList.toggle("hidden", s !== id);
@@ -1633,6 +1634,7 @@
       }
       sbClient.auth.onAuthStateChange(function(_e, session){
         if(session) onAuthed(session); else {
+          window._soAuthedId=null; window._soIsAdmin=false;
           document.getElementById("authGate").classList.remove("hidden");
         }
       });
@@ -1652,9 +1654,13 @@
     return em===ADMIN_EMAIL;
   }
   async function onAuthed(session){
+    const uid=(session.user&&session.user.id)||"";
+    if(uid && window._soAuthedId===uid) return;
+    window._soAuthedId=uid;
     const email=(session.user&&session.user.email)||"";
     const meta=(session.user&&session.user.user_metadata)||{};
     const admin=isAdmin(session);
+    window._soIsAdmin=admin;
     let approved=admin || meta.approved===true || meta.approved==="true";
     try{
       const meRes=await fetch(API+"/api/admin/me",{headers:await authHeaders()}).then(function(r){return r.json();});
@@ -1676,15 +1682,10 @@
     p.app_role=admin?"super_admin":"aae";
     localStorage.setItem("copilot_profile", JSON.stringify(p));
     if(sbClient && session.user){
-      sbClient.auth.updateUser({ data:{
-        name:p.name, role:p.role, mobile:p.mobile, jilla:p.jilla, taluka:p.taluka,
-        app_role:p.app_role, approved:admin||approved
-      }}).catch(function(){});
-      sbClient.from("profiles").upsert({
-        id: session.user.id, email: email, name: p.name, role: p.role,
-        mobile: p.mobile, jilla: p.jilla, taluka: p.taluka,
-        app_role: p.app_role, status: p.status
-      }).then(function(){}).catch(function(){});
+      const want={ name:p.name, role:p.role, mobile:p.mobile, jilla:p.jilla, taluka:p.taluka };
+      const changed=Object.keys(want).some(function(k){ return (want[k]||"")!==(meta[k]||""); });
+      if(changed) sbClient.auth.updateUser({ data:want }).catch(function(){});
+      authHeaders().then(function(h){ return fetch(API+"/api/admin/profile",{method:"POST",headers:h,body:JSON.stringify(p)}); }).catch(function(){});
     }
     const btn=document.getElementById("btnProfile");
     if(btn) btn.textContent=admin?"👤 Admin":("👤 "+(email.split("@")[0]||"SO"));
@@ -1772,6 +1773,7 @@
   async function loadPending(){
     const b=document.getElementById("notifBox");
     const dot=document.getElementById("notifDot");
+    if(!window._soIsAdmin){ if(dot) dot.classList.add("hidden"); if(b) b.innerHTML="<b>સૂચના</b><p class='muted'>કોઈ નવી સૂચના નથી.</p>"; return; }
     try{
       const d=await fetch(API+"/api/admin/pending",{headers:await authHeaders()}).then(function(r){return r.json();});
       const items=d.items||[];
@@ -2485,7 +2487,11 @@ function onLetterDate(){
           fund_head: (typeof billFundHead==="function"?billFundHead():"")
         });
       }catch(e){}
-      if (dx.pdf_job) dx.pdf = await waitPdf(dx.pdf_job);
+      if (dx.xlsx) showFiles(base, { xlsx: dx.xlsx }, []);
+      if (dx.pdf_job) {
+        try { dx.pdf = await waitPdf(dx.pdf_job); }
+        catch (pe) { if (dx.xlsx) { alert("Excel તૈયાર છે. PDF: "+pe.message); return; } throw pe; }
+      }
       if ((want==="pdf" || want==="both") && !dx.pdf) throw new Error("PDF ન બની");
       showFiles(base, dx, []);
     }catch(e){ alert("બિલ ભૂલ: "+e.message); }
@@ -2975,7 +2981,7 @@ function onLetterDate(){
     if (th) {
       /* header labels stay in html */
     }
-    if (hd) { hd.textContent = cc ? "Depth" : ""; hd.style.display = cc ? "" : "none"; }
+    if (hd) { hd.textContent = cc ? "ખોદકામ ઊંડાઈ" : ""; hd.style.display = cc ? "" : "none"; }
     const gp = kind==="gutter" || kind==="pipe";
     const gpBox=document.getElementById("gpSite");
     if (th) th.style.display = gp ? "none" : "";
@@ -2994,11 +3000,11 @@ function onLetterDate(){
     DIARY.forEach((s,i)=>{
       if(cc && !s.d) s.d="0.30";
       const row=document.createElement("div");
-      row.className="seg";
+      row.className="map-row";
       let html='<span>'+(i+1)+'</span>'+
         '<input type="text" inputmode="decimal" placeholder="" value="'+(s.l||"")+'" data-k="l" data-i="'+i+'">'+
         '<input type="text" inputmode="decimal" placeholder="" value="'+(s.w||"")+'" data-k="w" data-i="'+i+'">';
-      if (cc) html += '<input type="number" step="0.01" value="'+(s.d||"0.30")+'" data-k="d" data-i="'+i+'">';
+      if (cc) html += '<input type="text" inputmode="decimal" value="'+(s.d||"0.30")+'" data-k="d" data-i="'+i+'">';
       html += '<span class="map-act"><button type="button" class="pm add" onclick="addDiaryRow()">+</button><button type="button" class="pm" onclick="delDiaryRow('+i+')">−</button></span>';
       row.innerHTML=html;
       tb.appendChild(row);
@@ -3106,7 +3112,22 @@ function onLetterDate(){
     if (!r) return 0;
     if (Number(r.bill)) return Number(r.bill);
     const rows=r.rows||[];
-    if (!rows.length || (rows[0] && rows[0]._gp)) return 0;
+    if (!rows.length) return 0;
+    const kind=normType(r.type, r.work_name)||"cc";
+    if (rows[0] && rows[0]._gp) {
+      if (kind!=="gutter" && kind!=="pipe") return 0;
+      const keep=SITEGP[kind]; SITEGP[kind]=rows[0].data;
+      try { return Number(gpSiteItems(kind).tot||0); } catch(e){ return 0; } finally { SITEGP[kind]=keep; }
+    }
+    if (kind==="paver") {
+      const excD=Number(r.exc_d||rows[0].exc_d||0.2), dustD=Number(r.dust_d||rows[0].dust_d||0.1);
+      const tq=Number(r.test_qty!=null ? r.test_qty : (rows[0].test_qty||0));
+      const pq=Number(r.name_plate!=null ? r.name_plate : (rows[0].name_plate||0));
+      let a=0, ex=0, du=0, va=0;
+      rows.forEach(function(s){ const L=parseMix(s.l), W=parseMix(s.w); a+=L*W; ex+=L*W*excD; du+=L*W*dustD; if(L||W) va+=2*L+2*W; });
+      const col=Math.floor(du/1.5+1e-9)*1.5;
+      return (ex*156.56+col*210.42+a*740.51+va*23.68+tq*608+pq*306.14)*1.18;
+    }
     const ccT=Number(r.cc_t || rows[0].cc_t || 0.1) || 0.1;
     const test=Number(r.test_qty!=null ? r.test_qty : (rows[0].test_qty||0));
     const plate=Number(r.name_plate!=null ? r.name_plate : (rows[0].name_plate||0));
@@ -3518,6 +3539,7 @@ function onLetterDate(){
       DIARY = (savedRows && savedRows.length) ? savedRows : [{l:"",w:"",d:""}];
     }
     applySiteExtras(est, savedRows && savedRows[0]);
+    ["btnKachu","btnKachuPdf"].forEach(function(id){ const b=document.getElementById(id); if(b) b.classList.toggle("hidden", !(savedRows && savedRows.length)); });
     const bill=document.getElementById("dBill");
     if (bill) { bill.classList.add("hidden"); bill.innerHTML=""; }
     const kb0=document.getElementById("kachuBox");
@@ -3627,6 +3649,24 @@ function onLetterDate(){
     set("kTest", src.test_qty!=null && src.test_qty!=="" ? src.test_qty : row0.test_qty);
     set("kPlate", src.name_plate!=null && src.name_plate!=="" ? src.name_plate : (src.plate!=null ? src.plate : row0.name_plate));
     set("dAAE", src.prepared_by || src.aae || row0.aae || "");
+    set("dExcD", src.exc_d || row0.exc_d);
+    set("dDustD", src.dust_d || row0.dust_d);
+  }
+  function siteRowsProblem(){
+    for (let i=0;i<DIARY.length;i++){
+      const s=DIARY[i], L=parseMix(s.l), W=parseMix(s.w);
+      if ((L>0) !== (W>0)) return "Row "+(i+1)+": "+(L>0?"Width":"Length")+" ખાલી છે";
+      if (diaryType()==="cc" && W>12 && !confirm("Row "+(i+1)+": Width "+W+" m છે. Length/Width સાચા છે?")) return "Length/Width ફરી તપાસો";
+    }
+    return "";
+  }
+  function afterSiteSaved(done){
+    ["st1","st2","st3"].forEach(function(id){ const b=document.getElementById(id); if(b) b.classList.toggle("on", id===(done?"st3":"st1")); });
+    const ong=document.getElementById("ongBox"), dn=document.getElementById("doneBox");
+    if (ong) ong.classList.toggle("hidden", !!done);
+    if (dn) dn.classList.toggle("hidden", !done);
+    if (done) renderDoneList(); else renderOngList();
+    ["btnKachu","btnKachuPdf"].forEach(function(id){ const b=document.getElementById(id); if(b) b.classList.remove("hidden"); });
   }
   function kachuMoney(){
     const t=diaryType();
@@ -3768,10 +3808,13 @@ function onLetterDate(){
     const gp = type==="gutter" || type==="pipe";
     const gpRows = gp ? [{_gp:true, data:gpState(type)}] : DIARY;
     const billTot = gp ? gpSiteItems(type).tot : (type==="paver" ? mbPaverTotals() : mbCcTotals()).tot;
-    const testQty=Number((document.getElementById("kTest")||{}).value||0);
-    const plateQty=Number((document.getElementById("kPlate")||{}).value||0);
+    const job01=function(id){ const v=Number((document.getElementById(id)||{}).value||0); return v>=0.5?1:0; };
+    const testQty=job01("kTest");
+    const plateQty=job01("kPlate");
     const aae=(document.getElementById("dAAE")||{}).value||"";
     const ccT=ccThick();
+    const excD=Number((document.getElementById("dExcD")||{}).value||0)||0;
+    const dustD=Number((document.getElementById("dDustD")||{}).value||0)||0;
     saveSiteMeta(workNm,{
       taluka:(document.getElementById("dTaluka")||{}).value||"",
       grant:(typeof siteFundHead==="function"?siteFundHead():(document.getElementById("dGrant")||{}).value||""),
@@ -3795,6 +3838,8 @@ function onLetterDate(){
       estimate_id: diaryEst && diaryEst.id || "",
       done: !!done,
       cc_t: ccT,
+      exc_d: excD,
+      dust_d: dustD,
       test_qty: testQty,
       name_plate: plateQty,
       plate: plateQty,
@@ -3817,15 +3862,17 @@ function onLetterDate(){
       const has=(x.items||[]).some(function(it){ return Number(it[1])>0; });
       if(!has){ alert("પહેલા સાઇટ માપ લખો"); return; }
       const estAmt=Number(document.getElementById("dAmtIn").value||0);
-      saveSitePayload(type, estAmt, x.exc||0, 0, 0, false).then(function(){ alert("માપ સેવ થયું"); }).catch(function(e){ alert(e.message||"સેવ ન થયું"); });
+      saveSitePayload(type, estAmt, x.exc||0, 0, 0, false).then(function(){ alert("માપ સેવ થયું"); afterSiteSaved(false); }).catch(function(e){ alert(e.message||"સેવ ન થયું"); });
       return;
     }
     const area=diaryArea();
     if (!area) { alert("પહેલા સાઇટ માપ લખો"); return; }
+    const bad=siteRowsProblem();
+    if (bad) { alert(bad); return; }
     const estAmt=Number(document.getElementById("dAmtIn").value||0);
     const L=DIARY.reduce(function(s,r){return s+Number(r.l||0);},0);
     const W=L?area/L:0;
-    saveSitePayload(type, estAmt, area, L, W, false).then(function(){ alert("માપ સેવ થયું"); }).catch(function(e){ alert(e.message||"સેવ ન થયું"); });
+    saveSitePayload(type, estAmt, area, L, W, false).then(function(){ alert("માપ સેવ થયું"); afterSiteSaved(false); }).catch(function(e){ alert(e.message||"સેવ ન થયું"); });
   }
   function siteSavedMode(on){
     const box=document.getElementById("siteMediaBtns");
@@ -4418,6 +4465,7 @@ function startScan(camera) {
     liveF24();
   }
   function setBusy(on, title) {
+    if (on) { const fd = document.getElementById("fileDock"); if (fd) fd.remove(); }
     const b = document.getElementById("busy");
     if (b) b.classList.toggle("hidden", !on);
     const t = document.getElementById("busyTitle");
@@ -4804,20 +4852,42 @@ function startScan(camera) {
   });
 
   function isIos(){ return /iPhone|iPad|iPod/i.test(navigator.userAgent||""); }
+  const BUSY_MSG = "સર્વર વ્યસ્ત છે, ફરી પ્રયાસ કરો";
+  async function readJsonSafe(res){
+    const ct = String((res.headers && res.headers.get("content-type")) || "");
+    if (!/json/i.test(ct)) {
+      const e = new Error(res.status >= 500 || res.status === 429 ? BUSY_MSG : ("સર્વર જવાબ ખોટો (HTTP " + res.status + "). ફરી પ્રયાસ કરો"));
+      e.retry = res.status === 502 || res.status === 503 || res.status === 504;
+      throw e;
+    }
+    return res.json();
+  }
   async function waitPdf(job){
+    let miss = 0;
     for (let i = 0; i < 70; i++) {
       await new Promise(function(r){ setTimeout(r, 3000); });
-      const res = await fetch(API + "/api/pdf-job/" + job);
-      const j = await res.json();
+      let j = null;
+      try { j = await readJsonSafe(await fetch(API + "/api/pdf-job/" + job)); }
+      catch (e) { if (++miss > 5) throw new Error(BUSY_MSG); continue; }
       if (j && j.pdf) return j.pdf;
-      if (j && j.error) throw new Error(j.error);
+      if (j && j.error) throw new Error(j.error === "job નથી" ? "સર્વર ફરી શરૂ થયું, PDF ફરી દબાવો" : j.error);
     }
     throw new Error("PDF હજુ બની રહી છે. એક વાર ફરી PDF દબાવો.");
   }
-  async function postJson(url, body){
-    const res = await fetch(url, {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(body)});
-    const data = await res.json();
-    if(!data.ok) throw new Error(data.error||"fail");
+  async function postJson(url, body, _retried){
+    let data;
+    try {
+      const res = await fetch(url, {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(body)});
+      data = await readJsonSafe(res);
+    } catch (e) {
+      const transient = e.retry || e.name === "TypeError";
+      if (transient && !_retried) {
+        await new Promise(function(r){ setTimeout(r, 4000); });
+        return postJson(url, body, true);
+      }
+      throw new Error(transient ? BUSY_MSG : (e.message || BUSY_MSG));
+    }
+    if(!data || !data.ok) throw new Error((data && data.error)||"fail");
     return data;
   }
   function fileHref(base, u){
@@ -4838,13 +4908,21 @@ function startScan(camera) {
     if(!files || !files.length) return;
     const box=document.createElement("div");
     box.id="fileDock";
-    box.style.cssText="position:fixed;left:12px;right:12px;bottom:12px;z-index:80;background:#fff;border:1px solid #1B5D45;border-radius:14px;padding:8px;box-shadow:0 8px 24px rgba(0,0,0,.18)";
+    box.style.cssText="position:fixed;left:12px;right:12px;bottom:12px;z-index:80;background:#fff;border:1px solid #1B5D45;border-radius:14px;padding:8px 40px 8px 8px;box-shadow:0 8px 24px rgba(0,0,0,.18)";
+    const x=document.createElement("button");
+    x.type="button"; x.textContent="×"; x.title="બંધ";
+    x.style.cssText="position:absolute;right:8px;top:8px;width:28px;height:28px;border:0;border-radius:8px;background:#e2e8f0;font-size:18px;cursor:pointer";
+    x.onclick=function(){ box.remove(); };
+    box.appendChild(x);
+    const kindOf=function(u){ const n=String(u||"").split("/").pop();
+      if(/^BILL_/i.test(n)) return "ફાઈનલ બિલ"; if(/^MB_/i.test(n)) return "કાચું બિલ (MB)";
+      if(/^LETTER_/i.test(n)) return "ફોરવર્ડિંગ પત્ર"; return "એસ્ટિમેટ"; };
     files.forEach(function(f){
       const a=document.createElement("a");
       a.href=f.url;
       a.target="_blank";
       a.rel="noopener";
-      a.textContent=(f.name||"ફાઇલ")+" ડાઉનલોડ";
+      a.textContent=kindOf(f.url)+" "+(f.name||"ફાઇલ")+" ડાઉનલોડ";
       a.style.cssText="display:inline-block;margin:4px;background:#1B5D45;color:#fff;padding:10px 14px;border-radius:10px;text-decoration:none;font-weight:700";
       box.appendChild(a);
     });
