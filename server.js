@@ -64,6 +64,35 @@ function setVal(ws, addr, v) {
   if (!ws) return;
   ws.getCell(addr).value = v;
 }
+function billDateText(v) {
+  const s = String(v || "").trim();
+  const m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (m) return m[3] + "/" + m[2] + "/" + m[1];
+  return s;
+}
+function fitPaLabels(pa) {
+  if (!pa) return;
+  [6, 8, 10, 14, 21, 24, 26, 27, 31].forEach(function (r) {
+    try { pa.mergeCells("A" + r + ":F" + r); } catch (_e) {}
+    const cell = pa.getCell("A" + r);
+    cell.alignment = { horizontal: "left", vertical: "center", wrapText: true };
+  });
+  [6, 8, 10].forEach(function (r) {
+    const row = pa.getRow(r);
+    if (!row.height || row.height < 36) row.height = 36;
+  });
+  for (let r = 7; r <= 11; r++) pa.getCell("Q" + r).value = null;
+  for (let c = 11; c <= 20; c++) pa.getColumn(c).hidden = true;
+}
+function fitDeeName(ws) {
+  if (!ws) return;
+  [6, 7, 8].forEach(function (r) {
+    try { ws.mergeCells("A" + r + ":E" + r); } catch (_e) {}
+    const cell = ws.getCell("A" + r);
+    cell.alignment = { horizontal: "left", vertical: "center", wrapText: true };
+  });
+  if (!ws.getColumn(9).width || ws.getColumn(9).width < 18) ws.getColumn(9).width = 18;
+}
 
 function findLabelRow(ws, re) {
   let hit = 0;
@@ -1224,18 +1253,16 @@ app.get("/api/stats", (_req, res) => {
 });
 
 
-app.get("/api/bills", (req, res) => {
+app.get("/api/bills", async (req, res) => {
   try {
     const day = String(req.query.day || req.query.date || "").slice(0, 10);
-    const file = DB_BILL;
-    let rows = notDeleted(dbRead(file, 500)).filter(function (r) { return r.kind === "bill" || String(r.kind||"").indexOf("bill")>=0; });
-    if (day) {
-      rows = rows.filter(function (r) {
-        const d = recordDay(r);
-        return d === day;
-      });
+    let rows = [];
+    if (sbOn()) {
+      try { rows = notDeleted(await sbSelect("bills", 500)); } catch (_e) { rows = []; }
     }
-    res.json({ ok: true, bills: rows.slice(-80).reverse() });
+    if (!rows.length) rows = notDeleted(dbRead(DB_BILL, 500));
+    if (day) rows = rows.filter(function (r) { return recordDay(r) === day; });
+    res.json({ ok: true, bills: rows.slice(0, 80) });
   } catch (e) {
     res.json({ ok: false, bills: [], error: String(e.message || e) });
   }
@@ -1637,7 +1664,7 @@ function sbPick(table, row) {
     site_measures: ["id","ts","type","work_name","amounting","rows","area","brass","bill","gps","estimate_id","taluka","village","fund_head","grant_head","contractor","cc_t","test_qty","name_plate","prepared_by","done"],
     media: ["id","ts","kind","work_name","gps","url"],
     kachu_bills: ["id","ts","type","work_name","village","amounting","total","net","test_qty","name_plate","preview","xlsx","pdf"],
-    bills: ["id","ts","type","work_name","village","taluka","fund_head","amounting","prepared_by","mb_no"]
+    bills: ["id","ts","type","work_name","village","taluka","fund_head","amounting","prepared_by","mb_no","day","net","kind"],
   }[table] || Object.keys(row);
   const o = {};
   cols.forEach(function (k) { if (row[k] !== undefined) o[k] = row[k]; });
@@ -2237,8 +2264,9 @@ app.post("/api/bill/paver", async (req, res) => {
     const asDet = d.as_details || d.as_detail || "";
     const tsDet = d.ts_details || "";
     const tsAmt = Number(d.ts_amount || d.amounting || 0);
-    const startDate = d.start_date || "";
-    const measDate = d.meas_date || d.date || "";
+    const asAmt = Number(d.as_amount != null && d.as_amount !== "" ? d.as_amount : (d.amounting || 0));
+    const startDate = billDateText(d.start_date || "");
+    const measDate = billDateText(d.meas_date || d.date || "");
     const mb = d.mb_no || "";
     const pg1 = d.page_from || "";
     const pg2 = d.page_to || "";
@@ -2262,6 +2290,7 @@ app.post("/api/bill/paver", async (req, res) => {
     const e11 = e10 * 0.18;
     const e12 = e10 + e11;
     const e13 = Math.floor(e12);
+    const pavRates = [156.56, 210.42, 740.51, 23.68, 608, 306.14];
 
     setVal(pa, "H2", grant);
     setVal(pa, "G6", subdiv);
@@ -2279,16 +2308,18 @@ app.post("/api/bill/paver", async (req, res) => {
     setVal(bill, "B7", vata);
     setVal(bill, "B8", test);
     setVal(bill, "B9", plate);
-    setVal(bill, "E4", e4);
-    setVal(bill, "E5", e5);
-    setVal(bill, "E6", e6);
-    setVal(bill, "E7", e7);
-    setVal(bill, "E8", e8);
-    setVal(bill, "E9", e9);
-    setVal(bill, "E10", e10);
-    setVal(bill, "E11", e11);
-    setVal(bill, "E12", e12);
-    setVal(bill, "E13", e13);
+    [4, 5, 6, 7, 8, 9].forEach(function (r, i) {
+      bill.getCell("E" + r).value = { formula: "ROUND(B" + r + "*" + pavRates[i] + ",2)" };
+      bill.getCell("E" + r).numFmt = "0.00";
+    });
+    bill.getCell("E10").value = { formula: "ROUND(SUM(E4:E9),2)" };
+    bill.getCell("E11").value = { formula: "ROUND(E10*0.18,2)" };
+    bill.getCell("E12").value = { formula: "ROUND(E10+E11,2)" };
+    bill.getCell("E13").value = { formula: "ROUNDDOWN(E12,0)" };
+    bill.getCell("E10").numFmt = "0.00";
+    bill.getCell("E11").numFmt = "0.00";
+    bill.getCell("E12").numFmt = "0.00";
+    bill.getCell("E13").numFmt = "0";
     if (aae) setVal(bill, "A14", "શ્રી- " + aae);
     setVal(bill, "B15", measDate);
     setVal(bill, "B16", mb);
@@ -2300,12 +2331,12 @@ app.post("/api/bill/paver", async (req, res) => {
     setVal(comp, "C4", tsDet);
     setVal(comp, "C5", tsAmt);
     setVal(comp, "C6", asDet);
-    setVal(comp, "C7", tsAmt);
+    setVal(comp, "C7", asAmt);
     setVal(comp, "C8", agency);
     setVal(comp, "F8", gam);
     setVal(comp, "C9", startDate);
     setVal(comp, "C10", measDate);
-    setVal(comp, "C11", e13);
+    comp.getCell("C11").value = { formula: "Bill!E13" };
     setVal(comp, "C12", "MB NO -");
     setVal(comp, "D12", mb);
     setVal(comp, "E12", "PAGE NO");
@@ -2313,6 +2344,7 @@ app.post("/api/bill/paver", async (req, res) => {
     setVal(comp, "G12", "TO");
     setVal(comp, "H12", pg2);
     setVal(comp, "A20", tal || "");
+    fitPaLabels(pa);
 
     const areas = {
       "21 No. P.A. Form": "A1:J36",
@@ -2346,8 +2378,9 @@ app.post("/api/bill/cc", async (req, res) => {
     const asDet = d.as_details || d.as_detail || "";
     const tsDet = d.ts_details || "";
     const tsAmt = Number(d.ts_amount || d.amounting || 0);
-    const startDate = d.start_date || "";
-    const measDate = d.meas_date || d.date || "";
+    const asAmt = Number(d.as_amount != null && d.as_amount !== "" ? d.as_amount : (d.amounting || 0));
+    const startDate = billDateText(d.start_date || "");
+    const measDate = billDateText(d.meas_date || d.date || "");
     const mb = d.mb_no || "";
     const pg1 = d.page_from || "";
     const pg2 = d.page_to || "";
@@ -2367,9 +2400,11 @@ app.post("/api/bill/cc", async (req, res) => {
     const qtys = [q1, q2, q3, q4, q5, q6, q7, q8];
     let sub = 0;
     qtys.forEach(function (qty, i) {
+      const row = 4 + i;
       const amt = qty * rates[i];
-      setVal(bill, "B" + (4 + i), qty);
-      setVal(bill, "E" + (4 + i), amt);
+      setVal(bill, "B" + row, qty);
+      bill.getCell("E" + row).value = { formula: "ROUND(B" + row + "*" + rates[i] + ",2)" };
+      bill.getCell("E" + row).numFmt = "0.00";
       sub += amt;
     });
     const gst = sub * 0.18;
@@ -2386,10 +2421,10 @@ app.post("/api/bill/cc", async (req, res) => {
     setVal(pa, "I9", wo);
 
     setVal(bill, "A1", work);
-    setVal(bill, "E12", sub);
-    setVal(bill, "E13", gst);
-    setVal(bill, "E14", tot);
-    setVal(bill, "E15", net);
+    bill.getCell("E12").value = { formula: "ROUND(SUM(E4:E11),2)" };
+    bill.getCell("E13").value = { formula: "ROUND(E12*0.18,2)" };
+    bill.getCell("E14").value = { formula: "ROUND(E12+E13,2)" };
+    bill.getCell("E15").value = { formula: "ROUNDDOWN(E14,0)" };
     if (aae) setVal(bill, "A16", "શ્રી- " + aae);
     setVal(bill, "B17", measDate);
     setVal(bill, "B18", mb);
@@ -2401,16 +2436,17 @@ app.post("/api/bill/cc", async (req, res) => {
     setVal(comp, "C4", tsDet);
     setVal(comp, "C5", tsAmt);
     setVal(comp, "C6", asDet);
-    setVal(comp, "C7", tsAmt);
+    setVal(comp, "C7", asAmt);
     setVal(comp, "C8", agency);
     setVal(comp, "F8", gam);
     setVal(comp, "C9", startDate);
     setVal(comp, "C10", measDate);
-    setVal(comp, "C11", net);
+    comp.getCell("C11").value = { formula: "Bill!E15" };
     setVal(comp, "D12", mb);
     setVal(comp, "F12", pg1);
     setVal(comp, "H12", pg2);
     setVal(comp, "A20", talLabel || tal || "");
+    fitPaLabels(pa);
 
     const areas = {
       "21 No. P.A. Form": "A1:J36",
@@ -2628,9 +2664,16 @@ app.post("/api/letter/fwd", async (req, res) => {
     const wsAud = wb.getWorksheet("Audit") || wb.getWorksheet("AANTRIK ODIT nana");
     const taluka = String(d.taluka || (all[0] && all[0].taluka) || "").trim();
     const date = d.date || "";
-        const rawNo = String(d.letter_no || "").trim();
-    let no = parseInt(fromGujDigits(rawNo).replace(/[^0-9]/g, ""), 10);
-    if (!no) no = Number(fromGujDigits(rawNo)) || 0;
+    const rawNo = String(d.letter_no || "").trim();
+    let letterSeq = 0;
+    function nextNo() {
+      const src = fromGujDigits(rawNo);
+      const m = src.match(/^(.*?)(\d+)(\D*)$/);
+      if (!m) return showVal(rawNo, useGuj);
+      const n = String(parseInt(m[2], 10) + letterSeq).padStart(m[2].length, "0");
+      letterSeq += 1;
+      return showVal(m[1] + n + (m[3] || ""), useGuj);
+    }
     const useGuj = hasGuj(d.letter_no) || /[૦-૯]/.test(String(d.letter_no||"")) || hasGuj(taluka) || hasGuj(d.audit_office) ||
       all.some(function (x) { return hasGuj(x.work_name) || hasGuj(x.taluka); });
         function hasGuj(t) {
@@ -2746,6 +2789,7 @@ app.post("/api/letter/fwd", async (req, res) => {
     }
     function fillDee(ws, items, letterNo) {
       if (!ws) return;
+      fitDeeName(ws);
       const first = items[0] || {};
       set(ws, "I1", letterNo);
       set(ws, "I2", taluka);
@@ -2764,7 +2808,7 @@ app.post("/api/letter/fwd", async (req, res) => {
       const tr = 19 + list.length;
       set(ws, "A" + tr, "");
       set(ws, "B" + tr, "TOTAL");
-      set(ws, "G" + tr, total);
+      ws.getCell("G" + tr).value = { formula: "SUM(G19:G" + (tr - 1) + ")" };
       const mbs = uniqMb(items);
       set(ws, "D" + (28 + extra), mbs[0] || "");
       set(ws, "E" + (28 + extra), mbs[1] || "");
@@ -2775,6 +2819,7 @@ app.post("/api/letter/fwd", async (req, res) => {
     }
     function fillAudit(ws, items, letterNo) {
       if (!ws) return;
+      fitDeeName(ws);
       set(ws, "I1", letterNo);
       set(ws, "I2", taluka);
       set(ws, "H3", date);
@@ -2791,17 +2836,17 @@ app.post("/api/letter/fwd", async (req, res) => {
       });
       const tr = 20 + list.length;
       set(ws, "B" + tr, "TOTAL");
-      set(ws, "G" + tr, total);
+      ws.getCell("G" + tr).value = { formula: "SUM(G20:G" + (tr - 1) + ")" };
       set(ws, "B" + (30 + extra), "માપ બુક નંબર");
       set(ws, "D" + (30 + extra), uniqMb(items).join(", "));
       set(ws, "H" + (35 + extra), taluka);
       ws._fitBottom = 35 + extra;
     }
-    if (rb.length && wsRb) { fillDee(wsRb, rb, no); no += 1; }
+    if (rb.length && wsRb) fillDee(wsRb, rb, nextNo());
     else if (wsRb) wb.removeWorksheet(wsRb.id);
-    if (nani.length && wsNani) { fillDee(wsNani, nani, no); no += 1; }
+    if (nani.length && wsNani) fillDee(wsNani, nani, nextNo());
     else if (wsNani) wb.removeWorksheet(wsNani.id);
-    if (wsAud) fillAudit(wsAud, all, no);
+    if (wsAud) fillAudit(wsAud, all, nextNo());
     const orderNames = ["DEE-R&B", "DEE R&B", "DEE-Nani Sinchai", "DEE Nani Sinchai", "Audit"];
     if (wb._worksheets) {
       const map = {};
@@ -2904,7 +2949,7 @@ function fillBillPaComp(pa, bill, comp, d){
   const wo = d.work_order || d.as_details || "";
   const subdiv = d.subdiv || d.subdiv_address || "";
   const aae = d.prepared_by || d.aae || "";
-  const measDate = d.meas_date || d.date || "";
+  const measDate = billDateText(d.meas_date || d.date || "");
   const mb = d.mb_no || "";
   const pg1 = d.page_from || "";
   const pg2 = d.page_to || "";
@@ -2938,7 +2983,7 @@ function fillBillPaComp(pa, bill, comp, d){
     setVal(comp, "C7", d.as_amount || d.amounting || "");
     setVal(comp, "C8", agency);
     setVal(comp, "F8", gam);
-    setVal(comp, "C9", d.start_date || "");
+    setVal(comp, "C9", billDateText(d.start_date || ""));
     setVal(comp, "C10", measDate);
     setVal(comp, "D12", mb);
     setVal(comp, "F12", pg1);
@@ -2947,22 +2992,25 @@ function fillBillPaComp(pa, bill, comp, d){
   }
 }
 
-function putBillLine(bill, addr, qty, rate) {
+function putBillLine(bill, addr, qty, rate, rows) {
   const q = Number(qty || 0);
-  const amt = Math.round(q * rate * 100) / 100;
+  const row = String(addr).replace(/^[A-Z]+/, "");
   setVal(bill, addr, q);
-  setVal(bill, "E" + String(addr).replace(/^[A-Z]+/, ""), amt);
-  return amt;
+  bill.getCell("E" + row).value = { formula: "ROUND(" + addr + "*" + rate + ",2)" };
+  bill.getCell("E" + row).numFmt = "0.00";
+  if (rows) rows.push(row);
+  return Math.round(q * rate * 100) / 100;
 }
-function putBillTotals(bill, sub, row) {
-  const gst = Math.round(sub * 0.18 * 100) / 100;
-  const tot = Math.round((sub + gst) * 100) / 100;
-  const net = Math.floor(sub * 1.18);
-  setVal(bill, "E" + row, Math.round(sub * 100) / 100);
-  setVal(bill, "E" + (row + 1), gst);
-  setVal(bill, "E" + (row + 2), tot);
-  setVal(bill, "E" + (row + 3), net);
-  return net;
+function putBillTotals(bill, rows, row) {
+  const sum = (rows && rows.length) ? rows.map(function (r) { return "E" + r; }).join(",") : "0";
+  bill.getCell("E" + row).value = { formula: "ROUND(SUM(" + sum + "),2)" };
+  bill.getCell("E" + (row + 1)).value = { formula: "ROUND(E" + row + "*0.18,2)" };
+  bill.getCell("E" + (row + 2)).value = { formula: "ROUND(E" + row + "+E" + (row + 1) + ",2)" };
+  bill.getCell("E" + (row + 3)).value = { formula: "ROUNDDOWN(E" + (row + 2) + ",0)" };
+  bill.getCell("E" + row).numFmt = "0.00";
+  bill.getCell("E" + (row + 1)).numFmt = "0.00";
+  bill.getCell("E" + (row + 2)).numFmt = "0.00";
+  bill.getCell("E" + (row + 3)).numFmt = "0";
 }
 
 app.post("/api/bill/gutter", async (req, res) => {
@@ -2975,31 +3023,34 @@ app.post("/api/bill/gutter", async (req, res) => {
     const comp = wb.getWorksheet("COMP-14MU NAN");
     if (!pa || !bill || !comp) throw new Error("gutter bill skeleton missing");
     fillBillPaComp(pa, bill, comp, d);
+    fitPaLabels(pa);
     const q = d.qty || {};
     const n = (k) => Number(q[k] || 0);
+    const rows = [];
     let sub = 0;
-    sub += putBillLine(bill, "B4", n("demo"), 1030.81);
-    sub += putBillLine(bill, "B5", n("exc"), 89);
+    sub += putBillLine(bill, "B4", n("demo"), 1030.81, rows);
+    sub += putBillLine(bill, "B5", n("exc"), 89, rows);
     [[ "B7", 225, 421 ], [ "B8", 300, 672 ], [ "B9", 450, 817 ], [ "B10", 600, 1331 ], [ "B11", 900, 2476 ], [ "B12", 1200, 4121 ]].forEach(function (x) {
-      sub += putBillLine(bill, x[0], n("p" + x[1]), x[2]);
+      sub += putBillLine(bill, x[0], n("p" + x[1]), x[2], rows);
     });
     [[ "B14", 225, 88 ], [ "B15", 300, 119 ], [ "B16", 450, 171 ], [ "B17", 600, 228 ], [ "B18", 900, 340 ], [ "B19", 1200, 440 ]].forEach(function (x) {
-      sub += putBillLine(bill, x[0], n("p" + x[1]), x[2]);
+      sub += putBillLine(bill, x[0], n("p" + x[1]), x[2], rows);
     });
     [[ "B21", "c60", 5138 ], [ "B22", "c90", 7343 ], [ "B23", "c139", 8882 ], [ "B24", "c1313", 10698 ]].forEach(function (x) {
-      sub += putBillLine(bill, x[0], n(x[1]), x[2]);
+      sub += putBillLine(bill, x[0], n(x[1]), x[2], rows);
     });
-    sub += putBillLine(bill, "B25", n("refill"), 22);
+    sub += putBillLine(bill, "B25", n("refill"), 22, rows);
     const ch = n("frame") || (n("c60") + n("c90") + n("c139") + n("c1313"));
-    sub += putBillLine(bill, "B27", ch, 1121);
-    sub += putBillLine(bill, "B28", n("cover") || ch, 1173);
-    sub += putBillLine(bill, "B29", n("cc"), 3652.31);
-    sub += putBillLine(bill, "B30", n("plate"), 306.14);
-    const net = putBillTotals(bill, sub, 31);
-    if (comp) setVal(comp, "C11", net);
+    sub += putBillLine(bill, "B27", ch, 1121, rows);
+    sub += putBillLine(bill, "B28", n("cover") || ch, 1173, rows);
+    sub += putBillLine(bill, "B29", n("cc"), 3652.31, rows);
+    sub += putBillLine(bill, "B30", n("plate"), 306.14, rows);
+    putBillTotals(bill, rows, 31);
+    const net = Math.floor(sub * 1.18);
+    if (comp) comp.getCell("C11").value = { formula: "Bill!E34" };
     d.net = net;
     await writeAndRespond(req, res, wb, d, "BILL_GUTTER", {
-      "21 No. P.A. Form": "A1:I36", Bill: "A1:G40", "COMP-14MU NAN": "A1:H21"
+      "21 No. P.A. Form": "A1:J36", Bill: "A1:G40", "COMP-14MU NAN": "A1:H21"
     }, "bill_gutter");
   } catch (e) {
     res.status(500).json({ ok: false, error: String(e.message || e) });
@@ -3016,24 +3067,27 @@ app.post("/api/bill/pipe", async (req, res) => {
     const comp = wb.getWorksheet("COMP-14MU NAN");
     if (!pa || !bill || !comp) throw new Error("pipe bill skeleton missing");
     fillBillPaComp(pa, bill, comp, d);
+    fitPaLabels(pa);
     const q = d.qty || {};
     const n = (k) => Number(q[k] || 0);
+    const rows = [];
     let sub = 0;
-    sub += putBillLine(bill, "B4", n("demo"), 202.2);
-    sub += putBillLine(bill, "B5", n("exc"), 89);
+    sub += putBillLine(bill, "B4", n("demo"), 202.2, rows);
+    sub += putBillLine(bill, "B5", n("exc"), 89, rows);
     [[ "B7", 63, 69 ], [ "B8", 75, 96 ], [ "B9", 90, 139 ], [ "B10", 110, 199 ]].forEach(function (x) {
-      sub += putBillLine(bill, x[0], n("p" + x[1]), x[2]);
+      sub += putBillLine(bill, x[0], n("p" + x[1]), x[2], rows);
     });
     [[ "B12", 63, 12 ], [ "B13", 75, 15 ], [ "B14", 90, 17 ], [ "B15", 110, 19 ]].forEach(function (x) {
-      sub += putBillLine(bill, x[0], n("p" + x[1]), x[2]);
+      sub += putBillLine(bill, x[0], n("p" + x[1]), x[2], rows);
     });
-    sub += putBillLine(bill, "B16", n("refill"), 22);
-    sub += putBillLine(bill, "B17", n("plate"), 306.14);
-    const net = putBillTotals(bill, sub, 18);
-    if (comp) setVal(comp, "C11", net);
+    sub += putBillLine(bill, "B16", n("refill"), 22, rows);
+    sub += putBillLine(bill, "B17", n("plate"), 306.14, rows);
+    putBillTotals(bill, rows, 18);
+    const net = Math.floor(sub * 1.18);
+    if (comp) comp.getCell("C11").value = { formula: "Bill!E21" };
     d.net = net;
     await writeAndRespond(req, res, wb, d, "BILL_PIPE", {
-      "21 No. P.A. Form": "A1:I36", Bill: "A1:G40", "COMP-14MU NAN": "A1:H21"
+      "21 No. P.A. Form": "A1:J36", Bill: "A1:G40", "COMP-14MU NAN": "A1:H21"
     }, "bill_pipe");
   } catch (e) {
     res.status(500).json({ ok: false, error: String(e.message || e) });
