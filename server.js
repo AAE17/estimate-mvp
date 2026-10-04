@@ -237,7 +237,7 @@ function bakeFormulaResults(wb) {
       }
       const token = s.slice(i, k);
       const upper = token.toUpperCase();
-      if ((upper === "SUM" || upper === "ROUNDUP" || upper === "ROUNDDOWN" || upper === "TRUNC") && s[k] === "(") {
+      if ((upper === "SUM" || upper === "ROUND" || upper === "ROUNDUP" || upper === "ROUNDDOWN" || upper === "TRUNC") && s[k] === "(") {
         i = k + 1;
         const args = [];
         while (i < s.length) {
@@ -259,6 +259,10 @@ function bakeFormulaResults(wb) {
         const digits = args.length > 1 ? num(args[1]) : 0;
         const p = Math.pow(10, digits || 0);
         const x = num(args[0]) * p;
+        if (upper === "ROUND") {
+          const sign = x < 0 ? -1 : 1;
+          return (sign * Math.round(Math.abs(x))) / p;
+        }
         if (upper === "ROUNDUP") return (x < 0 ? Math.floor(x) : Math.ceil(x)) / p;
         return (x < 0 ? Math.ceil(x) : Math.floor(x)) / p;
       }
@@ -301,15 +305,20 @@ function bakeFormulaResults(wb) {
 
 function cellText(cell) {
   const v = cell.value;
+  let out = "";
   if (v == null || v === "") return "";
   if (typeof v === "object") {
-    if (v.result != null && v.result !== "") return String(v.result);
-    if (Array.isArray(v.richText)) return v.richText.map((t) => t.text).join("");
-    if (v.text) return String(v.text);
-    if (v.hyperlink) return String(v.text || v.hyperlink);
-    return "";
+    if (v.result != null && v.result !== "") out = v.result;
+    else if (Array.isArray(v.richText)) return v.richText.map((t) => t.text).join("");
+    else if (v.text) return String(v.text);
+    else if (v.hyperlink) return String(v.text || v.hyperlink);
+    else return "";
+  } else out = v;
+  if (typeof out === "number" && isFinite(out)) {
+    const fmt = String((cell && cell.numFmt) || "");
+    if (fmt === "0.00" || fmt === "#,##0.00" || fmt === "#,##0.00_);(#,##0.00)") return (Math.round(out * 100) / 100).toFixed(2);
   }
-  return String(v);
+  return String(out);
 }
 
 function colLetterToNum(letter) {
@@ -410,6 +419,8 @@ async function patchFitXml(xlsxPath) {
     } else {
       xml = xml.replace(/<pageSetUpPr[^/]*\/>/, '<pageSetUpPr fitToPage="1"/>');
     }
+    const dimM = xml.match(/<dimension\b[^>]*\bref="(?:[A-Z]+\d+:)?([A-Z]+)\d+"/i);
+    const wide = !!(dimM && colLetterToNum(dimM[1]) > 12);
     xml = xml.replace(/<pageSetup\b([^>]*)\/>/, (_all, attrs) => {
       let a = String(attrs)
         .replace(/\s+scale="[^"]*"/g, "")
@@ -418,8 +429,10 @@ async function patchFitXml(xlsxPath) {
         .replace(/\s+verticalDpi="[^"]*"/g, "")
         .replace(/\s+fitToWidth="[^"]*"/g, "")
         .replace(/\s+fitToHeight="[^"]*"/g, "")
-        .replace(/\s+paperSize="[^"]*"/g, "");
-      return `<pageSetup${a} paperSize="9" orientation="portrait" fitToWidth="1" fitToHeight="1" horizontalDpi="300" verticalDpi="300"/>`;
+        .replace(/\s+paperSize="[^"]*"/g, "")
+        .replace(/\s+r:id="[^"]*"/g, "");
+      const landscape = wide || /orientation="landscape"/.test(String(attrs));
+      return `<pageSetup${a} paperSize="9" orientation="${landscape ? "landscape" : "portrait"}" fitToWidth="1" fitToHeight="1" horizontalDpi="300" verticalDpi="300"/>`;
     });
     xml = xml.replace(/<pageMargins[^/]*\/>/, '<pageMargins left="0.5" right="0.5" top="0.5" bottom="0.5" header="0.25" footer="0.25"/>');
     if (!/<pageMargins /.test(xml)) {
@@ -427,6 +440,17 @@ async function patchFitXml(xlsxPath) {
     }
     zip.file(name, xml);
   }
+  const relFiles = Object.keys(zip.files).filter((n) => /xl\/worksheets\/_rels\/sheet\d+\.xml\.rels$/.test(n));
+  for (const rn of relFiles) {
+    const relFile = zip.file(rn);
+    if (!relFile) continue;
+    let rel = await relFile.async("string");
+    rel = rel.replace(/<Relationship\b[^>]*printerSettings[^>]*\/>/g, "");
+    zip.file(rn, rel);
+  }
+  Object.keys(zip.files).filter((n) => n.indexOf("printerSettings/") >= 0).forEach((n) => {
+    zip.remove(n);
+  });
   const wbName = "xl/workbook.xml";
   if (zip.file(wbName)) {
     let wbXml = await zip.file(wbName).async("string");
@@ -619,17 +643,23 @@ function sheetsToPdf(wb, pdfPath) {
     }
 
     wb.worksheets.forEach((ws, idx) => {
-      const landscape = (ws.pageSetup && ws.pageSetup.orientation) === "landscape";
-      doc.addPage({ size: "A4", layout: landscape ? "landscape" : "portrait", margin: 22 });
-      const pageW = doc.page.width - 44;
-      const pageH = doc.page.height - 50;
+      const area = String((ws.pageSetup && ws.pageSetup.printArea) || "");
+      const am = area.match(/([A-Z]+)(\d+):([A-Z]+)(\d+)/);
+      const capC = am ? colLetterToNum(am[3]) : 16;
+      const capR = am ? Number(am[4]) : 40;
+      const landscape = capC > 12 || (ws.pageSetup && ws.pageSetup.orientation) === "landscape";
+      doc.addPage({ size: "A4", layout: landscape ? "landscape" : "portrait", margin: 18 });
+      const pageW = doc.page.width - 36;
+      const pageH = doc.page.height - 40;
 
       let maxR = 0;
       let maxC = 0;
       const grid = [];
       ws.eachRow({ includeEmpty: false }, (row, r) => {
+        if (r > capR) return;
         if (r > maxR) maxR = r;
         row.eachCell({ includeEmpty: false }, (cell, c) => {
+          if (c > capC) return;
           if (c > maxC) maxC = c;
           if (!grid[r]) grid[r] = [];
           grid[r][c] = cellText(cell);
@@ -638,13 +668,13 @@ function sheetsToPdf(wb, pdfPath) {
       if (maxR < 1) maxR = 1;
       if (maxC < 1) maxC = 1;
 
-      doc.font(hasFont ? "Gu" : "Helvetica").fontSize(9).fillColor("#1B5D45");
-      doc.text(ws.name, 22, 12, { width: pageW, align: "left" });
+      doc.font(hasFont ? "Gu" : "Helvetica").fontSize(10).fillColor("#1B5D45");
+      doc.text(ws.name, 18, 10, { width: pageW, align: "left" });
 
-      const top = 28;
-      const fontSize = Math.max(5, Math.min(8, (pageH - 8) / Math.max(maxR, 1) - 1.2));
-      const rowH = Math.min(14, (pageH - 8) / maxR);
+      const top = 26;
+      const rowH = (pageH - 8) / maxR;
       const colW = pageW / maxC;
+      const fontSize = Math.max(7, Math.min(11, rowH - 2));
 
       doc.fontSize(fontSize).fillColor("#14211A");
       for (let r = 1; r <= maxR; r++) {
@@ -1426,6 +1456,9 @@ function dbRead(file, limit) {
 const SB_URL = (process.env.SUPABASE_URL || "").replace(/\/$/, "");
 const SB_KEY = process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_KEY || "";
 function sbOn() { return !!(SB_URL && SB_KEY); }
+function sbAuthKey() {
+  return process.env.SUPABASE_SERVICE_ROLE || process.env.SUPABASE_SERVICE_KEY || SB_KEY;
+}
 function mergeItems(remote, local) {
   const out = [];
   const seen = {};
@@ -1445,9 +1478,9 @@ function mergeItems(remote, local) {
 function sbPick(table, row) {
   const cols = {
     estimates: ["id","ts","type","village","taluka","jilla","work_name","fund_head","amounting","length_m","width_m","area","brass","prepared_by"],
-    site_measures: ["id","ts","type","work_name","amounting","rows","area","brass","bill","gps","estimate_id","taluka","village","fund_head","grant_head","contractor"],
+    site_measures: ["id","ts","type","work_name","amounting","rows","area","brass","bill","gps","estimate_id","taluka","village","fund_head","grant_head","contractor","cc_t","test_qty","name_plate","prepared_by","done"],
     media: ["id","ts","kind","work_name","gps","url"],
-    kachu_bills: ["id","ts","type","work_name","village","amounting","total","net","test_qty","name_plate","preview","xlsx"],
+    kachu_bills: ["id","ts","type","work_name","village","amounting","total","net","test_qty","name_plate","preview","xlsx","pdf"],
     bills: ["id","ts","type","work_name","village","taluka","fund_head","amounting","prepared_by","mb_no"]
   }[table] || Object.keys(row);
   const o = {};
@@ -1455,44 +1488,43 @@ function sbPick(table, row) {
   return o;
 }
 async function sbInsert(table, row) {
-  const r = await fetch(SB_URL + "/rest/v1/" + table, {
-    method: "POST",
-    headers: {
-      apikey: SB_KEY,
-      Authorization: "Bearer " + SB_KEY,
-      "Content-Type": "application/json",
-      Prefer: "return=representation"
-    },
-    body: JSON.stringify(sbPick(table, row))
-  });
-  if (!r.ok) {
+  let body = sbPick(table, row);
+  let lastErr = "supabase insert failed";
+  const key = sbAuthKey();
+  for (let n = 0; n < 12; n++) {
+    const r = await fetch(SB_URL + "/rest/v1/" + table, {
+      method: "POST",
+      headers: {
+        apikey: key,
+        Authorization: "Bearer " + key,
+        "Content-Type": "application/json",
+        Prefer: "return=representation"
+      },
+      body: JSON.stringify(body)
+    });
+    if (r.ok) {
+      const js = await r.json();
+      return Array.isArray(js) ? js[0] : js;
+    }
     const err = await r.text();
-    if (table === "estimates") {
-      const slim = Object.assign({}, sbPick(table, row));
-      delete slim.fund_head;
-      const r2 = await fetch(SB_URL + "/rest/v1/" + table, {
-        method: "POST",
-        headers: {
-          apikey: SB_KEY,
-          Authorization: "Bearer " + SB_KEY,
-          "Content-Type": "application/json",
-          Prefer: "return=representation"
-        },
-        body: JSON.stringify(slim)
-      });
-      if (r2.ok) {
-        const js2 = await r2.json();
-        return Array.isArray(js2) ? js2[0] : js2;
-      }
+    lastErr = err;
+    const missing = err.match(/Could not find the '([^']+)' column/i);
+    if (missing && Object.prototype.hasOwnProperty.call(body, missing[1])) {
+      delete body[missing[1]];
+      continue;
+    }
+    if (/uuid/i.test(err) && body.id) {
+      delete body.id;
+      continue;
     }
     throw new Error(err);
   }
-  const js = await r.json();
-  return Array.isArray(js) ? js[0] : js;
+  throw new Error(lastErr);
 }
 async function sbSelect(table, limit) {
+  const key = sbAuthKey();
   const r = await fetch(SB_URL + "/rest/v1/" + table + "?select=*&order=ts.desc&limit=" + (limit || 200), {
-    headers: { apikey: SB_KEY, Authorization: "Bearer " + SB_KEY }
+    headers: { apikey: key, Authorization: "Bearer " + key }
   });
   if (!r.ok) throw new Error(await r.text());
   return await r.json();
@@ -1772,14 +1804,23 @@ app.get("/api/db/estimates", async (_req, res) => {
   } catch (e) { console.error(e.message); }
   res.json({ ok: true, items: local });
 });
-app.post("/api/db/site", (req, res) => {
+app.post("/api/db/site", async (req, res) => {
   const b = req.body || {};
+  const rows = Array.isArray(b.rows) ? JSON.parse(JSON.stringify(b.rows)) : [];
+  const meta = {
+    cc_t: Number(b.cc_t || 0) || 0.1,
+    test_qty: Number(b.test_qty || 0),
+    name_plate: Number(b.name_plate || b.plate || 0),
+    aae: b.prepared_by || b.aae || "",
+    done: !!b.done
+  };
+  if (rows[0] && typeof rows[0] === "object") Object.assign(rows[0], meta);
   const rec = dbAppend(DB_SITE, {
     kind: "site",
     type: b.type || "",
     work_name: b.work_name || "",
     amounting: Number(b.amounting || 0),
-    rows: b.rows || [],
+    rows: rows,
     area: Number(b.area || 0),
     brass: Number(b.brass || 0),
     bill: Number(b.bill || 0),
@@ -1789,10 +1830,20 @@ app.post("/api/db/site", (req, res) => {
     village: b.village || "",
     fund_head: b.fund_head || b.grant || b.grant_head || "",
     grant_head: b.grant_head || b.grant || b.fund_head || "",
-    contractor: b.contractor || ""
+    contractor: b.contractor || "",
+    cc_t: meta.cc_t,
+    test_qty: meta.test_qty,
+    name_plate: meta.name_plate,
+    prepared_by: meta.aae,
+    done: meta.done
   });
-  if (sbOn()) sbInsert("site_measures", rec).catch(function(e){ console.error(e.message); });
-  res.json({ ok: true, id: rec.id });
+  let remote = false;
+  let error = "";
+  if (sbOn()) {
+    try { await sbInsert("site_measures", rec); remote = true; }
+    catch (e) { error = String(e.message || e); console.error("site save", error); }
+  } else error = "Supabase જોડાયેલું નથી — રીડિપ્લોય પર માપ રહેશે નહીં";
+  res.json({ ok: !error, id: rec.id, remote: remote, error: error });
 });
 app.get("/api/db/site", async (_req, res) => {
   const local = notDeleted(dbRead(DB_SITE, 200));
@@ -1813,7 +1864,7 @@ app.post("/api/db/site/delete", async (req, res) => {
   res.json({ ok: true, removed: removed });
 });
 
-app.post("/api/db/kachu", (req, res) => {
+app.post("/api/db/kachu", async (req, res) => {
   const b = req.body || {};
   const rec = dbAppend(DB_KACHU, {
     type: b.type || "paver",
@@ -1825,10 +1876,15 @@ app.post("/api/db/kachu", (req, res) => {
     test_qty: Number(b.test_qty || 0),
     name_plate: Number(b.name_plate || 0),
     preview: b.preview || {},
-    xlsx: b.xlsx || ""
+    xlsx: b.xlsx || "",
+    pdf: b.pdf || ""
   });
-  if (sbOn()) sbInsert("kachu_bills", rec).catch(function(e){ console.error(e.message); });
-  res.json({ ok: true, id: rec.id });
+  let error = "";
+  if (sbOn()) {
+    try { await sbInsert("kachu_bills", rec); }
+    catch (e) { error = String(e.message || e); console.error("kachu save", error); }
+  } else error = "Supabase જોડાયેલું નથી — રીડિપ્લોય પર કાચું બિલ રહેશે નહીં";
+  res.json({ ok: !error, id: rec.id, error: error });
 });
 app.get("/api/db/kachu", async (_req, res) => {
   try { if (sbOn()) return res.json({ ok: true, items: await sbSelect("kachu_bills", 200) }); }
@@ -2306,31 +2362,42 @@ app.post("/api/mb", async (req, res) => {
       setVal(ws, "E11", Number(d.amounting || 0));
     } else {
       const boxT = Number(d.exc_d || 0);
-      const ccT = Number(d.cc_t || 0);
+      const ccT = Number(d.cc_t || 0) || 0.1;
       for (let r = 3; r <= 10; r++) {
         ["G","H","I","J","L","M","N","O","P"].forEach(function (col) {
           const c = ws.getCell(col + r);
-          if (c) { c.value = (r === 3 && col === "I") ? boxT : (r === 3 && col === "N") ? ccT : 0; }
+          if (c) c.value = 0;
         });
       }
+      const a7 = ws.getCell("A7");
+      a7.value = "CC 1:2:4";
+      a7.numFmt = "@";
       const m2 = ws.getCell("M2");
-      if (m2) { m2.numFmt = "@"; m2.value = ""; }
+      m2.value = "CC 1:2:4";
+      m2.numFmt = "@";
       segs.forEach(function (s, i) {
         if (i > 7) return;
         const r = 3 + i;
+        const depth = s.d || boxT || 0.3;
         setVal(ws, "G" + r, s.L);
         setVal(ws, "H" + r, s.W);
+        setVal(ws, "I" + r, depth);
         setVal(ws, "L" + r, s.L);
         setVal(ws, "M" + r, s.W);
         setVal(ws, "N" + r, ccT);
-        setVal(ws, "O" + r, s.L * s.W * ccT);
-        setVal(ws, "P" + r, s.L * s.W);
-        setVal(ws, "J" + r, s.L * s.W * (s.d || boxT));
-        if (i === 0) {
-          setVal(ws, "I3", s.d || boxT);
-          setVal(ws, "N3", ccT);
-        }
+        setVal(ws, "O" + r, Math.round(s.L * s.W * ccT * 1000) / 1000);
+        setVal(ws, "P" + r, Math.round(s.L * s.W * 1000) / 1000);
+        setVal(ws, "J" + r, Math.round(s.L * s.W * depth * 1000) / 1000);
       });
+      for (let r = 2; r <= 9; r++) {
+        ws.getCell("E" + r).value = { formula: "ROUND(C" + r + "*D" + r + ",2)" };
+      }
+      ws.getCell("E10").value = { formula: "ROUND(SUM(E2:E9),2)" };
+      ws.getCell("E11").value = { formula: "ROUND(E10*0.18,2)" };
+      ws.getCell("E12").value = { formula: "ROUND(E10+E11,2)" };
+      ws.getCell("E14").value = { formula: "ROUND(E13-E12,2)" };
+      for (let r = 2; r <= 12; r++) ws.getCell("E" + r).numFmt = "0.00";
+      ws.getCell("E14").numFmt = "0.00";
       setVal(ws, "C8", Number(d.test_qty == null ? 0 : d.test_qty));
       setVal(ws, "C9", Number(d.name_plate == null ? 0 : d.name_plate));
       setVal(ws, "E13", Number(d.amounting || 0));
