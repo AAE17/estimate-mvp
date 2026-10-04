@@ -1082,18 +1082,23 @@ app.post("/api/estimate/cc", async (req, res) => {
     const taluka = d.taluka || "";
     const say = Number(d.amounting || 0);
 
-    const a1 = boxQty * 156.56;
-    const a2 = btQty * 677.83;
-    const a3 = murQty * 171.8;
-    const a4 = btQty * 247.28;
-    const a5 = murQty * 146.01;
+    const r2 = (n) => Math.round(Number(n || 0) * 100) / 100;
+    const boxQtyR = r2(boxQty);
+    const btQtyR = r2(btQty);
+    const murQtyR = r2(murQty);
+    const ccQtyR = r2(ccQty);
+    const a1 = r2(boxQtyR * 158.12);
+    const a2 = r2(btQtyR * 684.6);
+    const a3 = r2(murQtyR * 173.51);
+    const a4 = r2(btQtyR * 249.75);
+    const a5 = r2(murQtyR * 147.47);
     const a6r = 0;
-    const a6c = ccQty * 4866.35;
+    const a6c = r2(ccQtyR * 4915.01);
     const a7 = 2656;
     const a8 = 306.14;
-    const tot = a1 + a2 + a3 + a4 + a5 + a6r + a6c + a7 + a8;
-    const gst = tot * 0.18;
-    const grand = tot + gst;
+    const tot = r2(a1 + a2 + a3 + a4 + a5 + a6r + a6c + a7 + a8);
+    const gst = r2(tot * 0.18);
+    const grand = r2(tot + gst);
 
     setVal(face, "F3", d.division);
     setVal(face, "G3", d.jilla);
@@ -1150,26 +1155,28 @@ app.post("/api/estimate/cc", async (req, res) => {
 
     if (abs) {
       setVal(abs, "B2", work);
-      setVal(abs, "A4", boxQty);
-      setVal(abs, "F4", a1);
-      setVal(abs, "A6", btQty);
-      setVal(abs, "F6", a2);
-      setVal(abs, "A8", murQty);
-      setVal(abs, "F8", a3);
+      setVal(abs, "A4", boxQtyR);
+      abs.getCell("F4").value = { formula: "ROUND(A4*D5,2)", result: a1 };
+      setVal(abs, "A6", btQtyR);
+      abs.getCell("F6").value = { formula: "ROUND(A6*D7,2)", result: a2 };
+      setVal(abs, "A8", murQtyR);
+      abs.getCell("F8").value = { formula: "ROUND(A8*D9,2)", result: a3 };
       setVal(abs, "C10", "Item No. :- 4 Spreading the stone aggregates for soiling and W. B. M. including filling the inter stices forming the surface to required camber and gradient (excluding spreading of blindage) (ii) 40 mm to 63 mm size aggreates (HB)");
-      setVal(abs, "A10", btQty);
-      setVal(abs, "F10", a4);
-      setVal(abs, "A12", murQty);
-      setVal(abs, "F12", a5);
+      setVal(abs, "A10", btQtyR);
+      abs.getCell("F10").value = { formula: "ROUND(A10*D11,2)", result: a4 };
+      setVal(abs, "A12", murQtyR);
+      abs.getCell("F12").value = { formula: "ROUND(A12*D13,2)", result: a5 };
       setVal(abs, "A14", 0);
-      setVal(abs, "F14", a6r);
-      setVal(abs, "A16", ccQty);
-      setVal(abs, "F16", a6c);
+      abs.getCell("F14").value = { formula: "ROUND(A14*D15,2)", result: a6r };
+      setVal(abs, "A16", ccQtyR);
+      abs.getCell("F16").value = { formula: "ROUND(A16*D17,2)", result: a6c };
       setVal(abs, "C18", "Item No :- 7 Testing charges for Kapchi,Metal,Sand,Cement,C.C. Cube as per schedule of testing");
+      abs.getCell("F18").value = { formula: "ROUND(A18*D18,2)", result: a7 };
       setVal(abs, "C20", "Item No :- 8 Providing and fixing number plate of marble stone of required size set in C. M. 1 : 4 including finishing and engraving letters etc. complete.");
-      setVal(abs, "F22", tot);
-      setVal(abs, "F23", gst);
-      setVal(abs, "F24", grand);
+      abs.getCell("F20").value = { formula: "ROUND(A20*D21,2)", result: a8 };
+      abs.getCell("F22").value = { formula: "ROUND(F4+F6+F8+F10+F12+F14+F16+F18+F20,2)", result: tot };
+      abs.getCell("F23").value = { formula: "ROUND(F22*0.18,2)", result: gst };
+      abs.getCell("F24").value = { formula: "ROUND(F22+F23,2)", result: grand };
       setVal(abs, "F25", say);
       abs.getCell("A32").value = taluka;
     }
