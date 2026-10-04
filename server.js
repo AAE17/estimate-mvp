@@ -1082,23 +1082,18 @@ app.post("/api/estimate/cc", async (req, res) => {
     const taluka = d.taluka || "";
     const say = Number(d.amounting || 0);
 
-    const r2 = (n) => Math.round(Number(n || 0) * 100) / 100;
-    const boxQtyR = r2(boxQty);
-    const btQtyR = r2(btQty);
-    const murQtyR = r2(murQty);
-    const ccQtyR = r2(ccQty);
-    const a1 = r2(boxQtyR * 158.12);
-    const a2 = r2(btQtyR * 684.6);
-    const a3 = r2(murQtyR * 173.51);
-    const a4 = r2(btQtyR * 249.75);
-    const a5 = r2(murQtyR * 147.47);
+    const a1 = boxQty * 156.56;
+    const a2 = btQty * 677.83;
+    const a3 = murQty * 171.8;
+    const a4 = btQty * 247.28;
+    const a5 = murQty * 146.01;
     const a6r = 0;
-    const a6c = r2(ccQtyR * 4915.01);
+    const a6c = ccQty * 4866.35;
     const a7 = 2656;
     const a8 = 306.14;
-    const tot = r2(a1 + a2 + a3 + a4 + a5 + a6r + a6c + a7 + a8);
-    const gst = r2(tot * 0.18);
-    const grand = r2(tot + gst);
+    const tot = a1 + a2 + a3 + a4 + a5 + a6r + a6c + a7 + a8;
+    const gst = tot * 0.18;
+    const grand = tot + gst;
 
     setVal(face, "F3", d.division);
     setVal(face, "G3", d.jilla);
@@ -1155,28 +1150,26 @@ app.post("/api/estimate/cc", async (req, res) => {
 
     if (abs) {
       setVal(abs, "B2", work);
-      setVal(abs, "A4", boxQtyR);
-      abs.getCell("F4").value = { formula: "ROUND(A4*D5,2)", result: a1 };
-      setVal(abs, "A6", btQtyR);
-      abs.getCell("F6").value = { formula: "ROUND(A6*D7,2)", result: a2 };
-      setVal(abs, "A8", murQtyR);
-      abs.getCell("F8").value = { formula: "ROUND(A8*D9,2)", result: a3 };
+      setVal(abs, "A4", boxQty);
+      setVal(abs, "F4", a1);
+      setVal(abs, "A6", btQty);
+      setVal(abs, "F6", a2);
+      setVal(abs, "A8", murQty);
+      setVal(abs, "F8", a3);
       setVal(abs, "C10", "Item No. :- 4 Spreading the stone aggregates for soiling and W. B. M. including filling the inter stices forming the surface to required camber and gradient (excluding spreading of blindage) (ii) 40 mm to 63 mm size aggreates (HB)");
-      setVal(abs, "A10", btQtyR);
-      abs.getCell("F10").value = { formula: "ROUND(A10*D11,2)", result: a4 };
-      setVal(abs, "A12", murQtyR);
-      abs.getCell("F12").value = { formula: "ROUND(A12*D13,2)", result: a5 };
+      setVal(abs, "A10", btQty);
+      setVal(abs, "F10", a4);
+      setVal(abs, "A12", murQty);
+      setVal(abs, "F12", a5);
       setVal(abs, "A14", 0);
-      abs.getCell("F14").value = { formula: "ROUND(A14*D15,2)", result: a6r };
-      setVal(abs, "A16", ccQtyR);
-      abs.getCell("F16").value = { formula: "ROUND(A16*D17,2)", result: a6c };
+      setVal(abs, "F14", a6r);
+      setVal(abs, "A16", ccQty);
+      setVal(abs, "F16", a6c);
       setVal(abs, "C18", "Item No :- 7 Testing charges for Kapchi,Metal,Sand,Cement,C.C. Cube as per schedule of testing");
-      abs.getCell("F18").value = { formula: "ROUND(A18*D18,2)", result: a7 };
       setVal(abs, "C20", "Item No :- 8 Providing and fixing number plate of marble stone of required size set in C. M. 1 : 4 including finishing and engraving letters etc. complete.");
-      abs.getCell("F20").value = { formula: "ROUND(A20*D21,2)", result: a8 };
-      abs.getCell("F22").value = { formula: "ROUND(F4+F6+F8+F10+F12+F14+F16+F18+F20,2)", result: tot };
-      abs.getCell("F23").value = { formula: "ROUND(F22*0.18,2)", result: gst };
-      abs.getCell("F24").value = { formula: "ROUND(F22+F23,2)", result: grand };
+      setVal(abs, "F22", tot);
+      setVal(abs, "F23", gst);
+      setVal(abs, "F24", grand);
       setVal(abs, "F25", say);
       abs.getCell("A32").value = taluka;
     }
@@ -1500,6 +1493,50 @@ async function sbUpload(name, buf) {
 }
 
 
+
+function insertMeasureLines(ws, templateRow, lines) {
+  const rows = (lines && lines.length) ? lines : [{ l: 0, w: 0, t: 0, label: "" }];
+  const extra = Math.max(0, rows.length - 1);
+  if (extra > 0) {
+    const src = ws.getRow(templateRow);
+    const height = src.height;
+    const styles = [];
+    for (let c = 1; c <= 12; c++) {
+      const cell = src.getCell(c);
+      let style = {};
+      try { style = JSON.parse(JSON.stringify(cell.style || {})); } catch (_e) {}
+      styles.push({ style: style, numFmt: cell.numFmt });
+    }
+    ws.spliceRows(templateRow + 1, 0, ...new Array(extra).fill([]));
+    for (let i = 1; i <= extra; i++) {
+      const row = ws.getRow(templateRow + i);
+      if (height) row.height = height;
+      for (let c = 1; c <= 12; c++) {
+        const dst = row.getCell(c);
+        dst.value = null;
+        dst.style = styles[c - 1].style || {};
+        if (styles[c - 1].numFmt) dst.numFmt = styles[c - 1].numFmt;
+      }
+    }
+  }
+  rows.forEach(function (ln, i) {
+    const r = templateRow + i;
+    setVal(ws, "B" + r, ln.label || "");
+    setVal(ws, "C" + r, 1);
+    setVal(ws, "D" + r, "x");
+    setVal(ws, "E" + r, Number(ln.l || 0));
+    setVal(ws, "F" + r, "x");
+    setVal(ws, "G" + r, Number(ln.w || 0));
+    setVal(ws, "H" + r, "x");
+    setVal(ws, "I" + r, Number(ln.t || 0));
+    setVal(ws, "J" + r, "=");
+    ws.getCell("K" + r).value = { formula: "C" + r + "*E" + r + "*G" + r + "*I" + r };
+  });
+  const totRow = templateRow + rows.length;
+  ws.getCell("K" + totRow).value = { formula: "SUM(K" + templateRow + ":K" + (templateRow + rows.length - 1) + ")" };
+  return { extra: extra, totRow: totRow };
+}
+
 app.post("/api/estimate/gutter", async (req, res) => {
   try {
     const d = req.body || {};
@@ -1541,41 +1578,32 @@ app.post("/api/estimate/gutter", async (req, res) => {
     setVal(face, "C34", d.ss_details || "");
     setVal(face, "G40", taluka);
 
-    const wd225=lastWD(225,0.45,0.825), wd300=lastWD(300,0.45,0.90), wd450=lastWD(450,0.75,1.15);
-    const wd600=lastWD(600,0.90,1.35), wd900=lastWD(900,1.20,1.80), wd1200=lastWD(1200,1.50,2.20);
-    const rows = [
-      { L: sumDia(225), W: wd225.w, D: wd225.d, E: "E9", G: "G9", I: "I9" },
-      { L: sumDia(300), W: wd300.w, D: wd300.d, E: "E10", G: "G10", I: "I10" },
-      { L: sumDia(450), W: wd450.w, D: wd450.d, E: "E11", G: "G11", I: "I11" },
-      { L: sumDia(600), W: wd600.w, D: wd600.d, E: "E12", G: "G12", I: "I12" },
-      { L: sumDia(900), W: wd900.w, D: wd900.d, E: "E13", G: "G13", I: "I13" },
-      { L: sumDia(1200), W: wd1200.w, D: wd1200.d, E: "E14", G: "G14", I: "I14" }
-    ];
-    rows.forEach(function (r) {
-      setVal(meas, r.E, r.L);
-      setVal(meas, r.G, r.W);
-      setVal(meas, r.I, r.D);
+    unshareFormulas(wb);
+    const demoLines = (gDe.length ? gDe : [{l:0,w:0,d:0}]).map(function (r) {
+      return { l: Number(r.l || 0), w: Number(r.w || 0), t: Number(r.d || 0), label: "Demolition" };
     });
-    const demoL = gDe.reduce((a,r)=>a+Number(r.l||0),0);
-    const demoW = Number((gDe[0]&&gDe[0].w)||0.45);
-    const demoD = Number((gDe[0]&&gDe[0].d)||0.10);
-    setVal(meas, "E5", demoL);
-    setVal(meas, "G5", demoW);
-    setVal(meas, "I5", demoD);
-    setVal(meas, "E35", n("gCh60"));
-    setVal(meas, "E36", n("gCh90"));
-    setVal(meas, "E37", n("gCh139"));
-    setVal(meas, "E38", n("gCh1313"));
-    setVal(meas, "E62", n("gPlate") || 1);
-    const pipeL = rows.reduce((a, r) => a + r.L, 0);
-    if (demoL > 0) {
-      setVal(meas, "G58", n("gBedW") || 0.45);
-      setVal(meas, "I58", n("gBedT") || 0.05);
-    } else {
-      setVal(meas, "G58", 0);
-      setVal(meas, "I58", 0);
-    }
-    meas.getCell("K58").value = { formula: "C58*E58*G58*I58" };
+    const demo = insertMeasureLines(meas, 5, demoLines);
+    const exLines = [];
+    [225, 300, 450, 600, 900, 1200].forEach(function (dia) {
+      gEx.filter(function (r) { return Number(r.dia) === dia; }).forEach(function (r) {
+        exLines.push({ l: Number(r.l || 0), w: Number(r.w || 0), t: Number(r.d || 0), label: dia + " mm" });
+      });
+    });
+    const ex = insertMeasureLines(meas, 9 + demo.extra, exLines.length ? exLines : [{ l: 0, w: 0, t: 0 }]);
+    const shift = demo.extra + ex.extra;
+    setVal(meas, "E" + (35 + shift), n("gCh60"));
+    setVal(meas, "E" + (36 + shift), n("gCh90"));
+    setVal(meas, "E" + (37 + shift), n("gCh139"));
+    setVal(meas, "E" + (38 + shift), n("gCh1313"));
+    const gNr = Array.isArray(d.gNr) ? d.gNr : [];
+    const ccLines = (gNr.length ? gNr : [{l:0,w:0,d:0}]).map(function (r) {
+      return { l: Number(r.l || 0), w: Number(r.w || 0), t: Number(r.d || 0), label: "New CC" };
+    });
+    const cc = insertMeasureLines(meas, 58 + shift, ccLines);
+    setVal(meas, "E" + (62 + shift + cc.extra), n("gPlate") || 1);
+    abs.getCell("A4").value = { formula: "Measurement!K" + demo.totRow };
+    abs.getCell("A6").value = { formula: "Measurement!K" + ex.totRow };
+    abs.getCell("A36").value = { formula: "Measurement!K" + cc.totRow };
     setVal(meas, "C2", work);
     setVal(abs, "C2", work);
     if (test) setVal(test, "B1", work);
@@ -1583,7 +1611,7 @@ app.post("/api/estimate/gutter", async (req, res) => {
     await writeAndRespond(req, res, wb, d, "GUTTER", {
       Estimate: "A1:I41",
       Abstract: "A1:F46",
-      Measurement: "A1:L63",
+      Measurement: "A1:L" + (63 + demo.extra + ex.extra + cc.extra),
       "TEST-SITE": "A1:G36"
     }, "estimate_gutter");
   } catch (e) {
