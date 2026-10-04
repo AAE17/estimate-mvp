@@ -316,9 +316,21 @@ function cellText(cell) {
   } else out = v;
   if (typeof out === "number" && isFinite(out)) {
     const fmt = String((cell && cell.numFmt) || "");
-    if (fmt === "0.00" || fmt === "#,##0.00" || fmt === "#,##0.00_);(#,##0.00)") return (Math.round(out * 100) / 100).toFixed(2);
+    if (fmt === "0.00" || fmt === "#,##0.00" || fmt.indexOf("0.00") === 0) return (Math.round(out * 100) / 100).toFixed(2);
+    return tidyNum(out);
   }
   return String(out);
+}
+
+function tidyNum(n) {
+  const c2 = Math.round(n * 100) / 100;
+  if (Math.abs(n - c2) < 1e-6) {
+    if (Math.abs(c2 - Math.round(c2)) < 1e-9) return String(Math.round(c2));
+    return c2.toFixed(2);
+  }
+  const c4 = Math.round(n * 10000) / 10000;
+  if (Math.abs(n - c4) < 1e-6) return String(c4);
+  return String(c2);
 }
 
 function colLetterToNum(letter) {
@@ -395,6 +407,51 @@ function dropBadNames(wb) {
   keep.forEach(function (n) { dn.model.push(n); });
 }
 
+async function printEndByFile(zip) {
+  const out = {};
+  const wbFile = zip.file("xl/workbook.xml");
+  const relFile = zip.file("xl/_rels/workbook.xml.rels");
+  if (!wbFile || !relFile) return out;
+  const wbXml = await wbFile.async("string");
+  const relXml = await relFile.async("string");
+  const rels = {};
+  const rre = /<Relationship\b([^>]*)\/?>/g;
+  let m;
+  while ((m = rre.exec(relXml))) {
+    const id = (m[1].match(/\bId="([^"]+)"/) || [])[1];
+    const target = (m[1].match(/\bTarget="([^"]+)"/) || [])[1];
+    const type = (m[1].match(/\bType="([^"]+)"/) || [])[1] || "";
+    if (!id || !target || type.indexOf("worksheet") < 0) continue;
+    let t = String(target).replace(/\\/g, "/");
+    if (t.indexOf("xl/") !== 0) t = "xl/" + t.replace(/^\//, "");
+    rels[id] = t;
+  }
+  const order = [];
+  const sre = /<sheet\b([^>]*)\/?>/g;
+  while ((m = sre.exec(wbXml))) {
+    order.push((m[1].match(/\br:id="([^"]+)"/) || [])[1] || "");
+  }
+  const ends = {};
+  const dre = /<definedName\b([^>]*)>([^<]*)<\/definedName>/g;
+  while ((m = dre.exec(wbXml))) {
+    if (!/name="_xlnm\.Print_Area"/.test(m[1])) continue;
+    const sid = (m[1].match(/\blocalSheetId="(\d+)"/) || [])[1];
+    if (sid == null) continue;
+    let end = 0;
+    String(m[2]).split(",").forEach(function (ref) {
+      const cols = ref.toUpperCase().replace(/\$/g, "").match(/[A-Z]{1,3}(?=\d)/g);
+      if (!cols || !cols.length) return;
+      end = Math.max(end, colLetterToNum(cols[cols.length - 1]));
+    });
+    if (end) ends[sid] = end;
+  }
+  order.forEach(function (rid, i) {
+    const file = rels[rid];
+    if (file && ends[String(i)]) out[file] = ends[String(i)];
+  });
+  return out;
+}
+
 async function patchFitXml(xlsxPath) {
   let JSZip;
   try {
@@ -403,6 +460,7 @@ async function patchFitXml(xlsxPath) {
     try { JSZip = require("exceljs/node_modules/jszip"); } catch (_e2) { return; }
   }
   const zip = await JSZip.loadAsync(fs.readFileSync(xlsxPath));
+  const printEnds = await printEndByFile(zip);
   const files = Object.keys(zip.files).filter(
     (n) => n.startsWith("xl/worksheets/sheet") && n.endsWith(".xml")
   );
@@ -419,8 +477,7 @@ async function patchFitXml(xlsxPath) {
     } else {
       xml = xml.replace(/<pageSetUpPr[^/]*\/>/, '<pageSetUpPr fitToPage="1"/>');
     }
-    const dimM = xml.match(/<dimension\b[^>]*\bref="(?:[A-Z]+\d+:)?([A-Z]+)\d+"/i);
-    const wide = !!(dimM && colLetterToNum(dimM[1]) > 12);
+    const endC = printEnds[name] || 0;
     xml = xml.replace(/<pageSetup\b([^>]*)\/>/, (_all, attrs) => {
       let a = String(attrs)
         .replace(/\s+scale="[^"]*"/g, "")
@@ -431,7 +488,8 @@ async function patchFitXml(xlsxPath) {
         .replace(/\s+fitToHeight="[^"]*"/g, "")
         .replace(/\s+paperSize="[^"]*"/g, "")
         .replace(/\s+r:id="[^"]*"/g, "");
-      const landscape = wide || /orientation="landscape"/.test(String(attrs));
+      const hadLandscape = /orientation="landscape"/.test(String(attrs));
+      const landscape = endC ? endC > 12 : hadLandscape;
       return `<pageSetup${a} paperSize="9" orientation="${landscape ? "landscape" : "portrait"}" fitToWidth="1" fitToHeight="1" horizontalDpi="300" verticalDpi="300"/>`;
     });
     xml = xml.replace(/<pageMargins[^/]*\/>/, '<pageMargins left="0.5" right="0.5" top="0.5" bottom="0.5" header="0.25" footer="0.25"/>');
@@ -627,6 +685,57 @@ async function addPdfMargins(pdfPath) {
   fs.writeFileSync(pdfPath, await out.save());
 }
 
+function sheetMerges(ws) {
+  const skip = {};
+  const span = {};
+  function add(top, left, bottom, right) {
+    top = Number(top); left = Number(left); bottom = Number(bottom); right = Number(right);
+    if (!top || !left || !bottom || !right) return;
+    span[top + "," + left] = { c: Math.max(1, right - left + 1), r: Math.max(1, bottom - top + 1) };
+    for (let r = top; r <= bottom; r++) {
+      for (let c = left; c <= right; c++) {
+        if (r === top && c === left) continue;
+        skip[r + "," + c] = 1;
+      }
+    }
+  }
+  Object.keys(ws._merges || {}).forEach(function (key) {
+    const m = ws._merges[key];
+    const model = m && (m.model || m);
+    if (model && model.top) add(model.top, model.left, model.bottom, model.right);
+    else {
+      const mm = String(key).match(/^([A-Z]+)(\d+):([A-Z]+)(\d+)$/i);
+      if (mm) add(Number(mm[2]), colLetterToNum(mm[1]), Number(mm[4]), colLetterToNum(mm[3]));
+    }
+  });
+  const list = (ws.model && ws.model.merges) || [];
+  list.forEach(function (key) {
+    const mm = String(key).match(/^([A-Z]+)(\d+):([A-Z]+)(\d+)$/i);
+    if (mm) add(Number(mm[2]), colLetterToNum(mm[1]), Number(mm[4]), colLetterToNum(mm[3]));
+  });
+  return { skip: skip, span: span };
+}
+
+function drawMixed(doc, text, x, y, opt, size, hasFont) {
+  const runs = String(text == null ? "" : text).match(/[\u0A80-\u0AFF]+|[A-Za-z]+|[^A-Za-z\u0A80-\u0AFF]+/g) || [String(text || "")];
+  function use(g) {
+    doc.font(g && hasFont ? "Gu" : "Helvetica");
+    doc.fontSize(size || 9);
+    doc.fillColor("#14211A");
+  }
+  if (runs.length === 1) {
+    use(/[\u0A80-\u0AFF]/.test(runs[0]));
+    doc.text(runs[0], x, y, opt);
+    return;
+  }
+  runs.forEach(function (run, i) {
+    use(/[\u0A80-\u0AFF]/.test(run));
+    const o = Object.assign({}, opt, { continued: i < runs.length - 1 });
+    if (i === 0) doc.text(run, x, y, o);
+    else doc.text(run, o);
+  });
+}
+
 function sheetsToPdf(wb, pdfPath) {
   return new Promise((resolve, reject) => {
     const doc = new PDFDocument({ autoFirstPage: false, margin: 24 });
@@ -645,13 +754,14 @@ function sheetsToPdf(wb, pdfPath) {
     wb.worksheets.forEach((ws, idx) => {
       const area = String((ws.pageSetup && ws.pageSetup.printArea) || "");
       const am = area.match(/([A-Z]+)(\d+):([A-Z]+)(\d+)/);
-      const capC = am ? colLetterToNum(am[3]) : 16;
-      const capR = am ? Number(am[4]) : 40;
-      const landscape = capC > 12 || (ws.pageSetup && ws.pageSetup.orientation) === "landscape";
+      const capC = am ? colLetterToNum(am[3]) : 40;
+      const capR = am ? Number(am[4]) : 80;
+      const landscape = am ? capC > 12 : (ws.pageSetup && ws.pageSetup.orientation) === "landscape";
       doc.addPage({ size: "A4", layout: landscape ? "landscape" : "portrait", margin: 18 });
       const pageW = doc.page.width - 36;
       const pageH = doc.page.height - 40;
 
+      const merges = sheetMerges(ws);
       let maxR = 0;
       let maxC = 0;
       const grid = [];
@@ -660,6 +770,10 @@ function sheetsToPdf(wb, pdfPath) {
         if (r > maxR) maxR = r;
         row.eachCell({ includeEmpty: false }, (cell, c) => {
           if (c > capC) return;
+          if (merges.skip[r + "," + c]) {
+            if (c > maxC) maxC = c;
+            return;
+          }
           if (c > maxC) maxC = c;
           if (!grid[r]) grid[r] = [];
           grid[r][c] = cellText(cell);
@@ -668,23 +782,28 @@ function sheetsToPdf(wb, pdfPath) {
       if (maxR < 1) maxR = 1;
       if (maxC < 1) maxC = 1;
 
-      doc.font(hasFont ? "Gu" : "Helvetica").fontSize(10).fillColor("#1B5D45");
-      doc.text(ws.name, 18, 10, { width: pageW, align: "left" });
-
       const top = 26;
       const rowH = (pageH - 8) / maxR;
       const colW = pageW / maxC;
       const fontSize = Math.max(7, Math.min(11, rowH - 2));
+      drawMixed(doc, ws.name, 18, 10, { width: pageW, height: 14 }, fontSize, hasFont);
 
-      doc.fontSize(fontSize).fillColor("#14211A");
+      doc.fillColor("#14211A");
       for (let r = 1; r <= maxR; r++) {
         const y = top + (r - 1) * rowH;
         if (y > top + pageH - 6) break;
         for (let c = 1; c <= maxC; c++) {
+          if (merges.skip[r + "," + c]) continue;
           const t = (grid[r] && grid[r][c]) || "";
           if (!t) continue;
+          const sp = merges.span[r + "," + c] || { c: 1, r: 1 };
           const x = 22 + (c - 1) * colW;
-          doc.text(t, x, y, { width: colW - 2, height: rowH - 0.5, ellipsis: true, lineBreak: false });
+          drawMixed(doc, t, x, y, {
+            width: Math.max(8, colW * sp.c - 2),
+            height: Math.max(4, rowH * sp.r - 0.5),
+            ellipsis: true,
+            lineBreak: false
+          }, fontSize, hasFont);
         }
       }
       if (idx === wb.worksheets.length - 1) {
@@ -2366,9 +2485,14 @@ app.post("/api/mb", async (req, res) => {
       for (let r = 3; r <= 10; r++) {
         ["G","H","I","J","L","M","N","O","P"].forEach(function (col) {
           const c = ws.getCell(col + r);
-          if (c) c.value = 0;
+          if (c) c.value = null;
         });
       }
+      const a6 = ws.getCell("A6");
+      a6.value = "SPREADING BINDING";
+      a6.numFmt = "@";
+      setVal(ws, "P1", null);
+      setVal(ws, "P2", null);
       const a7 = ws.getCell("A7");
       a7.value = "CC 1:2:4";
       a7.numFmt = "@";
