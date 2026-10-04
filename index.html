@@ -4796,7 +4796,8 @@ function startScan(camera) {
         pEx: (typeof PEX!=="undefined"?PEX:[]),
         pDe: (typeof PDE!=="undefined"?PDE:[]),
         pPlate:num("pPlate"),
-        gBedW:num("gBedW"), gBedT:num("gBedT")
+        gBedW:num("gBedW"), gBedT:num("gBedT"),
+        segs: (typeof SEGS!=="undefined" ? SEGS : [])
       };
       const url = currentType === "paver" ? "/api/estimate/paver" : currentType === "gutter" ? "/api/estimate/gutter" : currentType === "pipe" ? "/api/estimate/pipe" : "/api/estimate/cc";
       body.output = kind === "pdf" ? "pdf" : kind === "both" ? "both" : "xlsx";
@@ -4822,12 +4823,18 @@ function startScan(camera) {
         });
       }catch(e){}
       let files = [];
-      if (data && data.xlsx) files = showFiles(API, { xlsx: data.xlsx }, []);
-      if (data && data.pdf_job) {
-        msg.textContent = "PDF બની રહી છે…";
+      if (kind === "both" && data && data.pdf_job) {
+        msg.textContent = "Excel અને PDF બની રહ્યા છે…";
         data.pdf = await waitPdf(data.pdf_job);
+        files = showFiles(API, data, []);
+      } else {
+        files = showFiles(API, data, []);
+        if (data && data.pdf_job) {
+          msg.textContent = "PDF બની રહી છે…";
+          data.pdf = await waitPdf(data.pdf_job);
+          files = showFiles(API, data, files);
+        }
       }
-      if (data && data.pdf) files = showFiles(API, { pdf: data.pdf }, files);
       if (!files.length) throw new Error((data && data.pdf_error) || "ફાઇલ ન બની");
       msg.textContent = data.pdf ? (kind === "both" ? "Excel અને PDF તૈયાર." : "PDF તૈયાર.") : "Excel તૈયાર.";
     } catch (e) {
