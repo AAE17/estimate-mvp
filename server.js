@@ -1284,6 +1284,18 @@ app.get("/api/stats", (_req, res) => {
 });
 
 
+function dedupeBills(rows) {
+  const seen = {};
+  return (rows || []).slice().sort(function (a, b) { return String(b.ts || "").localeCompare(String(a.ts || "")); })
+    .filter(function (r) {
+      const mb = String(r.mb_no || "").trim();
+      if (!mb) return true;
+      const k = [String(r.type || "").toLowerCase(), String(r.work_name || "").trim().toLowerCase(), mb].join("|");
+      if (seen[k]) return false;
+      seen[k] = 1;
+      return true;
+    });
+}
 app.get("/api/bills", async (req, res) => {
   try {
     const day = String(req.query.day || req.query.date || "").slice(0, 10);
@@ -1302,6 +1314,7 @@ app.get("/api/bills", async (req, res) => {
     }
     if (!rows.length) rows = localBills;
     if (day) rows = rows.filter(function (r) { return recordDay(r) === day; });
+    rows = dedupeBills(rows);
     res.json({ ok: true, bills: rows.slice(0, 80) });
   } catch (e) {
     res.json({ ok: false, bills: [], error: String(e.message || e) });
@@ -1389,7 +1402,18 @@ app.post("/api/estimate/cc", async (req, res) => {
     }).filter(function (ln) { return ln.l > 0 && ln.w > 0; });
     if (!lines.length) lines.push({ l: L || 0, w: W || 0, t: boxT || 0.3, cc: ccT || 0.1 });
     const extra = Math.max(0, lines.length - 1);
-    if (extra) meas.spliceRows(5, 0, ...new Array(extra).fill([]));
+    if (extra) {
+      meas.spliceRows(5, 0, ...new Array(extra).fill([]));
+      for (let r = 20; r <= 22 + extra; r++) meas.getRow(r).hidden = r >= 20 + extra;
+      const src4 = meas.getRow(4);
+      for (let i = 1; i <= extra; i++) {
+        const row = meas.getRow(4 + i);
+        if (src4.height) row.height = src4.height;
+        for (let c = 1; c <= 12; c++) {
+          try { row.getCell(c).style = JSON.parse(JSON.stringify(src4.getCell(c).style || {})); } catch (_e) {}
+        }
+      }
+    }
     lines.forEach(function (ln, i) {
       const r = 4 + i;
       setVal(meas, "C" + r, 1);
@@ -1466,6 +1490,10 @@ app.post("/api/estimate/cc", async (req, res) => {
       abs.getCell("F21").value = { formula: "ROUND(F20*0.18,2)" };
       abs.getCell("F22").value = { formula: "ROUND(F20+F21,2)" };
       abs.getCell("F23").value = { formula: "'FACE SHEET'!G22" };
+      ["C5", "C19"].forEach(function (a) {
+        const v = abs.getCell(a).value;
+        if (typeof v === "string") abs.getCell(a).value = v.replace(/^ITEM NO\. 0\s+/i, "");
+      });
       setVal(abs, "G6", null);
       abs.getCell("A30").value = taluka;
     }
@@ -1949,9 +1977,9 @@ app.post("/api/db/bills", (req, res) => {
 app.get("/api/db/bills", async (_req, res) => {
   const local = notDeleted(dbRead(DB_BILL, 200));
   try {
-    if (sbOn()) return res.json({ ok: true, items: notDeleted(await sbSelect("bills", 200)) });
+    if (sbOn()) return res.json({ ok: true, items: dedupeBills(notDeleted(await sbSelect("bills", 200))) });
   } catch (e) { console.error(e.message); }
-  res.json({ ok: true, items: local });
+  res.json({ ok: true, items: dedupeBills(local) });
 });
 app.post("/api/db/bills/delete", requireUser, async (req, res) => {
   const id = String((req.body && req.body.id) || "");
@@ -2068,6 +2096,8 @@ app.post("/api/db/site", async (req, res) => {
     aae: b.prepared_by || b.aae || "",
     done: !!b.done
   };
+  if (Number(b.exc_d) > 0) meta.exc_d = Number(b.exc_d);
+  if (Number(b.dust_d) > 0) meta.dust_d = Number(b.dust_d);
   if (rows[0] && typeof rows[0] === "object") Object.assign(rows[0], meta);
   const rec = dbAppend(DB_SITE, {
     kind: "site",
