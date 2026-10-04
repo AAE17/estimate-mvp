@@ -43,19 +43,12 @@ function logEvent(kind, payload, req) {
 
 function unshareFormulas(wb) {
   (wb.worksheets || []).forEach(function (ws) {
-    ws.eachRow({ includeEmpty: true }, function (row) {
-      row.eachCell({ includeEmpty: true }, function (cell) {
+    ws.eachRow(function (row) {
+      row.eachCell(function (cell) {
         try {
-          const model = cell.model || {};
-          const f = cell.formula || model.formula || model.sharedFormula;
-          if (f || model.sharedFormula || model.si != null || String(cell.formulaType || "") === "shared") {
-            if (f) cell.value = { formula: String(f).replace(/^=/, "") };
-            if (cell.model) {
-              delete cell.model.sharedFormula;
-              delete cell.model.si;
-              delete cell.model.shareType;
-              cell.model.formulaType = undefined;
-            }
+          if (cell.formula && String(cell.formulaType || "") === "shared") {
+            const f = cell.formula;
+            cell.value = { formula: f };
           }
         } catch (_e) {}
       });
@@ -696,7 +689,6 @@ async function writeAndRespond(req, res, wb, d, prefix, areas, kind) {
   dropBadNames(wb);
   unlockSheets(wb);
   applyOnePage(wb, areas);
-  try { unshareFormulas(wb); } catch (_e) {}
   const safe = String(d.village || "gam").replace(/[^a-zA-Z0-9._-]+/g, "_");
   const stamp = Date.now();
   const xlsxName = `${prefix}_${safe}_${stamp}.xlsx`;
@@ -1078,18 +1070,19 @@ app.post("/api/estimate/cc", async (req, res) => {
     const taluka = d.taluka || "";
     const say = Number(d.amounting || 0);
 
-    const a1 = boxQty * 156.56;
-    const a2 = btQty * 677.83;
-    const a3 = murQty * 171.8;
-    const a4 = btQty * 247.28;
-    const a5 = murQty * 146.01;
+    const r2 = (n) => Math.round(Number(n || 0) * 100) / 100;
+    const a1 = r2(boxQty * 158.12);
+    const a2 = r2(btQty * 684.6);
+    const a3 = r2(murQty * 173.51);
+    const a4 = r2(btQty * 249.75);
+    const a5 = r2(murQty * 147.47);
     const a6r = 0;
-    const a6c = ccQty * 4866.35;
+    const a6c = r2(ccQty * 4915.01);
     const a7 = 2656;
     const a8 = 306.14;
-    const tot = a1 + a2 + a3 + a4 + a5 + a6r + a6c + a7 + a8;
-    const gst = tot * 0.18;
-    const grand = tot + gst;
+    const tot = r2(a1 + a2 + a3 + a4 + a5 + a6r + a6c + a7 + a8);
+    const gst = r2(tot * 0.18);
+    const grand = r2(tot + gst);
 
     setVal(face, "F3", d.division);
     setVal(face, "G3", d.jilla);
@@ -1494,7 +1487,6 @@ app.post("/api/estimate/gutter", async (req, res) => {
     const d = req.body || {};
     const wb = new ExcelJS.Workbook();
     await wb.xlsx.readFile(path.join(__dirname, "skeleton-gutter.xlsx"));
-    unshareFormulas(wb);
     const face = wb.getWorksheet("Estimate");
     const abs = wb.getWorksheet("Abstract");
     const meas = wb.getWorksheet("Measurement");
@@ -1565,26 +1557,7 @@ app.post("/api/estimate/gutter", async (req, res) => {
       setVal(meas, "G58", 0);
       setVal(meas, "I58", 0);
     }
-    const gNr = Array.isArray(d.gNr)?d.gNr:[];
-    const cc = gNr.filter(function(r){ return Number(r.l||0)>0; });
-    const ccL = cc.reduce(function(a,r){ return a+Number(r.l||0); },0);
-    const ccW = Number((cc[0]&&cc[0].w)||0);
-    const ccT = Number((cc[0]&&cc[0].d)||0);
-    const ccVol = cc.reduce(function(a,r){ return a+Number(r.l||0)*Number(r.w||0)*Number(r.d||0); },0);
-    setVal(meas, "E58", ccL);
-    setVal(meas, "G58", ccW);
-    setVal(meas, "I58", ccT);
-    setVal(meas, "K58", Math.round(ccVol*1000)/1000);
-    setVal(abs, "A36", Math.round(ccVol*1000)/1000);
-    setVal(abs, "F36", Math.round(ccVol*3652.31*100)/100);
-    const exVol = gEx.reduce(function(a,r){ return a+Number(r.l||0)*Number(r.w||0)*Number(r.d||0); },0);
-    setVal(meas, "K16", Math.round(exVol*1000)/1000);
-    setVal(abs, "A6", Math.round(exVol*1000)/1000);
-    setVal(abs, "F6", Math.round(exVol*89*100)/100);
-    const demoVol = gDe.reduce(function(a,r){ return a+Number(r.l||0)*Number(r.w||0.45)*Number(r.d||0.1); },0);
-    setVal(meas, "K6", Math.round(demoVol*1000)/1000);
-    setVal(abs, "A4", Math.round(demoVol*1000)/1000);
-    setVal(abs, "F4", Math.round(demoVol*1030.81*100)/100);
+    meas.getCell("K58").value = { formula: "C58*E58*G58*I58" };
     setVal(meas, "C2", work);
     setVal(abs, "C2", work);
     if (test) setVal(test, "B1", work);
