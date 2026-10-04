@@ -26,7 +26,11 @@ function recordDay(r) {
 }
 const OUT_DIR = path.join(__dirname, "output");
 const LOG_FILE = path.join(__dirname, "events.jsonl");
-const FONT = path.join(__dirname, "fonts", "NotoSansGujarati-Regular.ttf");
+const FONT_CANDIDATES = [
+  path.join(__dirname, "fonts", "NotoSansGujarati-Regular.ttf"),
+  path.join(__dirname, "NotoSansGujarati-Regular.ttf"),
+];
+const FONT = FONT_CANDIDATES.find(function (p) { return fs.existsSync(p); }) || FONT_CANDIDATES[0];
 if (!fs.existsSync(OUT_DIR)) fs.mkdirSync(OUT_DIR);
 
 function logEvent(kind, payload, req) {
@@ -671,7 +675,7 @@ const pdfJobs = {};
 function startPdfJob(xlsxFull, pdfName) {
   const id = pdfName.replace(/\.pdf$/i, "");
   pdfJobs[id] = { status: "run" };
-  convertWithSoffice(xlsxFull).then(function (produced) {
+  pdfFromXlsx(xlsxFull).then(function (produced) {
     const pdfFull = path.join(OUT_DIR, pdfName);
     if (produced !== pdfFull && fs.existsSync(produced)) fs.copyFileSync(produced, pdfFull);
     if (!fs.existsSync(pdfFull)) throw new Error("pdf missing");
@@ -680,6 +684,18 @@ function startPdfJob(xlsxFull, pdfName) {
     pdfJobs[id] = { status: "fail", error: String(e.message || e) };
   });
   return id;
+}
+
+async function pdfFromXlsx(xlsxFull) {
+  try {
+    return await convertWithSoffice(xlsxFull);
+  } catch (e) {
+    const msg = String(e && e.message || e);
+    if (!/ENOENT|not found|spawn/i.test(msg)) throw e;
+    const wb = new ExcelJS.Workbook();
+    await wb.xlsx.readFile(xlsxFull);
+    return sheetsToPdf(wb, xlsxFull.replace(/\.xlsx$/i, ".pdf"));
+  }
 }
 
 async function writeAndRespond(req, res, wb, d, prefix, areas, kind) {
@@ -709,7 +725,7 @@ async function writeAndRespond(req, res, wb, d, prefix, areas, kind) {
     pdfJobs[pdfJob] = { status: "run" };
     setImmediate(function () {
       const prep = output === "both" ? recalcXlsxFile(xlsxFull).then(function () { return patchFitXml(xlsxFull); }) : Promise.resolve();
-      prep.then(function () { return convertWithSoffice(xlsxFull); }).then(function (produced) {
+      prep.then(function () { return pdfFromXlsx(xlsxFull); }).then(function (produced) {
         const pdfFull = path.join(OUT_DIR, pdfName);
         if (produced !== pdfFull && fs.existsSync(produced)) fs.copyFileSync(produced, pdfFull);
         if (!fs.existsSync(pdfFull)) throw new Error("pdf missing");
@@ -1101,7 +1117,6 @@ app.post("/api/estimate/cc", async (req, res) => {
     setVal(face, "I5", d.nani_address);
     setVal(face, "D9", d.fund_head);
     setVal(face, "F35", d.fund_head);
-    setVal(face, "E35", "મોજે");
     setVal(face, "H19", taluka);
     setVal(face, "H39", "");
     setVal(face, "F40", taluka);
@@ -1181,23 +1196,23 @@ app.post("/api/estimate/cc", async (req, res) => {
       abs.getCell("C10").value = { formula: "Measurement!A" + (14 + extra) };
       abs.getCell("A12").value = { formula: "Measurement!K" + spreadMurRow };
       abs.getCell("C12").value = { formula: "Measurement!A" + (17 + extra) };
-      setVal(abs, "A14", 0);
-      abs.getCell("C14").value = { formula: "Measurement!A" + (20 + extra) };
-      abs.getCell("A16").value = { formula: "Measurement!K" + ccRow };
-      abs.getCell("F16").value = { formula: "ROUND(A16*D17,2)" };
-      abs.getCell("C16").value = { formula: "Measurement!A" + (23 + extra) };
+      abs.getCell("A14").value = { formula: "Measurement!K" + ccRow };
+      abs.getCell("C14").value = { formula: "Measurement!A" + (23 + extra) };
+      abs.getCell("F14").value = { formula: "A14*D15" };
+      setVal(abs, "A16", 1);
+      abs.getCell("F16").value = { formula: "A16*D16" };
       setVal(abs, "A18", 1);
-      abs.getCell("F18").value = { formula: "A18*D18" };
-      abs.getCell("A20").value = { formula: "Measurement!K" + plateRow };
-      abs.getCell("C20").value = { formula: "Measurement!A" + (29 + extra) };
-      abs.getCell("F20").value = { formula: "ROUND(A20*D21,2)" };
-      abs.getCell("F22").value = { formula: "F4+F6+F8+F10+F12+F14+F16+F18+F20" };
-      abs.getCell("F23").value = { formula: "ROUND(F22*0.18,2)" };
-      abs.getCell("F24").value = { formula: "F22+F23" };
-      abs.getCell("A32").value = taluka;
+      abs.getCell("F18").value = { formula: "A18*D19" };
+      abs.getCell("F20").value = { formula: "F4+F6+F8+F10+F12+F14+F16+F18" };
+      abs.getCell("F21").value = { formula: "ROUND(F20*0.18,2)" };
+      abs.getCell("F22").value = { formula: "F20+F21" };
+      abs.getCell("F23").value = { formula: "'FACE SHEET'!G22" };
+      setVal(abs, "G6", null);
+      abs.getCell("A30").value = taluka;
     }
     if (ra) {
       setVal(ra, "C1", work);
+      ra.getCell("A3").value = { formula: "Measurement!A" + (23 + extra) };
       ra.getCell("D38").value = taluka;
     }
     if (sch) {
