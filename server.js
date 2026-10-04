@@ -777,12 +777,13 @@ function sheetsToPdf(wb, pdfPath) {
       const pageH = doc.page.height - 40;
 
       const merges = sheetMerges(ws);
-      let maxR = 0;
       let maxC = 0;
       const grid = [];
+      const rows = [];
       ws.eachRow({ includeEmpty: false }, (row, r) => {
         if (r > capR) return;
-        if (r > maxR) maxR = r;
+        if (row.hidden || row.height === 0) return;
+        rows.push(r);
         row.eachCell({ includeEmpty: false }, (cell, c) => {
           if (c > capC) return;
           if (merges.skip[r + "," + c]) {
@@ -794,11 +795,11 @@ function sheetsToPdf(wb, pdfPath) {
           grid[r][c] = cellText(cell);
         });
       });
-      if (maxR < 1) maxR = 1;
+      const nRows = rows.length || 1;
       if (maxC < 1) maxC = 1;
 
       const top = 26;
-      const rowH = (pageH - 8) / maxR;
+      const rowH = (pageH - 8) / nRows;
       const widths = [];
       let sumW = 0;
       for (let c = 1; c <= maxC; c++) {
@@ -826,9 +827,9 @@ function sheetsToPdf(wb, pdfPath) {
       drawSafe(doc, ws.name, 18, 10, { width: pageW, height: 14 }, fontSize, hasFont);
 
       doc.fillColor("#14211A");
-      for (let r = 1; r <= maxR; r++) {
-        const y = top + (r - 1) * rowH;
-        if (y > top + pageH - 6) break;
+      rows.forEach(function (r, i) {
+        const y = top + i * rowH;
+        if (y > top + pageH - 6) return;
         for (let c = 1; c <= maxC; c++) {
           if (merges.skip[r + "," + c]) continue;
           const t = (grid[r] && grid[r][c]) || "";
@@ -841,7 +842,7 @@ function sheetsToPdf(wb, pdfPath) {
             lineBreak: false
           }, fontSize, hasFont);
         }
-      }
+      });
       if (idx === wb.worksheets.length - 1) {
         /* last */
       }
