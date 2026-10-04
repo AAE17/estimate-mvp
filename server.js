@@ -1053,9 +1053,11 @@ app.post("/api/estimate/cc", async (req, res) => {
       throw new Error("skeleton-cc.xlsx sheets missing");
     }
 
-    const L = Number(d.length_m);
-    const W = Number(d.width_m);
-    const boxT = Number(d.box_thick_m);
+    const segList = Array.isArray(d.segs) ? d.segs.filter(function (r) { return Number(r && r.l || 0) > 0; }) : [];
+    const segArea = segList.reduce(function (a, r) { return a + Number(r.l || 0) * Number(r.w || 0); }, 0);
+    const L = segList.length ? segList.reduce(function (a, r) { return a + Number(r.l || 0); }, 0) : Number(d.length_m);
+    const W = segList.length && L ? segArea / L : Number(d.width_m);
+    const boxT = segList.length && segList[0].exc != null ? Number(segList[0].exc) : Number(d.box_thick_m);
     const btT = Number(d.bt_thick_m);
     const voids = Number(d.voids);
     const murPct = Number(d.murrum_pct);
@@ -1209,9 +1211,11 @@ app.post("/api/estimate/paver", async (req, res) => {
     setVal(face, "H18", d.taluka);
     setVal(face, "G40", d.taluka);
 
-    const L = Number(d.length_m);
-    const W = Number(d.width_m);
-    const area = L * W;
+    const segList = Array.isArray(d.segs) ? d.segs.filter(function (r) { return Number(r && r.l || 0) > 0; }) : [];
+    const segArea = segList.reduce(function (a, r) { return a + Number(r.l || 0) * Number(r.w || 0); }, 0);
+    const L = segList.length ? segList.reduce(function (a, r) { return a + Number(r.l || 0); }, 0) : Number(d.length_m);
+    const W = segList.length && L ? segArea / L : Number(d.width_m);
+    const area = segList.length ? segArea : L * W;
     const boxQty = area * Number(d.box_thick_m);
     const murQty = area * 0.1;
     const vata = 2 * L + 2 * W;
@@ -1481,6 +1485,32 @@ async function sbUpload(name, buf) {
 }
 
 
+
+function writeMeasureLines(ws, startRow, lines, abs, absAddr) {
+  const rows = (lines && lines.length) ? lines : [{ l: 0, w: 0, t: 0 }];
+  const extra = rows.length - 1;
+  if (extra > 0) ws.spliceRows(startRow + 1, 0, ...new Array(extra).fill([]));
+  let vol = 0;
+  rows.forEach(function (ln, i) {
+    const r = startRow + i;
+    const q = Math.round(Number(ln.l || 0) * Number(ln.w || 0) * Number(ln.t || 0) * 1000) / 1000;
+    vol += q;
+    setVal(ws, "C" + r, 1);
+    setVal(ws, "D" + r, "x");
+    setVal(ws, "E" + r, Number(ln.l || 0));
+    setVal(ws, "F" + r, "x");
+    setVal(ws, "G" + r, Number(ln.w || 0));
+    setVal(ws, "H" + r, "x");
+    setVal(ws, "I" + r, Number(ln.t || 0));
+    setVal(ws, "J" + r, "=");
+    setVal(ws, "K" + r, q);
+  });
+  vol = Math.round(vol * 1000) / 1000;
+  setVal(ws, "K" + (startRow + rows.length), vol);
+  if (abs && absAddr) setVal(abs, absAddr, vol);
+  return vol;
+}
+
 app.post("/api/estimate/gutter", async (req, res) => {
   try {
     const d = req.body || {};
@@ -1548,15 +1578,23 @@ app.post("/api/estimate/gutter", async (req, res) => {
     setVal(meas, "E37", n("gCh139"));
     setVal(meas, "E38", n("gCh1313"));
     setVal(meas, "E62", n("gPlate") || 1);
-    const pipeL = rows.reduce((a, r) => a + r.L, 0);
-    if (demoL > 0) {
-      setVal(meas, "G58", n("gBedW") || 0.45);
-      setVal(meas, "I58", n("gBedT") || 0.05);
-    } else {
-      setVal(meas, "G58", 0);
-      setVal(meas, "I58", 0);
+    const gNr = Array.isArray(d.gNr) ? d.gNr : [];
+    const ccLines = gNr.filter(function (r) { return Number(r && r.l || 0) > 0; }).map(function (r) {
+      return { l: Number(r.l || 0), w: Number(r.w || d.gBedW || 0), t: Number(r.d || d.gBedT || 0) };
+    });
+    writeMeasureLines(meas, 58, ccLines, abs, "A36");
+    const demoLines = gDe.filter(function (r) { return Number(r && r.l || 0) > 0; }).map(function (r) {
+      return { l: Number(r.l || 0), w: Number(r.w || 0.45), t: Number(r.d || 0.1) };
+    });
+    if (demoLines.length > 1) writeMeasureLines(meas, 5, demoLines, abs, "A4");
+    const exLines = gEx.filter(function (r) { return Number(r && r.l || 0) > 0; }).map(function (r) {
+      return { l: Number(r.l || 0), w: Number(r.w || 0), t: Number(r.d || 0), dia: Number(r.dia || 0) };
+    });
+    if (exLines.length) {
+      const exQty = exLines.reduce(function (a, r) { return a + r.l * r.w * r.t; }, 0);
+      setVal(meas, "K16", Math.round(exQty * 1000) / 1000);
+      setVal(abs, "A6", Math.round(exQty * 1000) / 1000);
     }
-    meas.getCell("K58").value = { formula: "C58*E58*G58*I58" };
     setVal(meas, "C2", work);
     setVal(abs, "C2", work);
     if (test) setVal(test, "B1", work);
@@ -2572,10 +2610,19 @@ app.post("/api/estimate/pipe", async (req, res) => {
     setVal(meas, "E5", demoL);
     setVal(meas, "G5", demoW);
     [[63,"E9","G9","I9",0.45,0.9],[75,"E10","G10","I10",0.45,0.9],[90,"E11","G11","I11",0.45,0.9],[110,"E12","G12","I12",0.45,0.9]].forEach(function(row){
-      const wd=lastWD(row[0], row[4], row[5]);
-      setVal(meas, row[1], sumDia(row[0]));
-      setVal(meas, row[2], wd.w);
-      setVal(meas, row[3], wd.d);
+      const lines = pEx.filter(function (r) { return Number(r.dia)===row[0] && Number(r.l||0)>0; });
+      if (lines.length <= 1) {
+        const wd=lastWD(row[0], row[4], row[5]);
+        setVal(meas, row[1], sumDia(row[0]));
+        setVal(meas, row[2], wd.w);
+        setVal(meas, row[3], wd.d);
+      } else {
+        const vol = lines.reduce(function (a, r) { return a + Number(r.l||0)*Number(r.w||row[4])*Number(r.d||row[5]); }, 0);
+        setVal(meas, row[1], Number(lines[0].l||0));
+        setVal(meas, row[2], Number(lines[0].w||row[4]));
+        setVal(meas, row[3], Number(lines[0].d||row[5]));
+        setVal(meas, "K"+row[1].replace(/^[A-Z]+/, ""), Math.round(vol*1000)/1000);
+      }
     });
     setVal(meas, "E40", Number(d.pPlate||1));
     if (test) setVal(test, "C12", 1);
