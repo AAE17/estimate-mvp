@@ -1591,7 +1591,7 @@
     if(!p.status) p.status="Pending";
     localStorage.setItem("copilot_profile", JSON.stringify(p));
     setHomeOffice();
-    fetch(API+"/api/admin/profile",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(p)}).catch(function(){});
+    authHeaders().then(function(h){ return fetch(API+"/api/admin/profile",{method:"POST",headers:h,body:JSON.stringify(p)}); }).catch(function(){});
     applyProfileToForm(); if(typeof setHomeOffice==="function") setHomeOffice();
     alert("પ્રોફાઇલ સેવ");
   }
@@ -1642,10 +1642,14 @@
     }
   }
   const ADMIN_EMAIL="vanraj2592@gmail.com";
+  async function authHeaders(){
+    const h={"Content-Type":"application/json"};
+    try{ if(sbClient){ const { data }=await sbClient.auth.getSession(); if(data&&data.session) h.Authorization="Bearer "+data.session.access_token; } }catch(e){}
+    return h;
+  }
   function isAdmin(session){
     const em=((session.user&&session.user.email)||"").toLowerCase();
-    const role=((session.user&&session.user.user_metadata)||{}).app_role||"";
-    return em===ADMIN_EMAIL || role==="super_admin";
+    return em===ADMIN_EMAIL;
   }
   async function onAuthed(session){
     const email=(session.user&&session.user.email)||"";
@@ -1653,8 +1657,8 @@
     const admin=isAdmin(session);
     let approved=admin || meta.approved===true || meta.approved==="true";
     try{
-      const lst=await fetch(API+"/api/admin/pending").then(function(r){return r.json();});
-      const me=(lst.items||[]).find(function(x){return String(x.email||"").toLowerCase()===email.toLowerCase();});
+      const meRes=await fetch(API+"/api/admin/me",{headers:await authHeaders()}).then(function(r){return r.json();});
+      const me=meRes&&meRes.item;
       if(me && (String(me.subscription_status)==="Active"||String(me.status)==="Approved"||String(me.role)==="admin")) approved=true;
     }catch(e){}
     const p=prGet();
@@ -1732,7 +1736,7 @@
     p.email=email; p.name=name; p.role=role; p.mobile=mobile; p.jilla=jilla; p.taluka=taluka;
     p.app_role=isAd?"super_admin":"aae"; p.status=isAd?"Approved":"Pending";
     localStorage.setItem("copilot_profile", JSON.stringify(p));
-    fetch(API+"/api/admin/profile",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(p)}).catch(function(){});
+    authHeaders().then(function(h){ return fetch(API+"/api/admin/profile",{method:"POST",headers:h,body:JSON.stringify(p)}); }).catch(function(){});
     const { error: e2 }=await sbClient.auth.signInWithPassword({ email, password });
     if(e2){ if(msg) msg.textContent="અકાઉન્ટ બન્યું. 30 સેકન્ડ પછી Log in દબાવો."; return; }
   }
@@ -1769,7 +1773,7 @@
     const b=document.getElementById("notifBox");
     const dot=document.getElementById("notifDot");
     try{
-      const d=await fetch(API+"/api/admin/pending").then(function(r){return r.json();});
+      const d=await fetch(API+"/api/admin/pending",{headers:await authHeaders()}).then(function(r){return r.json();});
       const items=d.items||[];
       const pend=items.filter(function(x){const st=String(x.subscription_status||x.status||"Trial"); return st!=="Active" && st!=="Approved";});
       if(dot) dot.classList.toggle("hidden", !pend.length);
@@ -1784,7 +1788,7 @@
     }
   }
   async function approveUser(email){
-    await fetch(API+"/api/admin/approve",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email:email,status:"Approved"})});
+    await fetch(API+"/api/admin/approve",{method:"POST",headers:await authHeaders(),body:JSON.stringify({email:email,status:"Approved"})});
     loadPending();
   }
   
@@ -1954,8 +1958,8 @@
       const kindNow=(document.getElementById("billType")||{}).value||kind||"cc";
       let areaR=0,Lsum=0,box=0,ccVol=0,exc=0;
       rows.forEach(function(r){
-        const l=parseFloat(String(r.l||r.L||"").split("+").reduce(function(a,b){return a+(parseFloat(b)||0);},0))||parseFloat(r.l)||0;
-        const w=parseFloat(String(r.w||r.W||"").split("+").reduce(function(a,b){return a+(parseFloat(b)||0);},0))||parseFloat(r.w)||0;
+        const l=parseMix(r.l||r.L||"");
+        const w=parseMix(r.w||r.W||"");
         const d=parseFloat(r.d||r.D);
         const depth=isNaN(d)?0.30:d;
         areaR+=l*w; Lsum+=l; box+=l*w*depth; exc+=l*w*depth; ccVol+=l*w*(Number(it.cc_t||meta.cc_t)||0);
@@ -1981,8 +1985,25 @@
         set("billQ5", test);
         set("billQ6", plate);
       } else if(kindNow==="gutter" || kindNow==="pipe"){
-        if(exc) GPNUM.exc=exc.toFixed(2);
-        if(plate) GPNUM.plate=String(plate);
+        const gpRow=(rows||[]).find(function(r){ return r && r._gp && r.data; });
+        if(gpRow && typeof gpSiteItems==="function"){
+          const keep=SITEGP[kindNow]; SITEGP[kindNow]=gpRow.data;
+          const x=gpSiteItems(kindNow); SITEGP[kindNow]=keep;
+          const s=gpRow.data;
+          GPIPES[kindNow]=(s.pipes||[]).filter(function(p){ return parseMix(p.l)>0; }).map(function(p){ return {dia:Number(p.dia), l:String(parseMix(p.l))}; });
+          if(!GPIPES[kindNow].length) GPIPES[kindNow]=[{dia:(kindNow==="pipe"?63:225), l:""}];
+          if(kindNow==="gutter") GCHB=(s.ch||[]).filter(function(c){ return Number(c.n||0)>0; }).map(function(c){ return {k:String(c.k), n:String(c.n)}; });
+          if(kindNow==="gutter" && !GCHB.length) GCHB=[{k:"60",n:""}];
+          const q=function(re){ const it=(x.items||[]).find(function(i){ return re.test(i[0]); }); return it ? Math.round(it[1]*1000)/1000 : 0; };
+          GPNUM.demo=String(q(/Demolition/)||"");
+          GPNUM.exc=String(Math.round(Number(x.exc||0)*1000)/1000||"");
+          GPNUM.refill=String(Math.round(Number(x.refill||0)*1000)/1000||"");
+          GPNUM.cc=String(q(/New C\.C\./)||"");
+          GPNUM.plate=String(s.plate||plate||"");
+        } else {
+          if(exc) GPNUM.exc=exc.toFixed(2);
+          if(plate) GPNUM.plate=String(plate);
+        }
         if(typeof renderGpForm==="function") renderGpForm();
       }
     }
@@ -2064,7 +2085,7 @@
           localStorage.setItem(localBillKey(), JSON.stringify(left));
           const done=function(){ renderBillList(); if(typeof renderLetterBills==="function") renderLetterBills(); };
           if(b.id){
-            fetch(base+"/api/db/bills/delete",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({id:b.id,work_name:b.work_name||"",ts:b.ts||"",mb_no:b.mb_no||""})}).then(done).catch(done);
+            authHeaders().then(function(h){ return fetch(base+"/api/db/bills/delete",{method:"POST",headers:h,body:JSON.stringify({id:b.id,work_name:b.work_name||"",ts:b.ts||"",mb_no:b.mb_no||""})}); }).then(done).catch(done);
           } else done();
         };
       });
@@ -2915,7 +2936,8 @@ function onLetterDate(){
   }
   function addSeg() {
     if (SEGS.length>=10) return;
-    SEGS.push({l:10,w:3,d:Number(document.getElementById("cc_thick_m")&&document.getElementById("cc_thick_m").value||0.1)});
+    const bx=document.getElementById("box_thick_m");
+    SEGS.push({l:10,w:3,exc:(bx&&bx.value)||(currentType==="paver"?0.2:0.3),d:Number(document.getElementById("cc_thick_m")&&document.getElementById("cc_thick_m").value||0.1)});
     renderSegs(); liveF24();
   }
   let DIARY = [{l:"",w:"",d:""}];
@@ -3637,7 +3659,7 @@ function onLetterDate(){
         const demoOn=!!(s.demo && s.demo.open);
         const demo=demoOn ? parseMix(s.demo.l)*Number(s.demo.w||0)*(t==="pipe"?1:Number(s.demo.t||0)) : 0;
         const cc=demoOn ? parseMix(s.cc.l)*Number(s.cc.w||0)*Number(s.cc.t||0) : 0;
-        return { byDia:byDia, ch:ch, demo:demo, exc:x.exc, refill:x.refill, plate:Number(s.plate||0), frame:frame, cover:frame, cc:cc };
+        return { byDia:byDia, ch:ch, demo:demo, exc:x.exc, refill:x.refill, plate:Number(s.plate||0), frame:frame, cover:frame, cc:cc, pipes:s.pipes||[], demoRow:s.demo||null, ccRow:s.cc||null };
       })(),
       test_qty:Number((document.getElementById("kTest")||{}).value||1),
       name_plate:Number((document.getElementById("kPlate")||{}).value||0),
@@ -3863,7 +3885,7 @@ function onLetterDate(){
         ev.stopPropagation();
         const s=el._rows[+this.dataset.del];
         if (!s || !confirm("ડિલીટ કરો?")) return;
-        fetch(API+"/api/db/site/delete",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({id:s.id,work_name:s.work_name||"",ts:s.ts||""})})
+        authHeaders().then(function(h){ return fetch(API+"/api/db/site/delete",{method:"POST",headers:h,body:JSON.stringify({id:s.id,work_name:s.work_name||"",ts:s.ts||""})}); })
           .then(function(){ if (el.id==="ongList") renderOngList(); else renderDoneList(); });
       };
     });
@@ -4741,12 +4763,20 @@ function startScan(camera) {
       return;
     }
     const L = num("length_m"), W = num("width_m");
-    const area = L * W;
+    let area = L * W;
     let f24 = 0;
     if (currentType === "paver") {
-      const boxQty = area * num("box_thick_m");
+      let boxQty = 0, a2 = 0, l2 = 0;
+      (typeof SEGS !== "undefined" ? SEGS : []).forEach(function (s) {
+        const l = parseMix(s.l), w = parseMix(s.w), t = Number(s.exc || num("box_thick_m") || 0.2);
+        if (!(l > 0) || !(w > 0)) return;
+        a2 += l * w; l2 += l; boxQty += l * w * t;
+      });
+      if (a2) area = a2;
+      const Lv = l2 || L, Wv = Lv ? area / Lv : W;
+      if (!boxQty) boxQty = area * num("box_thick_m");
       const murQty = area * 0.1;
-      const vata = 2 * L + 2 * W;
+      const vata = 2 * Lv + 2 * Wv;
       const f22 = boxQty * 156.56 + murQty * 210.42 + area * 740.51 + vata * 23.68 + 608 + 306.14;
       f24 = f22 + f22 * 0.18;
       const brass = area * 10.7584 / 100;
@@ -4767,7 +4797,10 @@ function startScan(camera) {
   document.addEventListener("input", function (e) {
     if (!e.target || !e.target.closest || !e.target.closest("#s-form")) return;
     if (e.target.id === "amounting") onAmount();
-    else liveF24();
+    else {
+      if (e.target.id === "cc_thick_m" && typeof SEGS !== "undefined") SEGS.forEach(function (s) { s.d = Number(e.target.value || 0.1); });
+      liveF24();
+    }
   });
 
   function isIos(){ return /iPhone|iPad|iPod/i.test(navigator.userAgent||""); }
