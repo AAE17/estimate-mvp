@@ -10,7 +10,13 @@ const Tesseract = require("tesseract.js");
 const app = express();
 app.use(cors());
 app.use(express.json({ limit: "12mb" }));
-app.use(express.static(__dirname));
+app.use(function (req, res, next) {
+  if (/^\/(server\.js|package(-lock)?\.json|Dockerfile|README\.md|events\.jsonl|db\/(?!media\/)|output\/|\.git)/i.test(req.path)) {
+    return res.status(404).end();
+  }
+  next();
+});
+app.use(express.static(__dirname, { dotfiles: "deny" }));
 
 function istDay(input) {
   const dt = input ? new Date(input) : new Date();
@@ -50,9 +56,10 @@ function unshareFormulas(wb) {
     ws.eachRow(function (row) {
       row.eachCell(function (cell) {
         try {
-          if (cell.formula && String(cell.formulaType || "") === "shared") {
+          const v = cell.value;
+          if (v && typeof v === "object" && (v.sharedFormula || v.shareType === "shared")) {
             const f = cell.formula;
-            cell.value = { formula: f };
+            if (f) cell.value = { formula: f };
           }
         } catch (_e) {}
       });
@@ -62,7 +69,25 @@ function unshareFormulas(wb) {
 
 function setVal(ws, addr, v) {
   if (!ws) return;
+  if (typeof v === "number" && !isFinite(v)) v = 0;
   ws.getCell(addr).value = v;
+}
+function mixNum(v) {
+  if (typeof v === "number") return isFinite(v) ? v : 0;
+  const parts = String(v == null ? "" : v).split("+").map(function (x) { return parseFloat(String(x).trim()); }).filter(function (n) { return !isNaN(n); });
+  if (!parts.length) return 0;
+  return parts.reduce(function (a, b) { return a + b; }, 0) / parts.length;
+}
+function wdOf(list, dw, dd) {
+  const arr = (list || []).filter(function (r) { return mixNum(r.l) > 0; });
+  const L = arr.reduce(function (a, r) { return a + mixNum(r.l); }, 0);
+  if (!L) {
+    const r = (list || [])[(list || []).length - 1];
+    return { l: 0, w: Number((r && r.w) || dw), d: Number((r && r.d) || dd) };
+  }
+  const LW = arr.reduce(function (a, r) { return a + mixNum(r.l) * Number(r.w || dw); }, 0);
+  const LWD = arr.reduce(function (a, r) { return a + mixNum(r.l) * Number(r.w || dw) * Number(r.d || dd); }, 0);
+  return { l: L, w: LW / L, d: LW ? LWD / LW : Number(dd) };
 }
 function billDateText(v) {
   const s = String(v || "").trim();
@@ -81,6 +106,9 @@ function fitPaLabels(pa) {
     const row = pa.getRow(r);
     if (!row.height || row.height < 36) row.height = 36;
   });
+  try { pa.mergeCells("G6:J6"); } catch (_e) {}
+  pa.getCell("G6").alignment = { horizontal: "left", vertical: "top", wrapText: true };
+  if (String(cellText(pa.getCell("G6")) || "").length > 30) pa.getRow(6).height = 54;
   for (let r = 7; r <= 11; r++) pa.getCell("Q" + r).value = null;
   for (let c = 11; c <= 20; c++) pa.getColumn(c).hidden = true;
 }
@@ -111,6 +139,7 @@ function bakeFormulaResults(wb) {
     if (!ws) return;
     ws.eachRow(function (row) {
       row.eachCell(function (cell) {
+        if (cell.isMerged && cell.master && cell.master.address !== cell.address) return;
         const v = cell.value;
         if (v && typeof v === "object" && v.formula) {
           formulas.push({ ws: ws, addr: cell.address, formula: String(v.formula).replace(/^=/, "") });
@@ -125,6 +154,7 @@ function bakeFormulaResults(wb) {
   }
   function rawOf(ws, addr) {
     const cell = ws.getCell(addr);
+    if (cell.isMerged && cell.master && cell.master.address !== cell.address) return 0;
     const v = cell.value;
     if (v && typeof v === "object" && v.formula) return undefined;
     if (v == null || v === "") return 0;
@@ -916,6 +946,7 @@ async function pdfFromXlsx(xlsxFull) {
 async function writeAndRespond(req, res, wb, d, prefix, areas, kind) {
   const output = d.output || "xlsx";
   if (wb.calcProperties) wb.calcProperties.fullCalcOnLoad = true;
+  try { unshareFormulas(wb); } catch (_e) {}
   try { bakeFormulaResults(wb); } catch (_e) {}
   dropBadNames(wb);
   unlockSheets(wb);
@@ -1257,10 +1288,19 @@ app.get("/api/bills", async (req, res) => {
   try {
     const day = String(req.query.day || req.query.date || "").slice(0, 10);
     let rows = [];
+    const localBills = notDeleted(dbRead(DB_BILL, 500));
     if (sbOn()) {
       try { rows = notDeleted(await sbSelect("bills", 500)); } catch (_e) { rows = []; }
+      rows.forEach(function (r) {
+        const loc = localBills.find(function (x) { return String(x.id) === String(r.id); });
+        if (loc) {
+          if (!r.day && loc.day) r.day = loc.day;
+          if (r.net == null && loc.net != null) r.net = loc.net;
+          if (!r.kind && loc.kind) r.kind = loc.kind;
+        }
+      });
     }
-    if (!rows.length) rows = notDeleted(dbRead(DB_BILL, 500));
+    if (!rows.length) rows = localBills;
     if (day) rows = rows.filter(function (r) { return recordDay(r) === day; });
     res.json({ ok: true, bills: rows.slice(0, 80) });
   } catch (e) {
@@ -1345,8 +1385,9 @@ app.post("/api/estimate/cc", async (req, res) => {
     const r2 = (n) => Math.round(Number(n || 0) * 100) / 100;
     const rawSegs = Array.isArray(d.segs) && d.segs.length ? d.segs : [{ l: L, w: W, exc: boxT, d: ccT }];
     const lines = rawSegs.map(function (sg) {
-      return { l: Number(sg.l || 0), w: Number(sg.w || 0), t: Number(sg.exc || boxT || 0.3), cc: Number(sg.d || ccT || 0.1) };
-    });
+      return { l: mixNum(sg.l), w: mixNum(sg.w), t: Number(sg.exc || boxT || 0.3), cc: Number(ccT || sg.d || 0.1) };
+    }).filter(function (ln) { return ln.l > 0 && ln.w > 0; });
+    if (!lines.length) lines.push({ l: L || 0, w: W || 0, t: boxT || 0.3, cc: ccT || 0.1 });
     const extra = Math.max(0, lines.length - 1);
     if (extra) meas.spliceRows(5, 0, ...new Array(extra).fill([]));
     lines.forEach(function (ln, i) {
@@ -1392,7 +1433,7 @@ app.post("/api/estimate/cc", async (req, res) => {
     meas.getCell("K" + rollRow).value = { formula: areaParts };
     meas.getCell("E" + ccRow).value = { formula: areaParts };
     meas.getCell("G" + ccRow).value = 1;
-    meas.getCell("I" + ccRow).value = lines.length === 1 ? Number(lines[0].cc || ccT || 0.1) : 0.1;
+    meas.getCell("I" + ccRow).value = Number(lines[0].cc || ccT || 0.1);
     meas.getCell("K" + ccRow).value = { formula: ccParts };
     meas.getCell("K" + plateRow).value = 1;
     setVal(meas, "C1", work);
@@ -1411,14 +1452,19 @@ app.post("/api/estimate/cc", async (req, res) => {
       abs.getCell("C12").value = { formula: "Measurement!A" + (17 + extra) };
       abs.getCell("A14").value = { formula: "Measurement!K" + ccRow };
       abs.getCell("C14").value = { formula: "Measurement!A" + (23 + extra) };
-      abs.getCell("F14").value = { formula: "A14*D15" };
+      abs.getCell("F4").value = { formula: "ROUND(A4*D5,2)" };
+      abs.getCell("F6").value = { formula: "ROUND(A6*D7,2)" };
+      abs.getCell("F8").value = { formula: "ROUND(A8*D9,2)" };
+      abs.getCell("F10").value = { formula: "ROUND(A10*D11,2)" };
+      abs.getCell("F12").value = { formula: "ROUND(A12*D13,2)" };
+      abs.getCell("F14").value = { formula: "ROUND(A14*D15,2)" };
       setVal(abs, "A16", 1);
-      abs.getCell("F16").value = { formula: "A16*D16" };
+      abs.getCell("F16").value = { formula: "ROUND(A16*D16,2)" };
       setVal(abs, "A18", 1);
-      abs.getCell("F18").value = { formula: "A18*D19" };
-      abs.getCell("F20").value = { formula: "F4+F6+F8+F10+F12+F14+F16+F18" };
+      abs.getCell("F18").value = { formula: "ROUND(A18*D19,2)" };
+      abs.getCell("F20").value = { formula: "ROUND(F4+F6+F8+F10+F12+F14+F16+F18,2)" };
       abs.getCell("F21").value = { formula: "ROUND(F20*0.18,2)" };
-      abs.getCell("F22").value = { formula: "F20+F21" };
+      abs.getCell("F22").value = { formula: "ROUND(F20+F21,2)" };
       abs.getCell("F23").value = { formula: "'FACE SHEET'!G22" };
       setVal(abs, "G6", null);
       abs.getCell("A30").value = taluka;
@@ -1431,8 +1477,11 @@ app.post("/api/estimate/cc", async (req, res) => {
     if (sch) {
       setVal(sch, "C1", work);
       sch.getCell("C18").value = taluka;
+      sch.getCell("F4").value = { formula: "C4" };
     }
     setVal(lead, "B1", work);
+    if (Number(d.lead_sevaliya_to_taluka_km) > 0) setVal(lead, "D5", Number(d.lead_sevaliya_to_taluka_km));
+    if (Number(d.lead_taluka_to_site_km) > 0) setVal(lead, "D6", Number(d.lead_taluka_to_site_km));
     lead.getCell("C5").value = taluka;
     lead.getCell("A6").value = taluka;
     lead.getCell("B38").value = taluka;
@@ -1472,13 +1521,17 @@ app.post("/api/estimate/paver", async (req, res) => {
     setVal(face, "H18", d.taluka);
     setVal(face, "G40", d.taluka);
 
-    const L = Number(d.length_m);
-    const W = Number(d.width_m);
-    const area = L * W;
-    const boxQty = area * Number(d.box_thick_m);
+    const segsP = (Array.isArray(d.segs) ? d.segs : []).map(function (s) {
+      return { l: mixNum(s.l), w: mixNum(s.w), t: Number(s.exc || d.box_thick_m || 0.2) };
+    }).filter(function (s) { return s.l > 0 && s.w > 0; });
+    const L = segsP.length ? segsP.reduce(function (a, s) { return a + s.l; }, 0) : Number(d.length_m);
+    const area = segsP.length ? segsP.reduce(function (a, s) { return a + s.l * s.w; }, 0) : Number(d.length_m) * Number(d.width_m);
+    const W = L ? area / L : Number(d.width_m);
+    const boxQty = segsP.length ? segsP.reduce(function (a, s) { return a + s.l * s.w * s.t; }, 0) : area * Number(d.box_thick_m);
+    const boxT = area ? boxQty / area : Number(d.box_thick_m);
     const murQty = area * 0.1;
     const vata = 2 * L + 2 * W;
-    const trunc2 = (x) => Math.trunc(x * 100) / 100;
+    const trunc2 = (x) => Math.trunc(Math.round(x * 100 * 1e6) / 1e6) / 100;
     const brass = area * 10.7584 / 100;
     const f4 = trunc2(156.56 * boxQty);
     const f6 = trunc2(210.42 * murQty);
@@ -1494,7 +1547,7 @@ app.post("/api/estimate/paver", async (req, res) => {
     setVal(meas, "C4", W);
     setVal(meas, "D2", d.work_name);
     setVal(meas, "I3", area);
-    setVal(meas, "I6", Number(d.box_thick_m));
+    setVal(meas, "I6", boxT);
     setVal(meas, "G6", area);
     setVal(meas, "K6", boxQty);
     setVal(meas, "K7", boxQty);
@@ -1504,7 +1557,7 @@ app.post("/api/estimate/paver", async (req, res) => {
     setVal(meas, "K13", murQty);
     setVal(meas, "G16", W);
     setVal(meas, "E16", L);
-    setVal(meas, "K16", trunc2(L * W));
+    setVal(meas, "K16", trunc2(area));
     setVal(meas, "K19", area);
     setVal(meas, "K20", area);
     setVal(meas, "M20", area * 10.7584);
@@ -1518,6 +1571,8 @@ app.post("/api/estimate/paver", async (req, res) => {
     setVal(meas, "K30", boxQty);
 
     setVal(lead, "B1", d.work_name);
+    if (Number(d.lead_sevaliya_to_taluka_km) > 0) setVal(lead, "D5", Number(d.lead_sevaliya_to_taluka_km));
+    if (Number(d.lead_taluka_to_site_km) > 0) setVal(lead, "D6", Number(d.lead_taluka_to_site_km));
     setVal(lead, "C5", d.taluka);
     setVal(lead, "A6", d.taluka);
     setVal(lead, "G54", d.taluka);
@@ -1789,12 +1844,9 @@ app.post("/api/estimate/gutter", async (req, res) => {
     const fund = d.fund_head || "";
     const gEx = Array.isArray(d.gEx) ? d.gEx : [];
     const gDe = Array.isArray(d.gDe) ? d.gDe : [];
-    const sumDia = (dia) => gEx.filter(r => Number(r.dia)===dia).reduce((a,r)=>a+Number(r.l||0),0);
-    const lastWD = (dia, dw, dd) => {
-      const arr=gEx.filter(r => Number(r.dia)===dia);
-      const r=arr[arr.length-1];
-      return {w:Number((r&&r.w)||dw), d:Number((r&&r.d)||dd)};
-    };
+    const gNr = Array.isArray(d.gNr) ? d.gNr : [];
+    const sumDia = (dia) => gEx.filter(r => Number(r.dia)===dia).reduce((a,r)=>a+mixNum(r.l),0);
+    const lastWD = (dia, dw, dd) => wdOf(gEx.filter(r => Number(r.dia)===dia), dw, dd);
 
     setVal(face, "F2", d.division || d.jilla || "");
     setVal(face, "I2", d.jilla || "");
@@ -1826,25 +1878,20 @@ app.post("/api/estimate/gutter", async (req, res) => {
       setVal(meas, r.G, r.W);
       setVal(meas, r.I, r.D);
     });
-    const demoL = gDe.reduce((a,r)=>a+Number(r.l||0),0);
-    const demoW = Number((gDe[0]&&gDe[0].w)||0.45);
-    const demoD = Number((gDe[0]&&gDe[0].d)||0.10);
+    const demo = wdOf(gDe, 0.45, 0.10);
+    const demoL = demo.l;
     setVal(meas, "E5", demoL);
-    setVal(meas, "G5", demoW);
-    setVal(meas, "I5", demoD);
+    setVal(meas, "G5", demo.w);
+    setVal(meas, "I5", demo.d);
     setVal(meas, "E35", n("gCh60"));
     setVal(meas, "E36", n("gCh90"));
     setVal(meas, "E37", n("gCh139"));
     setVal(meas, "E38", n("gCh1313"));
     setVal(meas, "E62", n("gPlate") || 1);
-    const pipeL = rows.reduce((a, r) => a + r.L, 0);
-    if (demoL > 0) {
-      setVal(meas, "G58", n("gBedW") || 0.45);
-      setVal(meas, "I58", n("gBedT") || 0.05);
-    } else {
-      setVal(meas, "G58", 0);
-      setVal(meas, "I58", 0);
-    }
+    const bed = wdOf(gNr, 0.45, 0.10);
+    setVal(meas, "E58", bed.l);
+    setVal(meas, "G58", bed.l ? bed.w : 0);
+    setVal(meas, "I58", bed.l ? bed.d : 0);
     meas.getCell("K58").value = { formula: "C58*E58*G58*I58" };
     setVal(meas, "C2", work);
     setVal(abs, "C2", work);
@@ -1906,7 +1953,7 @@ app.get("/api/db/bills", async (_req, res) => {
   } catch (e) { console.error(e.message); }
   res.json({ ok: true, items: local });
 });
-app.post("/api/db/bills/delete", async (req, res) => {
+app.post("/api/db/bills/delete", requireUser, async (req, res) => {
   const id = String((req.body && req.body.id) || "");
   if (!id) return res.json({ ok: false });
   forgetRows(DB_BILL, req.body || {});
@@ -2062,7 +2109,7 @@ app.get("/api/db/site", async (_req, res) => {
   } catch (e) { console.error(e.message); }
   res.json({ ok: true, items: local });
 });
-app.post("/api/db/site/delete", async (req, res) => {
+app.post("/api/db/site/delete", requireUser, async (req, res) => {
   const id = String((req.body && req.body.id) || "");
   if (!id) return res.json({ ok: false });
   forgetRows(DB_SITE, req.body || {});
@@ -2195,31 +2242,79 @@ async function sbProfiles(method, path, body) {
   if (!r.ok) throw new Error(typeof js==="string"?js:JSON.stringify(js));
   return js;
 }
-app.post("/api/admin/profile", async (req, res) => {
+const OWNER_EMAIL = String(process.env.ADMIN_EMAIL || "vanraj2592@gmail.com").toLowerCase();
+async function authUser(req) {
+  const tok = String(req.headers.authorization || "").replace(/^Bearer\s+/i, "");
+  if (!tok || !SB_URL) return null;
+  try {
+    const r = await fetch(SB_URL + "/auth/v1/user", { headers: { apikey: SB_KEY, Authorization: "Bearer " + tok } });
+    if (!r.ok) return null;
+    return await r.json();
+  } catch (_e) { return null; }
+}
+async function requireUser(req, res, next) {
+  const u = await authUser(req);
+  if (!u || !u.email) return res.status(401).json({ ok: false, error: "login required" });
+  req.user = u;
+  next();
+}
+async function requireAdmin(req, res, next) {
+  const u = await authUser(req);
+  const email = String((u && u.email) || "").toLowerCase();
+  if (!email) return res.status(401).json({ ok: false, error: "login required" });
+  req.user = u;
+  if (email === OWNER_EMAIL) return next();
+  try {
+    const js = await sbProfiles("GET", "profiles?select=role&email=eq." + encodeURIComponent(email), null);
+    if (Array.isArray(js) && js[0] && js[0].role === "admin") return next();
+  } catch (_e) {}
+  return res.status(403).json({ ok: false, error: "admin only" });
+}
+app.get("/api/admin/me", requireUser, async (req, res) => {
+  try {
+    const email = String(req.user.email || "").toLowerCase();
+    const js = await sbProfiles("GET", "profiles?select=*&email=eq." + encodeURIComponent(email), null);
+    res.json({ ok: true, item: Array.isArray(js) ? (js[0] || null) : null });
+  } catch (e) {
+    res.json({ ok: false, item: null, error: String(e.message || e) });
+  }
+});
+app.post("/api/admin/profile", requireUser, async (req, res) => {
   try {
     if (!sbOn()) return res.json({ ok: false, error: "no supabase" });
     const d = req.body || {};
-    const isAd = String(d.email||"").toLowerCase()==="vanraj2592@gmail.com" || d.app_role==="super_admin" || d.role==="admin";
+    const email = String(req.user.email || "").toLowerCase();
+    const isAd = email === OWNER_EMAIL;
     const row = {
-      email: String(d.email||"").toLowerCase(),
+      email: email,
       full_name: d.full_name||d.name||"",
       mobile_number: d.mobile_number||d.mobile||"",
       designation: d.designation||d.role||"AAE",
       department: d.department||"Panchayat",
       office_location: d.office_location||d.taluka||"",
-      sub_division: d.sub_division||d.subdiv||"",
-      subscription_status: d.subscription_status||d.status||(isAd?"Active":"Trial"),
-      role: isAd?"admin":"user"
+      sub_division: d.sub_division||d.subdiv||""
     };
-    if (d.id) row.id = d.id;
-    if (d.subscription_end_date) row.subscription_end_date = d.subscription_end_date;
+    if (isAd) {
+      row.subscription_status = "Active";
+      row.role = "admin";
+    } else {
+      let exists = false;
+      try {
+        const prev = await sbProfiles("GET", "profiles?select=email&email=eq." + encodeURIComponent(email), null);
+        exists = Array.isArray(prev) && prev.length > 0;
+      } catch (_e) {}
+      if (!exists) {
+        row.subscription_status = "Trial";
+        row.role = "user";
+      }
+    }
     const js = await sbProfiles("POST", "profiles?on_conflict=email", row);
     res.json({ ok: true, item: Array.isArray(js)?js[0]:js });
   } catch (e) {
     res.json({ ok: false, error: String(e.message||e) });
   }
 });
-app.get("/api/admin/pending", async (_req, res) => {
+app.get("/api/admin/pending", requireAdmin, async (_req, res) => {
   try {
     if (!sbOn()) return res.json({ ok: true, items: [] });
     const js = await sbProfiles("GET", "profiles?select=*&order=email.asc", null);
@@ -2228,7 +2323,7 @@ app.get("/api/admin/pending", async (_req, res) => {
     res.json({ ok: false, items: [], error: String(e.message||e) });
   }
 });
-app.post("/api/admin/approve", async (req, res) => {
+app.post("/api/admin/approve", requireAdmin, async (req, res) => {
   try {
     const email = String((req.body||{}).email||"").toLowerCase();
     const status = (req.body||{}).status || "Active";
@@ -2425,6 +2520,10 @@ app.post("/api/bill/cc", async (req, res) => {
     bill.getCell("E13").value = { formula: "ROUND(E12*0.18,2)" };
     bill.getCell("E14").value = { formula: "ROUND(E12+E13,2)" };
     bill.getCell("E15").value = { formula: "ROUNDDOWN(E14,0)" };
+    bill.getCell("E12").numFmt = "0.00";
+    bill.getCell("E13").numFmt = "0.00";
+    bill.getCell("E14").numFmt = "0.00";
+    bill.getCell("E15").numFmt = "0";
     if (aae) setVal(bill, "A16", "શ્રી- " + aae);
     setVal(bill, "B17", measDate);
     setVal(bill, "B18", mb);
@@ -2461,6 +2560,45 @@ app.post("/api/bill/cc", async (req, res) => {
 
 
 app.post("/api/mb/paver", (req, res) => { req.url = "/api/mb"; req.body = Object.assign({}, req.body||{}, { type: "paver" }); return app._router.handle(req, res, function(){}); });
+
+function fillGpMbMeas(ws, type, gp) {
+  const blocks = type === "gutter"
+    ? { 225: 9, 300: 12, 450: 15, 600: 18, 900: 21, 1200: 24 }
+    : { 63: 9, 75: 12, 90: 15, 110: 18 };
+  const pipes = Array.isArray(gp.pipes) ? gp.pipes : null;
+  if (pipes) {
+    Object.keys(blocks).forEach(function (dia) {
+      const r0 = blocks[dia];
+      const list = pipes.filter(function (p) { return Number(p.dia) === Number(dia) && mixNum(p.l) > 0; });
+      for (let k = 0; k < 3; k++) {
+        const p = list[k];
+        setVal(ws, "J" + (r0 + k), p ? mixNum(p.l) : 0);
+        if (p) { setVal(ws, "K" + (r0 + k), Number(p.w || 0)); setVal(ws, "L" + (r0 + k), Number(p.d || 0)); }
+      }
+      if (list.length > 3) {
+        const eq = wdOf(list.slice(2), 0, 0);
+        setVal(ws, "J" + (r0 + 2), eq.l); setVal(ws, "K" + (r0 + 2), eq.w); setVal(ws, "L" + (r0 + 2), eq.d);
+      }
+    });
+  }
+  const dm = gp.demoRow || null;
+  for (let r = 3; r <= 5; r++) setVal(ws, "J" + r, 0);
+  if (dm && dm.open) {
+    setVal(ws, "J3", mixNum(dm.l));
+    setVal(ws, "K3", Number(dm.w || 0));
+    if (type === "gutter") setVal(ws, "L3", Number(dm.t || 0));
+  }
+  if (type === "gutter") {
+    const cc = gp.ccRow || null;
+    for (let r = 36; r <= 38; r++) setVal(ws, "C" + r, 0);
+    if (cc && dm && dm.open) { setVal(ws, "C36", mixNum(cc.l)); setVal(ws, "D36", Number(cc.w || 0)); setVal(ws, "E36", Number(cc.t || 0)); }
+    const ch = gp.ch || {};
+    setVal(ws, "I30", Number(ch["60"] || 0));
+    setVal(ws, "I31", Number(ch["90"] || 0));
+    setVal(ws, "I32", Number(ch["139"] || 0));
+    setVal(ws, "I33", Number(ch["1313"] || 0));
+  }
+}
 
 app.post("/api/mb", async (req, res) => {
   try {
@@ -2519,6 +2657,7 @@ app.post("/api/mb", async (req, res) => {
     if (type === "gutter" || type === "pipe") {
       const gp = d.gp || {};
       const by = gp.byDia || {};
+      fillGpMbMeas(ws, type, gp);
       const ch = gp.ch || {};
       const num = function (v) { return Number(v || 0); };
       const put = function (addr, qty, rate) {
@@ -2547,6 +2686,8 @@ app.post("/api/mb", async (req, res) => {
         sub += put("C27", gp.plate, 306.14);
         setVal(ws, "E28", Math.round(sub * 100) / 100);
         setVal(ws, "E29", Math.round(sub * 0.18 * 100) / 100);
+        setVal(ws, "E31", Number(d.amounting || 0));
+        ws.getCell("E32").value = { formula: "ROUND(E31-E30,2)" };
       } else {
         sub += put("C2", gp.demo, 202.2);
         sub += put("C3", gp.exc, 89);
@@ -2561,6 +2702,8 @@ app.post("/api/mb", async (req, res) => {
         setVal(ws, "E16", Math.round(sub * 100) / 100);
         setVal(ws, "E17", Math.round(sub * 0.18 * 100) / 100);
         setVal(ws, "E18", Math.round(sub * 1.18 * 100) / 100);
+        setVal(ws, "E19", Number(d.amounting || 0));
+        ws.getCell("E20").value = { formula: "ROUND(E19-E18,2)" };
       }
     } else if (type === "paver") {
       const excD = Number(d.exc_d || 0.2);
@@ -2896,12 +3039,8 @@ app.post("/api/estimate/pipe", async (req, res) => {
     const fund = d.fund_head || "";
     const pEx = Array.isArray(d.pEx) ? d.pEx : [];
     const pDe = Array.isArray(d.pDe) ? d.pDe : [];
-    const sumDia = (dia) => pEx.filter(r => Number(r.dia)===dia).reduce((a,r)=>a+Number(r.l||0),0);
-    const lastWD = (dia, dw, dd) => {
-      const arr=pEx.filter(r => Number(r.dia)===dia);
-      const r=arr[arr.length-1];
-      return {w:Number((r&&r.w)||dw), d:Number((r&&r.d)||dd)};
-    };
+    const sumDia = (dia) => pEx.filter(r => Number(r.dia)===dia).reduce((a,r)=>a+mixNum(r.l),0);
+    const lastWD = (dia, dw, dd) => wdOf(pEx.filter(r => Number(r.dia)===dia), dw, dd);
     setVal(face, "F2", d.division || d.jilla || "");
     setVal(face, "I2", d.jilla || "");
     setVal(face, "F4", d.subdiv_address || "");
@@ -2919,10 +3058,9 @@ app.post("/api/estimate/pipe", async (req, res) => {
     setVal(abs, "C2", work);
     setVal(meas, "C2", work);
     if (test) setVal(test, "B1", work);
-    const demoL = pDe.reduce((a,r)=>a+Number(r.l||0),0);
-    const demoW = Number((pDe[0]&&pDe[0].w)||0.45);
-    setVal(meas, "E5", demoL);
-    setVal(meas, "G5", demoW);
+    const demo = wdOf(pDe.map(function (r) { return { l: r.l, w: r.w, d: 1 }; }), 0.45, 1);
+    setVal(meas, "E5", demo.l);
+    setVal(meas, "G5", demo.w);
     [[63,"E9","G9","I9",0.45,0.9],[75,"E10","G10","I10",0.45,0.9],[90,"E11","G11","I11",0.45,0.9],[110,"E12","G12","I12",0.45,0.9]].forEach(function(row){
       const wd=lastWD(row[0], row[4], row[5]);
       setVal(meas, row[1], sumDia(row[0]));
@@ -2930,7 +3068,7 @@ app.post("/api/estimate/pipe", async (req, res) => {
       setVal(meas, row[3], wd.d);
     });
     setVal(meas, "E40", Number(d.pPlate||1));
-    if (test) setVal(test, "C12", 1);
+    if (test) { setVal(test, "C12", 0); setVal(test, "C13", 1); setVal(test, "C14", 0); }
     await writeAndRespond(req, res, wb, d, "PIPE", {
       Estimate: "A1:I41", Abstract: "A1:F30", Measurement: "A1:L42", "TEST-SITE": "A1:G36"
     }, "estimate_pipe");
