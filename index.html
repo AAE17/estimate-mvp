@@ -3712,6 +3712,7 @@ function onLetterDate(){
       pdf:d.pdf||""
     })}).then(function(r){return r.json();}).then(function(j){
       if (!j || j.ok===false || j.error) throw new Error((j&&j.error)||"કાચું બિલ સેવ ન થયું");
+      if (j.file_error) throw new Error("બિલ સેવ થયું, પણ ફાઇલ Supabase પર ન ગઈ. "+j.file_error);
       return j;
     });
   }
