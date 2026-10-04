@@ -1046,6 +1046,8 @@
       
 
       <div id="ongBox" class="hidden">
+        <p class="muted">સેવ થયેલું, હજુ પૂરું ન થયેલું કામ.</p>
+        <div id="ongList" class="mini"></div>
         <div id="siteList" class="mini hidden"></div>
       </div>
       <div id="doneBox" class="hidden">
@@ -2929,7 +2931,7 @@ function onLetterDate(){
   
   function ccThick(){
     const v=parseFloat((document.getElementById("dCcT")||{}).value);
-    return isNaN(v)?0:v;
+    return (!isNaN(v) && v>0) ? v : 0.1;
   }
 
   function parseMix(v){
@@ -3079,6 +3081,25 @@ function onLetterDate(){
     const gst=sub*0.18, tot=sub+gst, net=Math.floor(tot);
     const est=Number((document.getElementById("dAmtIn")||{}).value||0);
     return {items,sub,gst,tot,net,est,area};
+  }
+  function billOfSite(r){
+    if (!r) return 0;
+    if (Number(r.bill)) return Number(r.bill);
+    const rows=r.rows||[];
+    if (!rows.length || (rows[0] && rows[0]._gp)) return 0;
+    const ccT=Number(r.cc_t || rows[0].cc_t || 0.1) || 0.1;
+    const test=Number(r.test_qty!=null ? r.test_qty : (rows[0].test_qty||0));
+    const plate=Number(r.name_plate!=null ? r.name_plate : (rows[0].name_plate||0));
+    let box=0, area=0, cc=0;
+    rows.forEach(function(s){
+      const L=parseMix(s.l), W=parseMix(s.w), D=parseMix(s.d);
+      area += L*W; box += L*W*(D||0); cc += L*W*ccT;
+    });
+    const metal0=area*0.12, metal=metal0*1.15;
+    const metalQty=Math.floor(metal/1.5+1e-9)*1.5;
+    const bindQty=Math.floor((metalQty*0.25)/1.5+1e-9)*1.5;
+    const sub=box*158.12+metalQty*684.6+bindQty*173.51+metalQty*249.75+bindQty*147.47+cc*4915.01+test*2656+plate*306.14;
+    return sub*1.18;
   }
   function gpDefWD(kind, dia){
     if(kind==="pipe") return [0.45, 0.90];
@@ -3476,6 +3497,7 @@ function onLetterDate(){
     } else {
       DIARY = (savedRows && savedRows.length) ? savedRows : [{l:"",w:"",d:""}];
     }
+    applySiteExtras(est, savedRows && savedRows[0]);
     const bill=document.getElementById("dBill");
     if (bill) { bill.classList.add("hidden"); bill.innerHTML=""; }
     const kb0=document.getElementById("kachuBox");
@@ -3492,6 +3514,7 @@ function onLetterDate(){
             SITEGP[normType(site.type, site.work_name)||diaryType()]=site.rows[0].data;
             renderDiaryRows();
           } else if (site.rows && site.rows.length) { DIARY = site.rows; renderDiaryRows(); }
+          applySiteExtras(site, site.rows && site.rows[0]);
           const set=function(id,v){ const e=document.getElementById(id); if(e && v) e.value=v; };
           set("dTaluka", site.taluka);
           set("dGrant", site.fund_head||site.grant);
@@ -3529,7 +3552,7 @@ function onLetterDate(){
       liveMbBill();
       const box=document.getElementById("dBill");
       if(box) box.innerHTML=(box.innerHTML||"")+"<div class='mb-cmp'>"+html+"</div>";
-      saveSitePayload(type, estAmt, x.exc||0, 0, 0, true);
+      saveSitePayload(type, estAmt, x.exc||0, 0, 0, true).catch(function(e){ alert(e.message||"સેવ ન થયું"); });
       ["btnKachu","btnKachuPdf"].forEach(function(id){ const b=document.getElementById(id); if(b) b.classList.remove("hidden"); });
       return;
     }
@@ -3574,8 +3597,22 @@ function onLetterDate(){
     liveMbBill();
     const box=document.getElementById("dBill");
     if (box) box.innerHTML = (box.innerHTML||"") + "<div class='mb-cmp'>"+html+"</div>";
-    saveSitePayload(type, estAmt, area, L, W, true);
+    saveSitePayload(type, estAmt, area, L, W, true).catch(function(e){ alert(e.message||"સેવ ન થયું"); });
     ["btnKachu","btnKachuPdf"].forEach(function(id){ const b=document.getElementById(id); if(b) b.classList.remove("hidden"); });
+  }
+  function applySiteExtras(src, row0){
+    src=src||{}; row0=row0||{};
+    const set=function(id,v){ const e=document.getElementById(id); if(e && v!=null && v!=="") e.value=v; };
+    set("dCcT", src.cc_t!=null && src.cc_t!=="" ? src.cc_t : row0.cc_t);
+    set("kTest", src.test_qty!=null && src.test_qty!=="" ? src.test_qty : row0.test_qty);
+    set("kPlate", src.name_plate!=null && src.name_plate!=="" ? src.name_plate : (src.plate!=null ? src.plate : row0.name_plate));
+    set("dAAE", src.prepared_by || src.aae || row0.aae || "");
+  }
+  function kachuMoney(){
+    const t=diaryType();
+    if(t==="gutter"||t==="pipe") return gpSiteItems(t);
+    if(t==="paver") return mbPaverTotals();
+    return mbCcTotals();
   }
   function kachuBody(output){
     return {
@@ -3658,19 +3695,25 @@ function onLetterDate(){
     saveKachu();
   }
   function saveKachuDb(body, d){
+    const money=kachuMoney()||{};
+    const tot=Number(money.tot||0);
+    const net=money.net!=null ? Number(money.net) : Math.floor(tot);
     return fetch(API+"/api/db/kachu",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
       type:body.type||diaryType(),
       work_name:body.work_name,
       village:body.village,
       amounting:body.amounting,
-      total:(d.preview&&d.preview.total)||0,
-      net:(d.preview&&d.preview.net)||0,
+      total:tot,
+      net:net,
       test_qty:body.test_qty,
       name_plate:body.name_plate,
-      preview:d.preview||{},
+      preview: { total:tot, net:net, items:money.items||[], pdf:d.pdf||"", xlsx:d.xlsx||"" },
       xlsx:d.xlsx||"",
       pdf:d.pdf||""
-    })});
+    })}).then(function(r){return r.json();}).then(function(j){
+      if (!j || j.ok===false || j.error) throw new Error((j&&j.error)||"કાચું બિલ સેવ ન થયું");
+      return j;
+    });
   }
   function saveKachu(){
     const body=kachuBody("xlsx");
@@ -3702,11 +3745,14 @@ function onLetterDate(){
     finally{ if (typeof setBusy==="function") setBusy(false); }
   }
   function saveSitePayload(type, estAmt, area, L, W, done){
-    const ccT=(function(){let v=0;DIARY.forEach(function(r){v+=Number(r.l||0)*Number(r.w||0)*Number(r.d||0.1);}); return area?v/area:0.1;})();
     const workNm=siteWorkName();
     const gp = type==="gutter" || type==="pipe";
     const gpRows = gp ? [{_gp:true, data:gpState(type)}] : DIARY;
     const billTot = gp ? gpSiteItems(type).tot : (type==="paver" ? mbPaverTotals() : mbCcTotals()).tot;
+    const testQty=Number((document.getElementById("kTest")||{}).value||0);
+    const plateQty=Number((document.getElementById("kPlate")||{}).value||0);
+    const aae=(document.getElementById("dAAE")||{}).value||"";
+    const ccT=ccThick();
     saveSiteMeta(workNm,{
       taluka:(document.getElementById("dTaluka")||{}).value||"",
       grant:(typeof siteFundHead==="function"?siteFundHead():(document.getElementById("dGrant")||{}).value||""),
@@ -3715,25 +3761,35 @@ function onLetterDate(){
       year:(document.getElementById("dYear")||{}).value||"",
       type:type,
       amounting:estAmt,
-      test_qty:Number((document.getElementById("kTest")||{}).value||0),
-      plate:Number((document.getElementById("kPlate")||{}).value||0),
-      cc_t:ccThick(),
+      test_qty:testQty,
+      plate:plateQty,
+      cc_t:ccT,
+      aae:aae,
       rows:gpRows,
       meas_date:(document.getElementById("dDate")||{}).value||""
     });
-    fetch(API+"/api/db/site",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
+    return fetch(API+"/api/db/site",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
       type:type, work_name:siteWorkName(),
       amounting:estAmt, rows:gpRows, area:area,
       brass: type==="paver" ? area*10.7584/100 : 0,
       bill: billTot,
       estimate_id: diaryEst && diaryEst.id || "",
       done: !!done,
+      cc_t: ccT,
+      test_qty: testQty,
+      name_plate: plateQty,
+      plate: plateQty,
+      prepared_by: aae,
+      aae: aae,
       taluka:(document.getElementById("dTaluka")||{}).value||"",
       fund_head:(document.getElementById("dGrant")||{}).value||"",
       grant:(typeof siteFundHead==="function"?siteFundHead():(document.getElementById("dGrant")||{}).value||""),
       contractor:(document.getElementById("dContractor")||{}).value||"",
       village:(document.getElementById("dGam")||{}).value||(diaryEst&&(diaryEst.village||diaryEst.gam))||""
-    })}).catch(function(){});
+    })}).then(function(r){return r.json();}).then(function(d){
+      if (!d || d.ok===false || d.error) throw new Error((d&&d.error)||"સેવ ન થયું");
+      return d;
+    });
   }
   function saveSiteOnly(){
     const type=diaryType();
@@ -3742,8 +3798,7 @@ function onLetterDate(){
       const has=(x.items||[]).some(function(it){ return Number(it[1])>0; });
       if(!has){ alert("પહેલા સાઇટ માપ લખો"); return; }
       const estAmt=Number(document.getElementById("dAmtIn").value||0);
-      saveSitePayload(type, estAmt, x.exc||0, 0, 0, false);
-      alert("માપ સેવ થયું");
+      saveSitePayload(type, estAmt, x.exc||0, 0, 0, false).then(function(){ alert("માપ સેવ થયું"); }).catch(function(e){ alert(e.message||"સેવ ન થયું"); });
       return;
     }
     const area=diaryArea();
@@ -3751,8 +3806,7 @@ function onLetterDate(){
     const estAmt=Number(document.getElementById("dAmtIn").value||0);
     const L=DIARY.reduce(function(s,r){return s+Number(r.l||0);},0);
     const W=L?area/L:0;
-    saveSitePayload(type, estAmt, area, L, W, false);
-    alert("માપ સેવ થયું");
+    saveSitePayload(type, estAmt, area, L, W, false).then(function(){ alert("માપ સેવ થયું"); }).catch(function(e){ alert(e.message||"સેવ ન થયું"); });
   }
   function siteSavedMode(on){
     const box=document.getElementById("siteMediaBtns");
@@ -3770,13 +3824,55 @@ function onLetterDate(){
     if (done) done.classList.toggle("hidden", which!=="done");
     if (which==="new") { if (ong) ong.classList.add("hidden"); if (done) done.classList.add("hidden"); siteWorkMode("new"); siteSavedMode(false); openDiary(null); }
     else if (wrap && which!=="new") { /* keep diary if already open */ }
-    if (which==="ong") { siteWorkMode("ong"); siteSavedMode(false); renderSiteList(); openDiary(null); }
+    if (which==="ong") { siteWorkMode("ong"); siteSavedMode(false); renderOngList(); }
     if (which==="done") renderDoneList();
   }
-  function renderDoneList(){
-    const el=document.getElementById("doneList");
-    if (!el) return;
-    fetch(API+"/api/db/site").then(function(r){return r.json();}).then(function(d){
+  function siteIsDone(r){
+    if (!r) return false;
+    if (r.done===true || r.done==="true" || r.done===1 || r.done==="1") return true;
+    const z=r.rows && r.rows[0];
+    return !!(z && (z.done===true || z.done==="true" || z.done===1 || z.done==="1"));
+  }
+  function openSavedSite(s){
+    if (!s) return;
+    openDiary({
+      id:s.estimate_id||s.id, work_name:s.work_name, amounting:s.amounting, type:s.type,
+      taluka:s.taluka||"", village:s.village||"",
+      fund_head:s.fund_head||s.grant||s.grant_head||"", contractor:s.contractor||"",
+      rows:s.rows||[], ts:s.ts||"", meas_date:s.meas_date||"",
+      cc_t:s.cc_t, test_qty:s.test_qty, name_plate:s.name_plate,
+      prepared_by:s.prepared_by||s.aae||"", aae:s.prepared_by||s.aae||""
+    });
+    siteSavedMode(true);
+  }
+  function paintSiteRows(el, rec, emptyText){
+    const inr0=function(x){return "₹ "+Number(x||0).toLocaleString("en-IN",{maximumFractionDigits:0});};
+    el.innerHTML = rec.length ? rec.map(function(r,i){
+      const billShow=billOfSite(r);
+      return "<div class='work-row' data-open='"+i+"'><span>"+dayOf(r.ts||r.day)+" · "+(r.work_name||"")+"<br>એસ્ટિમેટ "+inr0(r.amounting)+" · બિલ "+inr0(billShow)+
+        "</span><span><button type='button' class='btn btn-w' title='જોવું / એડિટ'>👁</button> "+
+        "<button type='button' class='btn btn-w' data-del='"+i+"' title='ડિલીટ'>🗑</button></span></div>";
+    }).join("") : "<div>"+emptyText+"</div>";
+    el._rows=rec;
+    el.querySelectorAll("[data-open]").forEach(function(b){
+      b.onclick=function(){
+        el.querySelectorAll(".work-row").forEach(function(x){ x.classList.remove("on"); });
+        const row=this.closest(".work-row"); if(row) row.classList.add("on");
+        openSavedSite(el._rows[+this.dataset.open]);
+      };
+    });
+    el.querySelectorAll("[data-del]").forEach(function(b){
+      b.onclick=function(ev){
+        ev.stopPropagation();
+        const s=el._rows[+this.dataset.del];
+        if (!s || !confirm("ડિલીટ કરો?")) return;
+        fetch(API+"/api/db/site/delete",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({id:s.id,work_name:s.work_name||"",ts:s.ts||""})})
+          .then(function(){ if (el.id==="ongList") renderOngList(); else renderDoneList(); });
+      };
+    });
+  }
+  function loadSiteRecs(){
+    return fetch(API+"/api/db/site").then(function(r){return r.json();}).then(function(d){
       const raw=(d.items||[]).slice().sort(function(a,b){return String(b.ts||"").localeCompare(String(a.ts||""));});
       const seen={}; const rec=[];
       raw.forEach(function(r){
@@ -3784,44 +3880,21 @@ function onLetterDate(){
         if (k && seen[k]) return;
         seen[k]=1; rec.push(r);
       });
-      const inr0=function(x){return "₹ "+Number(x||0).toLocaleString("en-IN",{maximumFractionDigits:0});};
-      el.innerHTML = rec.length ? rec.map(function(r,i){
-        const billShow=(function(){
-          if(r.rows&&r.rows.length&&typeof mbPaverTotals==="function"){
-            const keep=window.DIARY; window.DIARY=r.rows;
-            const x=(String(r.type||"").toLowerCase().indexOf("cc")>=0)?mbCcTotals():mbPaverTotals();
-            window.DIARY=keep;
-            if(x&&x.tot) return x.tot;
-          }
-          return r.bill;
-        })();
-        return "<div class='work-row' data-done='"+i+"'><span>"+dayOf(r.ts||r.day)+" · "+(r.work_name||"")+"<br>એસ્ટિમેટ "+inr0(r.amounting)+" · બિલ "+inr0(billShow)+
-          "</span><span><button type='button' class='btn btn-w' data-done='"+i+"' title='જોવું / એડિટ'>👁</button> "+
-          "<button type='button' class='btn btn-w' data-del='"+i+"' title='ડિલીટ'>🗑</button></span></div>";
-      }).join("") : "<div>હજુ Work Done નથી</div>";
-      window._doneRecent=rec;
-      el.querySelectorAll("[data-done]").forEach(function(b){
-        b.onclick=function(){
-          el.querySelectorAll(".work-row").forEach(function(x){ x.classList.remove("on"); });
-          const row=this.closest(".work-row"); if(row) row.classList.add("on");
-          const s=window._doneRecent[+this.dataset.done];
-          openDiary({
-            id:s.estimate_id||s.id, work_name:s.work_name, amounting:s.amounting, type:s.type,
-            taluka:s.taluka||"", village:s.village||"",
-            fund_head:s.fund_head||s.grant||s.grant_head||"", contractor:s.contractor||"",
-            rows:s.rows||[], ts:s.ts||"", meas_date:s.meas_date||""
-          });
-          siteSavedMode(true);
-        };
-      });
-      el.querySelectorAll("[data-del]").forEach(function(b){
-        b.onclick=function(){
-          const s=window._doneRecent[+this.dataset.del];
-          if (!s || !confirm("ડિલીટ કરો?")) return;
-          fetch(API+"/api/db/site/delete",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({id:s.id,work_name:s.work_name||"",ts:s.ts||""})})
-            .then(function(){ renderDoneList(); });
-        };
-      });
+      return rec;
+    });
+  }
+  function renderOngList(){
+    const el=document.getElementById("ongList");
+    if (!el) return;
+    loadSiteRecs().then(function(rec){
+      paintSiteRows(el, rec.filter(function(r){ return !siteIsDone(r); }), "હજુ Ongoing માપ નથી");
+    }).catch(function(){ el.textContent="યાદી ન આવી"; });
+  }
+  function renderDoneList(){
+    const el=document.getElementById("doneList");
+    if (!el) return;
+    loadSiteRecs().then(function(rec){
+      paintSiteRows(el, rec.filter(function(r){ return siteIsDone(r); }), "હજુ Work Done નથી");
     }).catch(function(){ el.textContent="યાદી ન આવી"; });
   }
   function renderSiteList() {
