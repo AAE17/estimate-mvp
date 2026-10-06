@@ -986,6 +986,7 @@ async function writeAndRespond(req, res, wb, d, prefix, areas, kind) {
   const Wm = Number(d.width_m || 0);
   const areaM = Lm * Wm;
   const pdfUrl = null;
+  const who = await callerEmail(req);
   logEvent(kind, {
     village: d.village,
     taluka: d.taluka,
@@ -998,7 +999,8 @@ async function writeAndRespond(req, res, wb, d, prefix, areas, kind) {
     brass: kind === "estimate_paver" ? areaM * 10.7584 / 100 : 0,
     output,
     xlsx: xlsxName,
-    pdf: pdfUrl
+    pdf: pdfUrl,
+    user_email: who
   }, req);
   try {
     const kindStr = String(kind || "");
@@ -1018,7 +1020,8 @@ async function writeAndRespond(req, res, wb, d, prefix, areas, kind) {
         length_m: Lm, width_m: Wm, area: areaM,
         brass: (kind === "estimate_paver" || kind === "bill_paver") ? areaM * 10.7584 / 100 : 0,
         prepared_by: d.prepared_by || "",
-        mb_no: d.mb_no || ""
+        mb_no: d.mb_no || "",
+        user_email: who
       });
       if (typeof sbOn === "function" && sbOn()) {
         sbInsert(isBill ? "bills" : "estimates", rec).catch(function (e) { console.error(e.message); });
@@ -1240,8 +1243,10 @@ app.post("/api/log", (req, res) => {
 });
 
 
-app.get("/api/stats", (_req, res) => {
+app.get("/api/stats", async (req, res) => {
   const empty = { total: 0, cc: 0, paver: 0, amount: 0, today: 0, talukas: [], recent: [] };
+  const who = await callerEmail(req);
+  if (!who) return res.json(empty);
   if (!fs.existsSync(LOG_FILE)) return res.json(empty);
   const lines = fs.readFileSync(LOG_FILE, "utf8").trim().split("\n").filter(Boolean);
   const today = istDay();
@@ -1253,6 +1258,7 @@ app.get("/api/stats", (_req, res) => {
     try { ev = JSON.parse(line); } catch (_e) { continue; }
     if (ev.kind !== "estimate_cc" && ev.kind !== "estimate_paver") continue;
     const pl = ev.payload || {};
+    if (!ownsRow({ user_email: pl.user_email }, who)) continue;
     total++;
     if (ev.kind === "estimate_cc") cc++;
     else paver++;
@@ -1314,6 +1320,7 @@ app.get("/api/bills", async (req, res) => {
     }
     if (!rows.length) rows = localBills;
     if (day) rows = rows.filter(function (r) { return recordDay(r) === day; });
+    rows = onlyMine(rows, await callerEmail(req));
     rows = dedupeBills(rows);
     res.json({ ok: true, bills: rows.slice(0, 80) });
   } catch (e) {
@@ -1741,13 +1748,71 @@ function mergeItems(remote, local) {
   return out;
 }
 
+function normMail(s) { return String(s || "").trim().toLowerCase(); }
+async function callerEmail(req) {
+  try {
+    const u = await authUser(req);
+    return normMail(u && u.email);
+  } catch (_e) { return ""; }
+}
+function ownsRow(row, email) {
+  email = normMail(email);
+  if (!email) return false;
+  const own = normMail(row && row.user_email);
+  if (own) return own === email;
+  return email === OWNER_EMAIL;
+}
+function onlyMine(rows, email) {
+  return (rows || []).filter(function (r) { return ownsRow(r, email); });
+}
+function ownsTour(row, email) {
+  email = normMail(email);
+  if (!email) return false;
+  const own = normMail(row && row.email);
+  if (own && own !== "shared") return own === email;
+  return email === OWNER_EMAIL;
+}
+async function rowAllowed(table, file, id, email) {
+  if (!id || !email) return false;
+  let row = null;
+  if (sbOn()) {
+    try {
+      const key = sbAuthKey();
+      const r = await fetch(SB_URL + "/rest/v1/" + table + "?id=eq." + encodeURIComponent(id) + "&select=*&limit=1", {
+        headers: { apikey: key, Authorization: "Bearer " + key }
+      });
+      if (r.ok) {
+        const js = await r.json();
+        row = (Array.isArray(js) && js[0]) || null;
+      }
+    } catch (_e) {}
+  }
+  if (!row && file) {
+    row = dbRead(file, 5000).find(function (x) { return String(x.id || "") === String(id); }) || null;
+  }
+  return !!(row && ownsRow(row, email));
+}
+function forgetId(file, id) {
+  if (!id) return;
+  tombAdd(id);
+  if (!file || !fs.existsSync(file)) return;
+  const lines = fs.readFileSync(file, "utf8").split("\n").filter(Boolean);
+  const keep = [];
+  lines.forEach(function (line) {
+    let r = null;
+    try { r = JSON.parse(line); } catch (_e) { keep.push(line); return; }
+    if (String(r.id || "") === String(id)) tombAdd(r.id);
+    else keep.push(line);
+  });
+  fs.writeFileSync(file, keep.length ? keep.join("\n") + "\n" : "");
+}
 function sbPick(table, row) {
   const cols = {
-    estimates: ["id","ts","type","village","taluka","jilla","work_name","fund_head","amounting","length_m","width_m","area","brass","prepared_by"],
-    site_measures: ["id","ts","type","work_name","amounting","rows","area","brass","bill","gps","estimate_id","taluka","village","fund_head","grant_head","contractor","cc_t","test_qty","name_plate","prepared_by","done"],
-    media: ["id","ts","kind","work_name","gps","url"],
-    kachu_bills: ["id","ts","type","work_name","village","amounting","total","net","test_qty","name_plate","preview","xlsx","pdf"],
-    bills: ["id","ts","type","work_name","village","taluka","fund_head","amounting","prepared_by","mb_no","day","net","kind"],
+    estimates: ["id","ts","type","village","taluka","jilla","work_name","fund_head","amounting","length_m","width_m","area","brass","prepared_by","user_email"],
+    site_measures: ["id","ts","type","work_name","amounting","rows","area","brass","bill","gps","estimate_id","taluka","village","fund_head","grant_head","contractor","cc_t","test_qty","name_plate","prepared_by","done","user_email"],
+    media: ["id","ts","kind","work_name","gps","url","user_email"],
+    kachu_bills: ["id","ts","type","work_name","village","amounting","total","net","test_qty","name_plate","preview","xlsx","pdf","user_email"],
+    bills: ["id","ts","type","work_name","village","taluka","fund_head","amounting","prepared_by","mb_no","day","net","kind","user_email"],
   }[table] || Object.keys(row);
   const o = {};
   cols.forEach(function (k) { if (row[k] !== undefined) o[k] = row[k]; });
@@ -1937,8 +2002,9 @@ app.post("/api/estimate/gutter", async (req, res) => {
   }
 });
 
-app.post("/api/db/estimate", (req, res) => {
+app.post("/api/db/estimate", async (req, res) => {
   const b = req.body || {};
+  const who = await callerEmail(req);
   const rec = dbAppend(DB_EST, {
     kind: "estimate",
     type: b.type || "",
@@ -1951,13 +2017,15 @@ app.post("/api/db/estimate", (req, res) => {
     length_m: Number(b.length_m || 0),
     width_m: Number(b.width_m || 0),
     brass: Number(b.brass || 0),
-    prepared_by: b.prepared_by || ""
+    prepared_by: b.prepared_by || "",
+    user_email: who
   });
   if (sbOn()) sbInsert("estimates", rec).catch(function(e){ console.error(e.message); });
   res.json({ ok: true, id: rec.id });
 });
-app.post("/api/db/bills", (req, res) => {
+app.post("/api/db/bills", async (req, res) => {
   const b = req.body || {};
+  const who = await callerEmail(req);
   const rec = dbAppend(DB_BILL, {
     kind: "bill",
     type: b.type || "",
@@ -1969,37 +2037,42 @@ app.post("/api/db/bills", (req, res) => {
     net: Number(b.net || b.amounting || 0),
     day: String(b.day || istDay()).slice(0, 10),
     mb_no: b.mb_no || "",
-    prepared_by: b.prepared_by || ""
+    prepared_by: b.prepared_by || "",
+    user_email: who
   });
   if (sbOn()) sbInsert("bills", rec).catch(function (e) { console.error(e.message); });
   res.json({ ok: true, id: rec.id });
 });
-app.get("/api/db/bills", async (_req, res) => {
-  const local = notDeleted(dbRead(DB_BILL, 200));
+app.get("/api/db/bills", async (req, res) => {
+  const who = await callerEmail(req);
+  const local = onlyMine(notDeleted(dbRead(DB_BILL, 500)), who);
   try {
-    if (sbOn()) return res.json({ ok: true, items: dedupeBills(notDeleted(await sbSelect("bills", 200))) });
+    if (sbOn()) return res.json({ ok: true, items: dedupeBills(onlyMine(notDeleted(await sbSelect("bills", 500)), who)) });
   } catch (e) { console.error(e.message); }
   res.json({ ok: true, items: dedupeBills(local) });
 });
 app.post("/api/db/bills/delete", requireUser, async (req, res) => {
   const id = String((req.body && req.body.id) || "");
+  const who = normMail(req.user && req.user.email);
   if (!id) return res.json({ ok: false });
-  forgetRows(DB_BILL, req.body || {});
+  if (!(await rowAllowed("bills", DB_BILL, id, who))) return res.json({ ok: false, error: "આ તમારું નથી" });
+  forgetId(DB_BILL, id);
   let removed = 0;
   try { removed = await sbDelete("bills", id); } catch (e) { console.error(e.message); }
   res.json({ ok: true, removed: removed });
 });
 app.get("/api/db/tour", async (req, res) => {
   try {
+    const email = await callerEmail(req);
+    if (!email) return res.json({ ok: false, items: [], error: "login" });
     if (!sbOn()) return res.json({ ok: true, items: [] });
-    const email = String((req.query && req.query.email) || "").trim();
-    let url = SB_URL + "/rest/v1/tour_days?select=*&order=day.desc&limit=400";
-    if (email) url += "&email=eq." + encodeURIComponent(email);
-    const r = await fetch(url, {
-      headers: { apikey: SB_KEY, Authorization: "Bearer " + SB_KEY }
+    const key = sbAuthKey();
+    const r = await fetch(SB_URL + "/rest/v1/tour_days?select=*&order=day.desc&limit=400", {
+      headers: { apikey: key, Authorization: "Bearer " + key }
     });
     if (!r.ok) throw new Error(await r.text());
-    res.json({ ok: true, items: await r.json() });
+    const items = (await r.json()).filter(function (x) { return ownsTour(x, email); });
+    res.json({ ok: true, items: items });
   } catch (e) {
     res.json({ ok: false, items: [], error: String(e.message || e) });
   }
@@ -2008,8 +2081,10 @@ app.post("/api/db/tour", async (req, res) => {
   try {
     if (!sbOn()) return res.json({ ok: false, error: "no supabase" });
     const b = req.body || {};
+    const email = await callerEmail(req);
+    if (!email) return res.json({ ok: false, error: "login" });
     const row = {
-      email: String(b.email || "").trim() || "shared",
+      email: email,
       day: String(b.day || "").slice(0, 10),
       act: b.act || "none",
       note: b.note || "",
@@ -2038,7 +2113,7 @@ app.post("/api/db/tour", async (req, res) => {
 app.get("/api/db/tour-profile", async (req, res) => {
   try {
     if (!sbOn()) return res.json({ ok: true, item: null });
-    const email = String((req.query && req.query.email) || "").trim();
+    const email = await callerEmail(req);
     if (!email) return res.json({ ok: true, item: null });
     const url = SB_URL + "/rest/v1/tour_profile?select=*&email=eq." + encodeURIComponent(email) + "&limit=1";
     const r = await fetch(url, { headers: { apikey: SB_KEY, Authorization: "Bearer " + SB_KEY } });
@@ -2053,8 +2128,10 @@ app.post("/api/db/tour-profile", async (req, res) => {
   try {
     if (!sbOn()) return res.json({ ok: false, error: "no supabase" });
     const b = req.body || {};
+    const email = await callerEmail(req);
+    if (!email) return res.json({ ok: false, error: "login" });
     const row = {
-      email: String(b.email || "").trim() || "shared",
+      email: email,
       name: b.name || "",
       office: b.office || "",
       mobile: b.mobile || "",
@@ -2076,11 +2153,12 @@ app.post("/api/db/tour-profile", async (req, res) => {
     res.json({ ok: false, error: String(e.message || e) });
   }
 });
-app.get("/api/db/estimates", async (_req, res) => {
-  const local = notDeleted(dbRead(DB_EST, 200));
+app.get("/api/db/estimates", async (req, res) => {
+  const who = await callerEmail(req);
+  const local = onlyMine(notDeleted(dbRead(DB_EST, 500)), who);
   try {
     if (sbOn()) {
-      const remote = notDeleted(await sbSelect("estimates", 200));
+      const remote = onlyMine(notDeleted(await sbSelect("estimates", 500)), who);
       return res.json({ ok: true, items: remote });
     }
   } catch (e) { console.error(e.message); }
@@ -2088,6 +2166,7 @@ app.get("/api/db/estimates", async (_req, res) => {
 });
 app.post("/api/db/site", async (req, res) => {
   const b = req.body || {};
+  const who = await callerEmail(req);
   const rows = Array.isArray(b.rows) ? JSON.parse(JSON.stringify(b.rows)) : [];
   const meta = {
     cc_t: Number(b.cc_t || 0) || 0.1,
@@ -2119,7 +2198,8 @@ app.post("/api/db/site", async (req, res) => {
     test_qty: meta.test_qty,
     name_plate: meta.name_plate,
     prepared_by: meta.aae,
-    done: meta.done
+    done: meta.done,
+    user_email: who
   });
   let remote = false;
   let error = "";
@@ -2129,11 +2209,12 @@ app.post("/api/db/site", async (req, res) => {
   } else error = "Supabase જોડાયેલું નથી — રીડિપ્લોય પર માપ રહેશે નહીં";
   res.json({ ok: !error, id: rec.id, remote: remote, error: error });
 });
-app.get("/api/db/site", async (_req, res) => {
-  const local = notDeleted(dbRead(DB_SITE, 200));
+app.get("/api/db/site", async (req, res) => {
+  const who = await callerEmail(req);
+  const local = onlyMine(notDeleted(dbRead(DB_SITE, 500)), who);
   try {
     if (sbOn()) {
-      const remote = notDeleted(await sbSelect("site_measures", 200));
+      const remote = onlyMine(notDeleted(await sbSelect("site_measures", 500)), who);
       return res.json({ ok: true, items: mergeItems(remote, local) });
     }
   } catch (e) { console.error(e.message); }
@@ -2141,8 +2222,10 @@ app.get("/api/db/site", async (_req, res) => {
 });
 app.post("/api/db/site/delete", requireUser, async (req, res) => {
   const id = String((req.body && req.body.id) || "");
+  const who = normMail(req.user && req.user.email);
   if (!id) return res.json({ ok: false });
-  forgetRows(DB_SITE, req.body || {});
+  if (!(await rowAllowed("site_measures", DB_SITE, id, who))) return res.json({ ok: false, error: "આ તમારું નથી" });
+  forgetId(DB_SITE, id);
   let removed = 0;
   try { removed = await sbDelete("site_measures", id); } catch (e) { console.error(e.message); }
   res.json({ ok: true, removed: removed });
@@ -2150,6 +2233,7 @@ app.post("/api/db/site/delete", requireUser, async (req, res) => {
 
 app.post("/api/db/kachu", async (req, res) => {
   const b = req.body || {};
+  const who = await callerEmail(req);
   const xlsxKeep = await keepFile(b.xlsx || (b.preview && b.preview.xlsx) || "");
   const pdfKeep = await keepFile(b.pdf || (b.preview && b.preview.pdf) || "");
   const fileError = [xlsxKeep.error, pdfKeep.error].filter(Boolean).join(" | ");
@@ -2164,7 +2248,8 @@ app.post("/api/db/kachu", async (req, res) => {
     name_plate: Number(b.name_plate || 0),
     preview: Object.assign({}, b.preview || {}, { xlsx: xlsxKeep.url, pdf: pdfKeep.url }),
     xlsx: xlsxKeep.url,
-    pdf: pdfKeep.url
+    pdf: pdfKeep.url,
+    user_email: who
   });
   let error = "";
   if (sbOn()) {
@@ -2173,13 +2258,15 @@ app.post("/api/db/kachu", async (req, res) => {
   } else error = "Supabase જોડાયેલું નથી — રીડિપ્લોય પર કાચું બિલ રહેશે નહીં";
   res.json({ ok: !error, id: rec.id, error: error, file_error: fileError, xlsx: xlsxKeep.url, pdf: pdfKeep.url });
 });
-app.get("/api/db/kachu", async (_req, res) => {
-  try { if (sbOn()) return res.json({ ok: true, items: await sbSelect("kachu_bills", 200) }); }
+app.get("/api/db/kachu", async (req, res) => {
+  const who = await callerEmail(req);
+  try { if (sbOn()) return res.json({ ok: true, items: onlyMine(await sbSelect("kachu_bills", 500), who) }); }
   catch (e) { console.error(e.message); }
-  res.json({ ok: true, items: dbRead(DB_KACHU, 200) });
+  res.json({ ok: true, items: onlyMine(dbRead(DB_KACHU, 500), who) });
 });
-app.post("/api/db/media", (req, res) => {
+app.post("/api/db/media", async (req, res) => {
   const b = req.body || {};
+  const who = await callerEmail(req);
   let file = "";
   let url = "";
   if (b.data && String(b.data).startsWith("data:")) {
@@ -2196,7 +2283,8 @@ app.post("/api/db/media", (req, res) => {
     kind: b.kind || "photo",
     work_name: b.work_name || "",
     gps: b.gps || "",
-    file, url
+    file, url,
+    user_email: who
   });
   if (sbOn() && b.data && String(b.data).startsWith("data:")) {
     const raw = String(b.data);
@@ -2205,7 +2293,7 @@ app.post("/api/db/media", (req, res) => {
     const name = (b.kind || "media") + "-" + Date.now() + ".jpg";
     sbUpload(name, buf).then(function (u) {
       rec.url = u;
-      sbInsert("media", { id: rec.id, ts: rec.ts, kind: rec.kind, work_name: rec.work_name, gps: rec.gps, url: u }).catch(function(){});
+      sbInsert("media", { id: rec.id, ts: rec.ts, kind: rec.kind, work_name: rec.work_name, gps: rec.gps, url: u, user_email: rec.user_email }).catch(function(){});
       res.json({ ok: true, id: rec.id, file: u });
     }).catch(function (e) {
       console.error(e.message);
@@ -2215,10 +2303,11 @@ app.post("/api/db/media", (req, res) => {
   }
   res.json({ ok: true, id: rec.id, file: url });
 });
-app.get("/api/db/media", async (_req, res) => {
-  try { if (sbOn()) return res.json({ ok: true, items: await sbSelect("media", 80) }); }
+app.get("/api/db/media", async (req, res) => {
+  const who = await callerEmail(req);
+  try { if (sbOn()) return res.json({ ok: true, items: onlyMine(await sbSelect("media", 200), who) }); }
   catch (e) { console.error(e.message); }
-  const items = dbRead(DB_MEDIA, 80).map((m) => ({
+  const items = onlyMine(dbRead(DB_MEDIA, 200), who).map((m) => ({
     id: m.id, ts: m.ts, kind: m.kind, work_name: m.work_name, gps: m.gps,
     url: m.url || (m.file ? ("/db/media/" + m.file) : "")
   }));
@@ -2236,9 +2325,10 @@ app.get("/api/db/bundle", async (req, res) => {
     return false;
   }
   try {
-    const ests = sbOn() ? await sbSelect("estimates", 200) : dbRead(DB_EST, 200);
-    const sites = sbOn() ? await sbSelect("site_measures", 200) : dbRead(DB_SITE, 200);
-    const media = sbOn() ? await sbSelect("media", 80) : dbRead(DB_MEDIA, 80);
+    const who = await callerEmail(req);
+    const ests = onlyMine(sbOn() ? await sbSelect("estimates", 500) : dbRead(DB_EST, 500), who);
+    const sites = onlyMine(sbOn() ? await sbSelect("site_measures", 500) : dbRead(DB_SITE, 500), who);
+    const media = onlyMine(sbOn() ? await sbSelect("media", 200) : dbRead(DB_MEDIA, 200), who);
     const estimate = ests.find(match) || ests.find((x)=> work && String(x.work_name||"").indexOf(work)>=0) || null;
     res.json({
       ok: true,
@@ -2309,37 +2399,80 @@ app.get("/api/admin/me", requireUser, async (req, res) => {
     res.json({ ok: false, item: null, error: String(e.message || e) });
   }
 });
+async function sbUpsertProfile(row) {
+  let body = Object.assign({}, row);
+  Object.keys(body).forEach(function (k) { if (body[k] === undefined) delete body[k]; });
+  let lastErr = "profile save failed";
+  const key = sbAuthKey();
+  for (let n = 0; n < 16; n++) {
+    const r = await fetch(SB_URL + "/rest/v1/profiles?on_conflict=email", {
+      method: "POST",
+      headers: {
+        apikey: key,
+        Authorization: "Bearer " + key,
+        "Content-Type": "application/json",
+        Prefer: "return=representation,resolution=merge-duplicates"
+      },
+      body: JSON.stringify(body)
+    });
+    if (r.ok) {
+      const js = await r.json();
+      return Array.isArray(js) ? js[0] : js;
+    }
+    const err = await r.text();
+    lastErr = err;
+    const missing = err.match(/Could not find the '([^']+)' column/i);
+    if (missing && Object.prototype.hasOwnProperty.call(body, missing[1])) {
+      delete body[missing[1]];
+      continue;
+    }
+    throw new Error(err);
+  }
+  throw new Error(lastErr);
+}
 app.post("/api/admin/profile", requireUser, async (req, res) => {
   try {
     if (!sbOn()) return res.json({ ok: false, error: "no supabase" });
     const d = req.body || {};
     const email = String(req.user.email || "").toLowerCase();
     const isAd = email === OWNER_EMAIL;
-    const row = {
-      email: email,
-      full_name: d.full_name||d.name||"",
-      mobile_number: d.mobile_number||d.mobile||"",
-      designation: d.designation||d.role||"AAE",
-      department: d.department||"Panchayat",
-      office_location: d.office_location||d.taluka||"",
-      sub_division: d.sub_division||d.subdiv||""
-    };
+    let prev = null;
+    try {
+      const old = await sbProfiles("GET", "profiles?select=*&email=eq." + encodeURIComponent(email), null);
+      prev = Array.isArray(old) ? (old[0] || null) : null;
+    } catch (_e) {}
+    const row = { email: email };
+    const name = String(d.full_name || d.name || "").trim();
+    const mobile = String(d.mobile_number || d.mobile || "").trim();
+    const jilla = String(d.jilla || "").trim();
+    const taluka = String(d.taluka || d.office_location || "").trim();
+    const job = String(d.designation || d.role || "").trim();
+    if (name) { row.name = name; row.full_name = name; }
+    if (mobile) { row.mobile = mobile; row.mobile_number = mobile; }
+    if (jilla) row.jilla = jilla;
+    if (taluka) { row.taluka = taluka; row.office_location = taluka; }
+    if (job && job !== "admin" && job !== "user") row.designation = job;
+    const subdiv = String(d.sub_division || d.subdiv || "").trim();
+    if (subdiv) row.sub_division = subdiv;
     if (isAd) {
       row.subscription_status = "Active";
       row.role = "admin";
     } else {
-      let exists = false;
-      try {
-        const prev = await sbProfiles("GET", "profiles?select=email&email=eq." + encodeURIComponent(email), null);
-        exists = Array.isArray(prev) && prev.length > 0;
-      } catch (_e) {}
-      if (!exists) {
+      const st = String((prev && prev.subscription_status) || "");
+      const hasEnd = !!(prev && prev.subscription_end_date);
+      const kept = st === "Approved" || (st === "Active" && hasEnd);
+      if (!kept) {
         row.subscription_status = "Trial";
         row.role = "user";
+        if (!hasEnd) {
+          const base = prev && prev.created_at ? new Date(prev.created_at) : new Date();
+          const start = isNaN(base.getTime()) ? new Date() : base;
+          row.subscription_end_date = new Date(start.getTime() + 15 * 864e5).toISOString();
+        }
       }
     }
-    const js = await sbProfiles("POST", "profiles?on_conflict=email", row);
-    res.json({ ok: true, item: Array.isArray(js)?js[0]:js });
+    const js = await sbUpsertProfile(row);
+    res.json({ ok: true, item: js });
   } catch (e) {
     res.json({ ok: false, error: String(e.message||e) });
   }
