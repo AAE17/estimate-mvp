@@ -742,32 +742,13 @@
   </style>
 </head>
 <body>
-  <div id="authGate" class="toast">
+  <div id="authGate" class="toast hidden">
     <div class="box" style="max-width:400px;width:100%">
-      <b id="authTitle">SO+ Login</b>
-      <p class="muted">ઈમેલ + પાસવર્ડ. OTP નહીં.</p>
-      <form id="authForm" onsubmit="event.preventDefault();authLogin();return false;">
-      <div class="field"><label>ઈમેલ</label><input id="authEmail" type="email" placeholder="you@gmail.com" autocomplete="username"></div>
-      <div class="field"><label>પાસવર્ડ</label><input id="authPass" type="password" placeholder="ઓછામાં 6 અક્ષર" autocomplete="current-password"></div>
-      <div id="authExtra" class="hidden">
-        <div class="field"><label>પૂરું નામ</label><input id="authName" placeholder="Vanrajsinh Thakor"></div>
-        <div class="field"><label>હોદ્દો</label>
-          <select id="authRole"><option>SO</option><option>AAE</option><option>DEE</option></select>
-        </div>
-        <div class="field"><label>મોબાઇલ</label><input id="authMobile" placeholder="94xxxxxxxx"></div>
-        <div class="field"><label>જિલ્લો</label><input id="authJilla" placeholder="Ahmedabad"></div>
-        <div class="field"><label>તાલુકો</label><input id="authTaluka" placeholder="તાલુકો"></div>
-      </div>
+      <b>SO+</b>
       <p class="muted" id="authMsg"></p>
-      <div class="actions" id="authLoginRow">
-        <button type="submit" class="btn btn-g">Log in</button>
-        <button type="button" class="btn btn-s" onclick="showSignup(true)">Sign up</button>
+      <div class="actions">
+        <button type="button" class="btn btn-w" onclick="authLogout()">Log out</button>
       </div>
-      <div class="actions hidden" id="authSignRow">
-        <button type="button" class="btn btn-g" onclick="authSignup()">અકાઉન્ટ બનાવો</button>
-        <button type="button" class="btn btn-w" onclick="showSignup(false)">પાછા Login</button>
-      </div>
-      </form>
     </div>
   </div>
 
@@ -1628,15 +1609,10 @@
       if(!sbClient) sbClient=window.supabase.createClient(cfg.url, cfg.anon);
       const { data }=await sbClient.auth.getSession();
       if(data&&data.session){ onAuthed(data.session); }
-      else {
-        document.getElementById("authGate").classList.remove("hidden");
-        if(typeof show==="function") show("s-hi");
-      }
-      sbClient.auth.onAuthStateChange(function(_e, session){
-        if(session) onAuthed(session); else {
-          window._soAuthedId=null; window._soIsAdmin=false;
-          document.getElementById("authGate").classList.remove("hidden");
-        }
+      else { location.replace("login.html"); return; }
+      sbClient.auth.onAuthStateChange(function(ev, session){
+        if(session) onAuthed(session);
+        else if(ev==="SIGNED_OUT") location.replace("login.html");
       });
     }catch(e){
       const msg=document.getElementById("authMsg");
@@ -1705,25 +1681,20 @@
     p.status=admin?"Approved":(me&&String(me.subscription_status)==="Trial"?"Trial":(approved?"Approved":"Pending"));
     p.app_role=admin?"super_admin":"aae";
     localStorage.setItem("copilot_profile", JSON.stringify(p));
+    window._soTrial=(!admin && me && String(me.subscription_status)==="Trial")?{left:daysLeft,end:me.subscription_end_date?String(me.subscription_end_date).slice(0,10):""}:null;
     const btn=document.getElementById("btnProfile");
     if(btn) btn.textContent=admin?"👤 Admin":("👤 "+(email.split("@")[0]||"SO"));
+    if(!admin) paintUserBell();
     if(!approved){
       document.getElementById("authGate").classList.remove("hidden");
       const msg=document.getElementById("authMsg");
       if(msg) msg.textContent=(me&&String(me.subscription_status)==="Trial")?"15 દિવસનો ટ્રાયલ પૂરો. Super Admin Approve કરે ત્યાં સુધી રાહ.":"અકાઉન્ટ બન્યું. Super Admin Approve કરે ત્યાં સુધી રાહ.";
-      showSignup(false);
       return;
     }
     document.getElementById("authGate").classList.add("hidden");
     if(admin) loadPending();
   }
-  function showSignup(on){
-    document.getElementById("authExtra").classList.toggle("hidden", !on);
-    document.getElementById("authLoginRow").classList.toggle("hidden", on);
-    document.getElementById("authSignRow").classList.toggle("hidden", !on);
-    document.getElementById("authTitle").textContent=on?"નવું અકાઉન્ટ":"SO+ Login";
-    document.getElementById("authMsg").textContent="";
-  }
+  function showSignup(){}
   function authErr(s){
     s=String(s||"");
     if(/only request this after/i.test(s)) return "થોડી સેકન્ડ રાહ જુઓ, પછી ફરી દબાવો.";
@@ -1772,7 +1743,7 @@
   }
   async function authLogout(){
     if(sbClient) await sbClient.auth.signOut();
-    document.getElementById("authGate").classList.remove("hidden");
+    location.replace("login.html");
   }
 
   function toggleMobMenu(force){
@@ -1788,10 +1759,25 @@
     b.classList.toggle("hidden");
     if(!b.classList.contains("hidden")) loadPending();
   }
+  function paintUserBell(){
+    const b=document.getElementById("notifBox");
+    const dot=document.getElementById("notifDot");
+    const t=window._soTrial;
+    if(!t){
+      if(dot) dot.classList.add("hidden");
+      if(b) b.innerHTML="<b>સૂચના</b><p class='muted'>કોઈ નવી સૂચના નથી.</p>";
+      return;
+    }
+    if(dot) dot.classList.remove("hidden");
+    const left=Number(t.left||0);
+    const line=left>0?("તમારો ટ્રાયલ "+left+" દિવસ બાકી છે."):"તમારો 15 દિવસનો ટ્રાયલ પૂરો થયો.";
+    const when=t.end?("<br><small>છેલ્લી તારીખ: "+t.end+"</small>"):"";
+    if(b) b.innerHTML="<b>સૂચના</b><p style='margin:8px 0 0;color:"+(left<=3?"#b42318":"#9a6700")+"'><b>"+line+"</b>"+when+"</p>";
+  }
   async function loadPending(){
     const b=document.getElementById("notifBox");
     const dot=document.getElementById("notifDot");
-    if(!window._soIsAdmin){ if(dot) dot.classList.add("hidden"); if(b) b.innerHTML="<b>સૂચના</b><p class='muted'>કોઈ નવી સૂચના નથી.</p>"; return; }
+    if(!window._soIsAdmin){ paintUserBell(); return; }
     try{
       const d=await fetch(API+"/api/admin/pending",{headers:await authHeaders()}).then(function(r){return r.json();});
       const items=d.items||[];
