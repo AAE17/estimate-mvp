@@ -1305,11 +1305,11 @@ function dedupeBills(rows) {
 app.get("/api/bills", async (req, res) => {
   try {
     const day = String(req.query.day || req.query.date || "").slice(0, 10);
-    let rows = [];
     const localBills = notDeleted(dbRead(DB_BILL, 500));
+    let remote = [];
     if (sbOn()) {
-      try { rows = notDeleted(await sbSelect("bills", 500)); } catch (_e) { rows = []; }
-      rows.forEach(function (r) {
+      try { remote = notDeleted(await sbSelect("bills", 500)); } catch (_e) { remote = []; }
+      remote.forEach(function (r) {
         const loc = localBills.find(function (x) { return String(x.id) === String(r.id); });
         if (loc) {
           if (!r.day && loc.day) r.day = loc.day;
@@ -1318,9 +1318,8 @@ app.get("/api/bills", async (req, res) => {
         }
       });
     }
-    if (!rows.length) rows = localBills;
+    let rows = mineMerged(remote, localBills, await callerEmail(req));
     if (day) rows = rows.filter(function (r) { return recordDay(r) === day; });
-    rows = onlyMine(rows, await callerEmail(req));
     rows = dedupeBills(rows);
     res.json({ ok: true, bills: rows.slice(0, 80) });
   } catch (e) {
@@ -1749,6 +1748,39 @@ function mergeItems(remote, local) {
 }
 
 function normMail(s) { return String(s || "").trim().toLowerCase(); }
+function mineMerged(remote, local, who) {
+  const loc = local || [];
+  function hit(r) {
+    return loc.find(function (x) {
+      if (!normMail(x && x.user_email)) return false;
+      if (r && x && r.id && x.id && String(r.id) === String(x.id)) return true;
+      const wa = String((r && r.work_name) || "").trim().toLowerCase();
+      const wb = String((x && x.work_name) || "").trim().toLowerCase();
+      if (!wa || wa !== wb) return false;
+      const ta = String((r && r.ts) || "").slice(0, 16);
+      const tb = String((x && x.ts) || "").slice(0, 16);
+      return ta && tb && ta === tb;
+    });
+  }
+  const stamped = (remote || []).map(function (r) {
+    if (normMail(r && r.user_email)) return r;
+    const h = hit(r);
+    return h ? Object.assign({}, r, { user_email: normMail(h.user_email) }) : r;
+  });
+  const rows = onlyMine(stamped, who).concat(onlyMine(loc, who));
+  const out = [];
+  const seen = {};
+  rows.forEach(function (r) {
+    const id = String((r && r.id) || "");
+    const k = String((r && r.work_name) || "").trim().toLowerCase() + "|" + String((r && r.ts) || "").slice(0, 16) + "|" + String((r && r.type) || "").toLowerCase();
+    if ((id && seen["i" + id]) || (k !== "||" && seen["k" + k])) return;
+    if (id) seen["i" + id] = 1;
+    if (k !== "||") seen["k" + k] = 1;
+    out.push(r);
+  });
+  out.sort(function (a, b) { return String(b.ts || "").localeCompare(String(a.ts || "")); });
+  return out;
+}
 async function callerEmail(req) {
   try {
     const u = await authUser(req);
@@ -1840,7 +1872,7 @@ async function sbInsert(table, row) {
     const err = await r.text();
     lastErr = err;
     const missing = err.match(/Could not find the '([^']+)' column/i);
-    if (missing && Object.prototype.hasOwnProperty.call(body, missing[1])) {
+    if (missing && missing[1] !== "user_email" && Object.prototype.hasOwnProperty.call(body, missing[1])) {
       delete body[missing[1]];
       continue;
     }
@@ -2045,11 +2077,11 @@ app.post("/api/db/bills", async (req, res) => {
 });
 app.get("/api/db/bills", async (req, res) => {
   const who = await callerEmail(req);
-  const local = onlyMine(notDeleted(dbRead(DB_BILL, 500)), who);
-  try {
-    if (sbOn()) return res.json({ ok: true, items: dedupeBills(onlyMine(notDeleted(await sbSelect("bills", 500)), who)) });
-  } catch (e) { console.error(e.message); }
-  res.json({ ok: true, items: dedupeBills(local) });
+  const local = notDeleted(dbRead(DB_BILL, 500));
+  let remote = [];
+  try { if (sbOn()) remote = notDeleted(await sbSelect("bills", 500)); }
+  catch (e) { console.error(e.message); }
+  res.json({ ok: true, items: dedupeBills(mineMerged(remote, local, who)) });
 });
 app.post("/api/db/bills/delete", requireUser, async (req, res) => {
   const id = String((req.body && req.body.id) || "");
@@ -2155,14 +2187,11 @@ app.post("/api/db/tour-profile", async (req, res) => {
 });
 app.get("/api/db/estimates", async (req, res) => {
   const who = await callerEmail(req);
-  const local = onlyMine(notDeleted(dbRead(DB_EST, 500)), who);
-  try {
-    if (sbOn()) {
-      const remote = onlyMine(notDeleted(await sbSelect("estimates", 500)), who);
-      return res.json({ ok: true, items: remote });
-    }
-  } catch (e) { console.error(e.message); }
-  res.json({ ok: true, items: local });
+  const local = notDeleted(dbRead(DB_EST, 500));
+  let remote = [];
+  try { if (sbOn()) remote = notDeleted(await sbSelect("estimates", 500)); }
+  catch (e) { console.error(e.message); }
+  res.json({ ok: true, items: mineMerged(remote, local, who) });
 });
 app.post("/api/db/site", async (req, res) => {
   const b = req.body || {};
@@ -2211,14 +2240,11 @@ app.post("/api/db/site", async (req, res) => {
 });
 app.get("/api/db/site", async (req, res) => {
   const who = await callerEmail(req);
-  const local = onlyMine(notDeleted(dbRead(DB_SITE, 500)), who);
-  try {
-    if (sbOn()) {
-      const remote = onlyMine(notDeleted(await sbSelect("site_measures", 500)), who);
-      return res.json({ ok: true, items: mergeItems(remote, local) });
-    }
-  } catch (e) { console.error(e.message); }
-  res.json({ ok: true, items: local });
+  const local = notDeleted(dbRead(DB_SITE, 500));
+  let remote = [];
+  try { if (sbOn()) remote = notDeleted(await sbSelect("site_measures", 500)); }
+  catch (e) { console.error(e.message); }
+  res.json({ ok: true, items: mineMerged(remote, local, who) });
 });
 app.post("/api/db/site/delete", requireUser, async (req, res) => {
   const id = String((req.body && req.body.id) || "");
@@ -2260,9 +2286,11 @@ app.post("/api/db/kachu", async (req, res) => {
 });
 app.get("/api/db/kachu", async (req, res) => {
   const who = await callerEmail(req);
-  try { if (sbOn()) return res.json({ ok: true, items: onlyMine(await sbSelect("kachu_bills", 500), who) }); }
+  const local = dbRead(DB_KACHU, 500);
+  let remote = [];
+  try { if (sbOn()) remote = await sbSelect("kachu_bills", 500); }
   catch (e) { console.error(e.message); }
-  res.json({ ok: true, items: onlyMine(dbRead(DB_KACHU, 500), who) });
+  res.json({ ok: true, items: mineMerged(remote, local, who) });
 });
 app.post("/api/db/media", async (req, res) => {
   const b = req.body || {};
@@ -2305,9 +2333,11 @@ app.post("/api/db/media", async (req, res) => {
 });
 app.get("/api/db/media", async (req, res) => {
   const who = await callerEmail(req);
-  try { if (sbOn()) return res.json({ ok: true, items: onlyMine(await sbSelect("media", 200), who) }); }
+  const local = dbRead(DB_MEDIA, 200);
+  let remote = [];
+  try { if (sbOn()) remote = await sbSelect("media", 200); }
   catch (e) { console.error(e.message); }
-  const items = onlyMine(dbRead(DB_MEDIA, 200), who).map((m) => ({
+  const items = mineMerged(remote, local, who).map((m) => ({
     id: m.id, ts: m.ts, kind: m.kind, work_name: m.work_name, gps: m.gps,
     url: m.url || (m.file ? ("/db/media/" + m.file) : "")
   }));
@@ -2326,9 +2356,15 @@ app.get("/api/db/bundle", async (req, res) => {
   }
   try {
     const who = await callerEmail(req);
-    const ests = onlyMine(sbOn() ? await sbSelect("estimates", 500) : dbRead(DB_EST, 500), who);
-    const sites = onlyMine(sbOn() ? await sbSelect("site_measures", 500) : dbRead(DB_SITE, 500), who);
-    const media = onlyMine(sbOn() ? await sbSelect("media", 200) : dbRead(DB_MEDIA, 200), who);
+    let estRemote = [], siteRemote = [], mediaRemote = [];
+    if (sbOn()) {
+      estRemote = await sbSelect("estimates", 500);
+      siteRemote = await sbSelect("site_measures", 500);
+      mediaRemote = await sbSelect("media", 200);
+    }
+    const ests = mineMerged(estRemote, notDeleted(dbRead(DB_EST, 500)), who);
+    const sites = mineMerged(siteRemote, notDeleted(dbRead(DB_SITE, 500)), who);
+    const media = mineMerged(mediaRemote, dbRead(DB_MEDIA, 200), who);
     const estimate = ests.find(match) || ests.find((x)=> work && String(x.work_name||"").indexOf(work)>=0) || null;
     res.json({
       ok: true,
@@ -2366,11 +2402,18 @@ const OWNER_EMAIL = String(process.env.ADMIN_EMAIL || "vanraj2592@gmail.com").to
 async function authUser(req) {
   const tok = String(req.headers.authorization || "").replace(/^Bearer\s+/i, "");
   if (!tok || !SB_URL) return null;
-  try {
-    const r = await fetch(SB_URL + "/auth/v1/user", { headers: { apikey: SB_KEY, Authorization: "Bearer " + tok } });
-    if (!r.ok) return null;
-    return await r.json();
-  } catch (_e) { return null; }
+  const keys = [SB_KEY, process.env.SUPABASE_SERVICE_ROLE, process.env.SUPABASE_SERVICE_KEY].filter(Boolean);
+  const seen = {};
+  for (let i = 0; i < keys.length; i++) {
+    const key = keys[i];
+    if (seen[key]) continue;
+    seen[key] = 1;
+    try {
+      const r = await fetch(SB_URL + "/auth/v1/user", { headers: { apikey: key, Authorization: "Bearer " + tok } });
+      if (r.ok) return await r.json();
+    } catch (_e) {}
+  }
+  return null;
 }
 async function requireUser(req, res, next) {
   const u = await authUser(req);
