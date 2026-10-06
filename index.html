@@ -1649,6 +1649,13 @@
     try{ if(sbClient){ const { data }=await sbClient.auth.getSession(); if(data&&data.session) h.Authorization="Bearer "+data.session.access_token; } }catch(e){}
     return h;
   }
+  function authFetch(url, opt){
+    return authHeaders().then(function(h){
+      opt = opt || {};
+      const headers = Object.assign({}, h, opt.headers || {});
+      return fetch(url, Object.assign({}, opt, { headers: headers }));
+    });
+  }
   function isAdmin(session){
     const em=((session.user&&session.user.email)||"").toLowerCase();
     return em===ADMIN_EMAIL;
@@ -1661,11 +1668,10 @@
     const meta=(session.user&&session.user.user_metadata)||{};
     const admin=isAdmin(session);
     window._soIsAdmin=admin;
-    let approved=admin || meta.approved===true || meta.approved==="true";
+    let me=null;
     try{
       const meRes=await fetch(API+"/api/admin/me",{headers:await authHeaders()}).then(function(r){return r.json();});
-      const me=meRes&&meRes.item;
-      if(me && (String(me.subscription_status)==="Active"||String(me.status)==="Approved"||String(me.role)==="admin")) approved=true;
+      me=meRes&&meRes.item;
     }catch(e){}
     const p=prGet();
     p.email=email; if(meta.name) p.name=meta.name; if(meta.role) p.role=meta.role;
@@ -1678,21 +1684,33 @@
       if(!p.jilla) p.jilla="Kheda";
       if(!p.taluka) p.taluka="Mahemdabad";
     }
-    p.status=admin?"Approved":(approved?"Approved":"Pending");
-    p.app_role=admin?"super_admin":"aae";
-    localStorage.setItem("copilot_profile", JSON.stringify(p));
     if(sbClient && session.user){
       const want={ name:p.name, role:p.role, mobile:p.mobile, jilla:p.jilla, taluka:p.taluka };
       const changed=Object.keys(want).some(function(k){ return (want[k]||"")!==(meta[k]||""); });
       if(changed) sbClient.auth.updateUser({ data:want }).catch(function(){});
-      authHeaders().then(function(h){ return fetch(API+"/api/admin/profile",{method:"POST",headers:h,body:JSON.stringify(p)}); }).catch(function(){});
+      try{
+        const sv=await fetch(API+"/api/admin/profile",{method:"POST",headers:await authHeaders(),body:JSON.stringify(p)}).then(function(r){return r.json();});
+        if(sv&&sv.item) me=sv.item;
+      }catch(e){}
     }
+    let approved=admin;
+    let daysLeft=0;
+    if(!admin && me){
+      const st=String(me.subscription_status||me.status||"");
+      const end=me.subscription_end_date?new Date(me.subscription_end_date):null;
+      daysLeft=(end&&!isNaN(end.getTime()))?Math.ceil((end.getTime()-Date.now())/864e5):0;
+      if(st==="Active"||st==="Approved"||String(me.role)==="admin") approved=true;
+      else if(st==="Trial"&&daysLeft>0) approved=true;
+    }
+    p.status=admin?"Approved":(me&&String(me.subscription_status)==="Trial"?"Trial":(approved?"Approved":"Pending"));
+    p.app_role=admin?"super_admin":"aae";
+    localStorage.setItem("copilot_profile", JSON.stringify(p));
     const btn=document.getElementById("btnProfile");
     if(btn) btn.textContent=admin?"👤 Admin":("👤 "+(email.split("@")[0]||"SO"));
     if(!approved){
       document.getElementById("authGate").classList.remove("hidden");
       const msg=document.getElementById("authMsg");
-      if(msg) msg.textContent="અકાઉન્ટ બન્યું. Super Admin Approve કરે ત્યાં સુધી રાહ.";
+      if(msg) msg.textContent=(me&&String(me.subscription_status)==="Trial")?"15 દિવસનો ટ્રાયલ પૂરો. Super Admin Approve કરે ત્યાં સુધી રાહ.":"અકાઉન્ટ બન્યું. Super Admin Approve કરે ત્યાં સુધી રાહ.";
       showSignup(false);
       return;
     }
@@ -1782,8 +1800,16 @@
       if(!b) return;
       if(!items.length){ b.innerHTML="<b>યુઝર</b><p class='muted'>યાદી ખાલી. સુપાબેઝમાં profiles ટેબલ બનાવો.</p>"; return; }
       b.innerHTML="<b>Pending / Users</b>"+items.map(function(x){
-        const ok=String(x.subscription_status||x.status)==="Active"||String(x.subscription_status||x.status)==="Approved";
-        return "<div class='mini'><span>"+(x.full_name||x.name||"—")+"<br><small>"+(x.email||"")+" · "+(x.office_location||x.taluka||"")+"</small></span><b>"+(ok?"OK":"<button type='button' class='btn btn-g' style='padding:4px 8px;font-size:11px' onclick='approveUser(\""+String(x.email||"").replace(/"/g,"")+"\")'>Approve</button>")+"</b></div>";
+        const st=String(x.subscription_status||x.status||"");
+        const ok=st==="Active"||st==="Approved"||String(x.role)==="admin";
+        let extra="";
+        if(st==="Trial"&&x.subscription_end_date){
+          const left=Math.ceil((new Date(x.subscription_end_date).getTime()-Date.now())/864e5);
+          extra=" · ટ્રાયલ "+(left>0?(left+" દિવસ"):"પૂરો");
+        }
+        const who=x.name||x.full_name||"—";
+        const place=x.jilla||x.taluka||x.office_location||"";
+        return "<div class='mini'><span>"+who+"<br><small>"+(x.email||"")+(place?(" · "+place):"")+extra+"</small></span><b>"+(ok?"OK":"<button type='button' class='btn btn-g' style='padding:4px 8px;font-size:11px' onclick='approveUser(\""+String(x.email||"").replace(/"/g,"")+"\")'>Approve</button>")+"</b></div>";
       }).join("");
     }catch(e){
       if(b) b.innerHTML="<p class='muted'>યાદી ન ખૂલી</p>";
@@ -1864,7 +1890,7 @@
     sel.innerHTML='<option value="">— પસંદ —</option>';
     const mode=window.__billMode;
     const url = mode===2 ? "/api/db/site" : "/api/db/estimates";
-    fetch((typeof API!=="undefined"?API:"")+url).then(function(r){return r.json();}).then(function(d){
+    authFetch((typeof API!=="undefined"?API:"")+url).then(function(r){return r.json();}).then(function(d){
       let raw=(url.indexOf("estimates")>=0?mergeEstLists(d.items||[]):(d.items||[]));
       if(mode===2){
         const meta=loadSiteMeta();
@@ -2056,11 +2082,28 @@
     return Number(b && b.amounting||0);
   }
   function localBillKey(){ return "copilot_local_bills"; }
-  function loadLocalBills(){ try{ return JSON.parse(localStorage.getItem(localBillKey())||"[]"); }catch(e){ return []; } }
+  function scopeKey(base){
+    const em=String((typeof tourEmail==="function"?tourEmail():"")||"").toLowerCase();
+    return em ? (base+"::"+em) : base;
+  }
+  function scopeGet(base, empty){
+    const k=scopeKey(base);
+    let raw=null;
+    try{ raw=localStorage.getItem(k); }catch(e){}
+    if(raw==null && k!==base && String((typeof tourEmail==="function"?tourEmail():"")||"").toLowerCase()==="vanraj2592@gmail.com"){
+      try{ raw=localStorage.getItem(base); }catch(e){}
+    }
+    if(raw==null) return empty;
+    try{ return JSON.parse(raw); }catch(e){ return empty; }
+  }
+  function scopeSet(base, val){
+    try{ localStorage.setItem(scopeKey(base), JSON.stringify(val)); }catch(e){}
+  }
+  function loadLocalBills(){ return scopeGet(localBillKey(), []); }
   function pushLocalBill(rec){
     const all=loadLocalBills();
     all.unshift(rec);
-    localStorage.setItem(localBillKey(), JSON.stringify(all.slice(0,100)));
+    scopeSet(localBillKey(), all.slice(0,100));
     renderLetterBills();
     renderBillList();
   }
@@ -2068,7 +2111,7 @@
     const el=document.getElementById("billList");
     if(!el) return;
     const base=(typeof API!=="undefined"?API:"");
-    fetch(base+"/api/db/bills").then(function(r){return r.json();}).then(function(d){
+    authFetch(base+"/api/db/bills").then(function(r){return r.json();}).then(function(d){
       const remote=(d&&d.items)||[];
       const rows=remote.length?remote:loadLocalBills();
       el._rows=rows;
@@ -2084,7 +2127,7 @@
           const left=loadLocalBills().filter(function(x){
             return !((x.work_name||"")===(b.work_name||"") && String(x.mb_no||"")===String(b.mb_no||"") && dayOf(x.ts||x.day)===dayOf(b.ts||b.day));
           });
-          localStorage.setItem(localBillKey(), JSON.stringify(left));
+          scopeSet(localBillKey(), left);
           const done=function(){ renderBillList(); if(typeof renderLetterBills==="function") renderLetterBills(); };
           if(b.id){
             authHeaders().then(function(h){ return fetch(base+"/api/db/bills/delete",{method:"POST",headers:h,body:JSON.stringify({id:b.id,work_name:b.work_name||"",ts:b.ts||"",mb_no:b.mb_no||""})}); }).then(done).catch(done);
@@ -2128,7 +2171,7 @@
     }
     paint(local);
     const base=(typeof API!=="undefined"?API:"");
-    fetch(base+"/api/bills?day="+encodeURIComponent(ds)).then(function(r){return r.json();}).then(function(d){
+    authFetch(base+"/api/bills?day="+encodeURIComponent(ds)).then(function(r){return r.json();}).then(function(d){
       const remote=(d && d.bills)||[];
       paint(remote.concat(local));
     }).catch(function(){});
@@ -2509,14 +2552,14 @@ function onLetterDate(){
     all.unshift(item);
     localStorage.setItem(mediaKey(), JSON.stringify(all.slice(0,40)));
     renderMedia();
-    fetch(API+"/api/db/media",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
+    authFetch(API+"/api/db/media",{method:"POST",body:JSON.stringify({
       kind:item.kind, work_name:item.work||"", gps:item.gps||"", data:item.data||""
     })}).catch(function(){});
   }
   function renderMedia(){
     const el=document.getElementById("mediaList");
     if (!el) return;
-    fetch(API+"/api/db/media").then(function(r){return r.json();}).then(function(d){
+    authFetch(API+"/api/db/media").then(function(r){return r.json();}).then(function(d){
       const all=(d&&d.items)||[];
       el.innerHTML = all.length ? all.map(function(m){
         return "<div><span>"+(m.ts||"").slice(0,16)+" · "+(m.kind||"")+" · "+(m.work_name||"")+"</span><b>"+(m.gps||"")+"</b></div>";
@@ -2691,7 +2734,7 @@ function onLetterDate(){
       leave:leavePack()
     };
     try{ localStorage.setItem("copilot_leave", JSON.stringify(body.leave)); }catch(e){}
-    return fetch(API+"/api/db/tour-profile",{
+    return authFetch(API+"/api/db/tour-profile",{
       method:"POST",
       headers:{"Content-Type":"application/json"},
       body:JSON.stringify(body)
@@ -2712,7 +2755,7 @@ function onLetterDate(){
     if (tourYM.m>11){ tourYM.m=0; tourYM.y++; }
     renderTourMonth();
   }
-  function tourDays(){ try{ return JSON.parse(localStorage.getItem("copilot_tour_days")||"{}"); }catch(e){ return {}; } }
+  function tourDays(){ return scopeGet("copilot_tour_days", {}); }
   var TOUR_REMOTE={est:null,bills:null,days:null};
   function tourEmail(){
     try{ return (JSON.parse(localStorage.getItem("copilot_profile")||"{}").email)||""; }
@@ -2724,10 +2767,10 @@ function onLetterDate(){
   function loadTourRemote(){
     const email=tourEmail()||"shared";
     Promise.all([
-      fetch(API+"/api/db/estimates").then(function(r){return r.json();}).catch(function(){return {};}),
-      fetch(API+"/api/db/bills").then(function(r){return r.json();}).catch(function(){return {};}),
-      fetch(API+"/api/db/tour?email="+encodeURIComponent(email)).then(function(r){return r.json();}).catch(function(){return {};}),
-      fetch(API+"/api/db/tour-profile?email="+encodeURIComponent(email)).then(function(r){return r.json();}).catch(function(){return {};})
+      authFetch(API+"/api/db/estimates").then(function(r){return r.json();}).catch(function(){return {};}),
+      authFetch(API+"/api/db/bills").then(function(r){return r.json();}).catch(function(){return {};}),
+      authFetch(API+"/api/db/tour").then(function(r){return r.json();}).catch(function(){return {};}),
+      authFetch(API+"/api/db/tour-profile").then(function(r){return r.json();}).catch(function(){return {};})
     ]).then(function(all){
       if(Array.isArray(all[0].items)) TOUR_REMOTE.est=all[0].items;
       if(Array.isArray(all[1].items)) TOUR_REMOTE.bills=all[1].items;
@@ -2885,11 +2928,11 @@ function onLetterDate(){
       to:(document.getElementById("tdTo")||{}).value||"",
       leave:lv
     };
-    localStorage.setItem("copilot_tour_days", JSON.stringify(days));
+    scopeSet("copilot_tour_days", days);
     TOUR_REMOTE.days=Object.assign({}, TOUR_REMOTE.days||{}, {[ds]:days[ds]});
     renderTourMonth();
     saveTourProfile().catch(function(){});
-    fetch(API+"/api/db/tour",{
+    authFetch(API+"/api/db/tour",{
       method:"POST",
       headers:{"Content-Type":"application/json"},
       body:JSON.stringify({
@@ -3334,11 +3377,11 @@ function onLetterDate(){
 
 
   function localEstKey(){ return "copilot_local_estimates"; }
-  function loadLocalEst(){ try{ return JSON.parse(localStorage.getItem(localEstKey())||"[]"); }catch(e){ return []; } }
+  function loadLocalEst(){ return scopeGet(localEstKey(), []); }
   function pushLocalEst(rec){
     const all=loadLocalEst();
     all.unshift(rec);
-    localStorage.setItem(localEstKey(), JSON.stringify(all.slice(0,80)));
+    scopeSet(localEstKey(), all.slice(0,80));
   }
   function normType(v, name){
     const t=String(v||"").toLowerCase();
@@ -3353,12 +3396,12 @@ function onLetterDate(){
     return Array.isArray(remote) ? remote.slice() : loadLocalEst();
   }
   function siteMetaKey(){ return "copilot_site_meta"; }
-  function loadSiteMeta(){ try{ return JSON.parse(localStorage.getItem(siteMetaKey())||"{}"); }catch(e){ return {}; } }
+  function loadSiteMeta(){ return scopeGet(siteMetaKey(), {}); }
   function saveSiteMeta(work, data){
     if(!work) return;
     const all=loadSiteMeta();
     all[work]=Object.assign(all[work]||{}, data||{}, {ts:Date.now()});
-    localStorage.setItem(siteMetaKey(), JSON.stringify(all));
+    scopeSet(siteMetaKey(), all);
   }
   function metaFor(work){ return loadSiteMeta()[work]||{}; }
 
@@ -3402,7 +3445,7 @@ function onLetterDate(){
     const sel=document.getElementById("dWork");
     if(!sel) return;
     const keep=sel.value;
-    fetch(API+"/api/db/estimates").then(function(r){return r.json();}).then(function(d){
+    authFetch(API+"/api/db/estimates").then(function(r){return r.json();}).then(function(d){
       let rec=mergeEstLists(d.items||[]);
       const want=(document.getElementById("dType")||{}).value||"";
       rec=rec.filter(function(r){
@@ -3423,7 +3466,7 @@ function onLetterDate(){
     const sel=document.getElementById("dWork");
     if(!sel||!sel.value) return;
     const id=sel.value;
-    fetch(API+"/api/db/estimates").then(function(r){return r.json();}).then(function(d){
+    authFetch(API+"/api/db/estimates").then(function(r){return r.json();}).then(function(d){
       const rec=mergeEstLists(d.items||[]).find(function(r){return String(r.id||r.estimate_id||"")===id;});
       if(!rec) return;
       diaryEst=rec;
@@ -3548,7 +3591,7 @@ function onLetterDate(){
     if (est) setTimeout(function(){ const map=document.getElementById("dRows"); if(map) map.scrollIntoView({behavior:"smooth", block:"nearest"}); }, 50);
     if (est && (est.work_name || est.id)) {
       const q = est.id ? ("id="+encodeURIComponent(est.id)) : ("work="+encodeURIComponent(est.work_name||""));
-      fetch(API+"/api/db/bundle?"+q).then(function(r){return r.json();}).then(function(b){
+      authFetch(API+"/api/db/bundle?"+q).then(function(r){return r.json();}).then(function(b){
         if (!b || !b.ok) return;
         const site=(b.site&&b.site[0]);
         if (site) {
@@ -3758,7 +3801,7 @@ function onLetterDate(){
     const money=kachuMoney()||{};
     const tot=Number(money.tot||0);
     const net=money.net!=null ? Number(money.net) : Math.floor(tot);
-    return fetch(API+"/api/db/kachu",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
+    return authFetch(API+"/api/db/kachu",{method:"POST",body:JSON.stringify({
       type:body.type||diaryType(),
       work_name:body.work_name,
       village:body.village,
@@ -3830,7 +3873,7 @@ function onLetterDate(){
       rows:gpRows,
       meas_date:(document.getElementById("dDate")||{}).value||""
     });
-    return fetch(API+"/api/db/site",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
+    return authFetch(API+"/api/db/site",{method:"POST",body:JSON.stringify({
       type:type, work_name:siteWorkName(),
       amounting:estAmt, rows:gpRows, area:area,
       brass: type==="paver" ? area*10.7584/100 : 0,
@@ -3938,7 +3981,7 @@ function onLetterDate(){
     });
   }
   function loadSiteRecs(){
-    return fetch(API+"/api/db/site").then(function(r){return r.json();}).then(function(d){
+    return authFetch(API+"/api/db/site").then(function(r){return r.json();}).then(function(d){
       const raw=(d.items||[]).slice().sort(function(a,b){return String(b.ts||"").localeCompare(String(a.ts||""));});
       const seen={}; const rec=[];
       raw.forEach(function(r){
@@ -3969,7 +4012,7 @@ function onLetterDate(){
     const gam=((document.getElementById("fGam")||{}).value||"").toLowerCase();
     const gr=((document.getElementById("fGrant")||{}).value||"").toLowerCase();
     const yr=((document.getElementById("fYear")||{}).value||"").trim();
-    fetch(API+"/api/db/estimates").then(r=>r.json()).then((d)=>{
+    authFetch(API+"/api/db/estimates").then(r=>r.json()).then((d)=>{
       let rec=mergeEstLists(d.items||[]);
       rec=rec.filter(function(r){
         const g=String(r.village||"").toLowerCase();
@@ -4034,7 +4077,7 @@ function onLetterDate(){
     loadStats();
   }
   function loadStats() {
-    fetch(API + "/api/db/estimates").then((r) => r.json()).then(function (d) {
+    authFetch(API + "/api/db/estimates").then((r) => r.json()).then(function (d) {
       const items = mergeEstLists(d.items || []);
       const today = todayStr();
       const talMap = {};
@@ -4074,7 +4117,7 @@ function onLetterDate(){
         }).join("") : "<tr><td colspan='4'>હજુ એસ્ટિમેટ નથી</td></tr>";
       }
     }).catch(function(){
-      fetch(API + "/api/stats").then((r) => r.json()).then(fillStats).catch(function () {});
+      authFetch(API + "/api/stats").then((r) => r.json()).then(fillStats).catch(function () {});
     });
   }
 
@@ -4877,7 +4920,7 @@ function startScan(camera) {
   async function postJson(url, body, _retried){
     let data;
     try {
-      const res = await fetch(url, {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(body)});
+      const res = await fetch(url, {method:"POST", headers: await authHeaders(), body:JSON.stringify(body)});
       data = await readJsonSafe(res);
     } catch (e) {
       const transient = e.retry || e.name === "TypeError";
