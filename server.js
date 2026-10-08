@@ -2848,6 +2848,24 @@ app.post("/api/bill/cc", async (req, res) => {
 
 app.post("/api/mb/paver", (req, res) => { req.url = "/api/mb"; req.body = Object.assign({}, req.body||{}, { type: "paver" }); return app._router.handle(req, res, function(){}); });
 
+/* v15d: more rows than the MB form has lines -> the extra rows are merged into the last line
+   (same length sum, area-weighted width/depth) so no measurement is dropped */
+function ccRows(segs, max) {
+  if (segs.length <= max) return segs;
+  const head = segs.slice(0, max - 1), tail = segs.slice(max - 1);
+  const L = tail.reduce(function (a, s) { return a + s.L; }, 0);
+  const A = tail.reduce(function (a, s) { return a + s.L * s.W; }, 0);
+  const B = tail.reduce(function (a, s) { return a + s.L * s.W * (s.d || 0); }, 0);
+  return head.concat([{ L: L, W: L ? A / L : 0, d: A ? B / A : 0 }]);
+}
+function paverRows(segs, max) {
+  if (segs.length <= max) return segs;
+  const head = segs.slice(0, max - 1), tail = segs.slice(max - 1);
+  const L = tail.reduce(function (a, s) { return a + s.L; }, 0);
+  const A = tail.reduce(function (a, s) { return a + s.L * s.W; }, 0);
+  const V = tail.reduce(function (a, s) { return a + 2 * s.L + 2 * s.W; }, 0);
+  return head.concat([{ L: L, W: L ? A / L : 0, vata: V }]);
+}
 function fillGpMbMeas(ws, type, gp) {
   const blocks = type === "gutter"
     ? { 225: 9, 300: 12, 450: 15, 600: 18, 900: 21, 1200: 24 }
@@ -2859,8 +2877,17 @@ function fillGpMbMeas(ws, type, gp) {
       const list = pipes.filter(function (p) { return Number(p.dia) === Number(dia) && mixNum(p.l) > 0; });
       for (let k = 0; k < 3; k++) {
         const p = list[k];
-        setVal(ws, "J" + (r0 + k), p ? mixNum(p.l) : 0);
-        if (p) { setVal(ws, "K" + (r0 + k), Number(p.w || 0)); setVal(ws, "L" + (r0 + k), Number(p.d || 0)); }
+        const r = r0 + k;
+        if (p) {
+          setVal(ws, "I" + r, 1);
+          setVal(ws, "J" + r, mixNum(p.l));
+          setVal(ws, "K" + r, Number(p.w || 0));
+          setVal(ws, "L" + r, Number(p.d || 0));
+          ws.getCell("M" + r).value = { formula: "I" + r + "*J" + r + "*K" + r + "*L" + r };
+        } else {
+          /* v15d: unused measurement rows stay blank (no 0 length with template width/depth) */
+          ["I", "J", "K", "L", "M"].forEach(function (col) { setVal(ws, col + r, null); });
+        }
       }
       if (list.length > 3) {
         const eq = wdOf(list.slice(2), 0, 0);
@@ -2868,23 +2895,43 @@ function fillGpMbMeas(ws, type, gp) {
       }
     });
   }
+  /* v15d: demolition counts only when opened AND it has a quantity; an empty demolition is hidden
+     (abstract row 2 hidden, measurement block H2:N6 blank, numbering shifted) instead of printing 0 with the template width 0.45 */
   const dm = gp.demoRow || null;
-  for (let r = 3; r <= 5; r++) setVal(ws, "J" + r, 0);
-  if (dm && dm.open) {
+  const demoQty = dm
+    ? (dm.open ? mixNum(dm.l) * Number(dm.w || 0) * (type === "gutter" ? Number(dm.t || 0) : 1) : 0)
+    : Number(gp.demo || 0);
+  const demoOn = demoQty > 0;
+  for (let r = 3; r <= 5; r++) ["I", "J", "K", "L", "M"].forEach(function (col) { setVal(ws, col + r, null); });
+  if (demoOn && dm) {
+    setVal(ws, "I3", 1);
     setVal(ws, "J3", mixNum(dm.l));
     setVal(ws, "K3", Number(dm.w || 0));
     if (type === "gutter") setVal(ws, "L3", Number(dm.t || 0));
+    ws.getCell("M3").value = { formula: type === "gutter" ? "I3*J3*K3*L3" : "I3*J3*K3" };
   }
+  if (!demoOn) {
+    for (let r = 2; r <= 6; r++) ["H", "I", "J", "K", "L", "M", "N"].forEach(function (col) { setVal(ws, col + r, null); });
+    ws.getRow(2).hidden = true;
+  }
+  let ccQty = 0;
   if (type === "gutter") {
     const cc = gp.ccRow || null;
-    for (let r = 36; r <= 38; r++) setVal(ws, "C" + r, 0);
-    if (cc && dm && dm.open) { setVal(ws, "C36", mixNum(cc.l)); setVal(ws, "D36", Number(cc.w || 0)); setVal(ws, "E36", Number(cc.t || 0)); }
+    ccQty = !demoOn ? 0 : cc ? mixNum(cc.l) * Number(cc.w || 0) * Number(cc.t || 0) : Number(gp.cc || 0);
+    for (let r = 36; r <= 38; r++) ["B", "C", "D", "E", "F"].forEach(function (col) { setVal(ws, col + r, null); });
+    if (ccQty > 0 && cc) {
+      setVal(ws, "B36", 1); setVal(ws, "C36", mixNum(cc.l)); setVal(ws, "D36", Number(cc.w || 0)); setVal(ws, "E36", Number(cc.t || 0));
+      ws.getCell("F36").value = { formula: "B36*C36*D36*E36" };
+    } else if (!(ccQty > 0)) {
+      for (let r = 35; r <= 39; r++) ["A", "B", "C", "D", "E", "F", "G"].forEach(function (col) { setVal(ws, col + r, null); });
+    }
     const ch = gp.ch || {};
     setVal(ws, "I30", Number(ch["60"] || 0));
     setVal(ws, "I31", Number(ch["90"] || 0));
     setVal(ws, "I32", Number(ch["139"] || 0));
     setVal(ws, "I33", Number(ch["1313"] || 0));
   }
+  return { demoOn: demoOn, demoQty: demoQty, ccQty: ccQty };
 }
 
 app.post("/api/mb", async (req, res) => {
@@ -2949,18 +2996,21 @@ app.post("/api/mb", async (req, res) => {
     if (type === "gutter" || type === "pipe") {
       const gp = d.gp || {};
       const by = gp.byDia || {};
-      fillGpMbMeas(ws, type, gp);
+      const meas = fillGpMbMeas(ws, type, gp);
       const ch = gp.ch || {};
-      const num = function (v) { return Number(v || 0); };
+      const num = function (v) { const n = Number(v || 0); return isFinite(n) ? n : 0; };
       const put = function (addr, qty, rate) {
         const q = num(qty);
+        const eAddr = "E" + String(addr).replace(/^[A-Z]+/, "");
+        if (!(q > 0)) { setVal(ws, addr, null); setVal(ws, eAddr, null); return 0; } /* v15d: empty item = blank, not 0 */
         setVal(ws, addr, q);
-        setVal(ws, "E" + String(addr).replace(/^[A-Z]+/, ""), Math.round(q * rate * 100) / 100);
+        setVal(ws, eAddr, Math.round(q * rate * 100) / 100);
         return q * rate;
       };
+      const renum = function (map) { Object.keys(map).forEach(function (a) { setVal(ws, a, map[a]); }); };
       let sub = 0;
       if (type === "gutter") {
-        sub += put("C2", gp.demo, 1030.81);
+        sub += put("C2", meas.demoQty, 1030.81);
         sub += put("C3", gp.exc, 89);
         [[ "C5", 225, 421 ], [ "C6", 300, 672 ], [ "C7", 450, 817 ], [ "C8", 600, 1331 ], [ "C9", 900, 2476 ], [ "C10", 1200, 4121 ]].forEach(function (x) {
           sub += put(x[0], by[x[1]], x[2]);
@@ -2974,14 +3024,16 @@ app.post("/api/mb", async (req, res) => {
         sub += put("C23", gp.refill, 22);
         sub += put("C24", gp.frame, 1121);
         sub += put("C25", gp.cover, 1173);
-        sub += put("C26", gp.cc, 3652.31);
+        sub += put("C26", meas.ccQty, 3652.31);
         sub += put("C27", gp.plate, 306.14);
         setVal(ws, "E28", Math.round(sub * 100) / 100);
         setVal(ws, "E29", Math.round(sub * 0.18 * 100) / 100);
         setVal(ws, "E31", Number(d.amounting || 0));
         ws.getCell("E32").value = { formula: "ROUND(E31-E30,2)" };
+        if (meas.demoOn) renum({ B24: 7.1, B25: 7.2 });
+        else renum({ B3: 1, B4: 2, B11: 3, B18: 4, B23: 5, B24: 6.1, B25: 6.2, B26: 7, B27: 8, H8: 1, H29: "4+6.1+6.2", H35: 5 });
       } else {
-        sub += put("C2", gp.demo, 202.2);
+        sub += put("C2", meas.demoQty, 202.2);
         sub += put("C3", gp.exc, 89);
         [[ "C5", 63, 69 ], [ "C6", 75, 96 ], [ "C7", 90, 139 ], [ "C8", 110, 199 ]].forEach(function (x) {
           sub += put(x[0], by[x[1]], x[2]);
@@ -2996,21 +3048,28 @@ app.post("/api/mb", async (req, res) => {
         setVal(ws, "E18", Math.round(sub * 1.18 * 100) / 100);
         setVal(ws, "E19", Number(d.amounting || 0));
         ws.getCell("E20").value = { formula: "ROUND(E19-E18,2)" };
+        if (!meas.demoOn) renum({ B3: 1, B4: 2, B9: 3, B14: 4, B15: 5, H8: 1, H24: 4 });
       }
     } else if (type === "paver") {
       const excD = Number(d.exc_d || 0.2);
       const dustD = Number(d.dust_d || 0.1);
-      for (let r = 3; r <= 14; r++) {
-        setVal(ws, "G" + r, 0);
-        setVal(ws, "H" + r, 0);
-      }
       setVal(ws, "I3", excD);
-      segs.forEach(function (s, i) {
-        if (i > 11) return;
-        const r = 3 + i;
-        setVal(ws, "G" + r, s.L);
-        setVal(ws, "H" + r, s.W);
-      });
+      const pv = paverRows(segs, 12);
+      for (let r = 3; r <= 14; r++) {
+        const s = pv[r - 3];
+        const v = 21 + (r - 3);
+        if (s) {
+          setVal(ws, "G" + r, s.L);
+          setVal(ws, "H" + r, s.W);
+          /* v15d: binding (dust) depth from the form, template had 0.1 hard-coded */
+          ws.getCell("L" + r).value = { formula: "G" + r + "*H" + r + "*" + dustD };
+          if (s.vata != null) { setVal(ws, "H" + v, s.vata / 4); setVal(ws, "L" + v, s.vata / 4); } /* merged line keeps the full vata of the merged rows */
+        } else {
+          /* v15d: unused rows blank (no 0 × 0 rows, no stale template data) */
+          ["G", "H", "I", "J", "K", "L"].forEach(function (col) { setVal(ws, col + r, null); });
+          ["G", "H", "I", "K", "L", "M"].forEach(function (col) { setVal(ws, col + v, null); });
+        }
+      }
       setVal(ws, "C6", Number(d.test_qty == null ? 1 : d.test_qty));
       setVal(ws, "C7", Number(d.name_plate == null ? 0 : d.name_plate));
       setVal(ws, "E11", Number(d.amounting || 0));
@@ -3036,19 +3095,20 @@ app.post("/api/mb", async (req, res) => {
       const m2 = ws.getCell("M2");
       m2.value = "CC 1:2:4";
       m2.numFmt = "@";
-      segs.forEach(function (s, i) {
-        if (i > 7) return;
+      ccRows(segs, 8).forEach(function (s, i) {
         const r = 3 + i;
-        const depth = s.d || boxT || 0.3;
+        /* v15d: blank depth = 0 box cutting, same as the live preview and the bill (was 0.2 via the duplicate exc_d key) */
+        const depth = s.d || 0;
         setVal(ws, "G" + r, s.L);
         setVal(ws, "H" + r, s.W);
         setVal(ws, "I" + r, depth);
         setVal(ws, "L" + r, s.L);
         setVal(ws, "M" + r, s.W);
         setVal(ws, "N" + r, ccT);
-        setVal(ws, "O" + r, Math.round(s.L * s.W * ccT * 1000) / 1000);
-        setVal(ws, "P" + r, Math.round(s.L * s.W * 1000) / 1000);
-        setVal(ws, "J" + r, Math.round(s.L * s.W * depth * 1000) / 1000);
+        const r6 = function (x) { return Math.round(x * 1e6) / 1e6; };
+        setVal(ws, "O" + r, r6(s.L * s.W * ccT));
+        setVal(ws, "P" + r, r6(s.L * s.W));
+        setVal(ws, "J" + r, r6(s.L * s.W * depth));
       });
       for (let r = 2; r <= 9; r++) {
         ws.getCell("E" + r).value = { formula: "ROUND(C" + r + "*D" + r + ",2)" };

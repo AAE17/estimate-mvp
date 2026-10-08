@@ -3050,6 +3050,8 @@ function onLetterDate(){
     if(lc) lc.style.display = cc ? "" : "none";
     const kt=document.getElementById("kTestRow");
     if(kt) kt.style.display = gp ? "none" : "";
+    const al=document.getElementById("dAreaLine");
+    if(al) al.style.display = gp ? "none" : "";
     if(gp){ renderGpSite(); return; }
     tb.innerHTML="";
     DIARY.forEach((s,i)=>{
@@ -3229,12 +3231,24 @@ function onLetterDate(){
   var SITEGP={};
   function gpState(kind){
     if(!SITEGP[kind]) SITEGP[kind]=gpBlank(kind);
-    return SITEGP[kind];
+    const s=SITEGP[kind], b=gpBlank(kind);
+    if(!Array.isArray(s.pipes) || !s.pipes.length) s.pipes=b.pipes;
+    if(!Array.isArray(s.ch) || !s.ch.length) s.ch=b.ch;
+    if(!s.cc || typeof s.cc!=="object") s.cc=b.cc;
+    if(!s.demo || typeof s.demo!=="object") s.demo=b.demo;
+    if(!("open" in s.demo)){
+      /* v15d: old drafts had no open flag and counted demolition whenever a length was typed */
+      s.demo.open = parseMix(s.demo.l)>0;
+      if(!s.demo.open){ s.demo.l=""; s.demo.w=""; s.demo.t=""; }
+    }
+    if(s.plate==null) s.plate="";
+    return s;
   }
   function gpSiteItems(kind){
     const s=gpState(kind);
     const rows=[];
-    const push=function(sr,name,qty,rate){ rows.push([sr+" "+name, Number(qty||0), rate, Number(qty||0)*rate]); };
+    /* v15d: empty sections are not shown (no 0-qty rows); numbering shifts by 1 when demolition is empty, same as the MB Excel */
+    const push=function(sr,name,qty,rate){ const q=Number(qty||0); if(!(q>0)) return; rows.push([sr+" "+name, q, rate, q*rate]); };
     let exc=0;
     const byDia={};
     (s.pipes||[]).forEach(function(p){
@@ -3251,24 +3265,26 @@ function onLetterDate(){
     const plate=Number(s.plate||0);
     const refill=gpRefillQty(kind, exc, byDia);
     const dias=(typeof GPDIA!=="undefined" && GPDIA[kind]) ? GPDIA[kind] : [];
+    const sh=demo>0?0:1;
+    const n=function(k){ return String(k-sh); };
     if(kind==="pipe"){
-      push("1","Demolition",demo,202.2);
-      push("2","Excavation",exc,89);
-      dias.forEach(function(d,i){ if((byDia[d.d]||0)>0) push("3("+(i+1)+")","PVC "+d.d+" mm", byDia[d.d], d.p); });
-      dias.forEach(function(d,i){ if((byDia[d.d]||0)>0) push("4("+(i+1)+")","Laying "+d.d+" mm", byDia[d.d], d.l); });
-      push("5","Refilling",refill,22);
-      push("6","Name Plate",plate,306.14);
+      push(n(1),"Demolition",demo,202.2);
+      push(n(2),"Excavation",exc,89);
+      dias.forEach(function(d,i){ push(n(3)+"("+(i+1)+")","PVC "+d.d+" mm", byDia[d.d], d.p); });
+      dias.forEach(function(d,i){ push(n(4)+"("+(i+1)+")","Laying "+d.d+" mm", byDia[d.d], d.l); });
+      push(n(5),"Refilling",refill,22);
+      push(n(6),"Name Plate",plate,306.14);
     } else {
-      push("1","Demolition",demo,1030.81);
-      push("2","Excavation",exc,89);
-      dias.forEach(function(d,i){ if((byDia[d.d]||0)>0) push("3("+(i+1)+")","NP2 "+d.d+" mm", byDia[d.d], d.p); });
-      dias.forEach(function(d,i){ if((byDia[d.d]||0)>0) push("4("+(i+1)+")","Laying "+d.d+" mm", byDia[d.d], d.l); });
-      (typeof GPCH!=="undefined"?GPCH:[]).forEach(function(c,i){ if((chMap[c.k]||0)>0) push("5("+(i+1)+")","Chamber "+c.t, chMap[c.k], c.r); });
-      push("6","Refilling",refill,22);
-      push("7(1)","M.H. Frame",chTot,1121);
-      push("7(2)","M.H. Cover",chTot,1173);
-      push("8","New C.C. 1:2:4",ccq,3652.31);
-      push("9","Name Plate",plate,306.14);
+      push(n(1),"Demolition",demo,1030.81);
+      push(n(2),"Excavation",exc,89);
+      dias.forEach(function(d,i){ push(n(3)+"("+(i+1)+")","NP2 "+d.d+" mm", byDia[d.d], d.p); });
+      dias.forEach(function(d,i){ push(n(4)+"("+(i+1)+")","Laying "+d.d+" mm", byDia[d.d], d.l); });
+      (typeof GPCH!=="undefined"?GPCH:[]).forEach(function(c,i){ push(n(5)+"("+(i+1)+")","Chamber "+c.t, chMap[c.k], c.r); });
+      push(n(6),"Refilling",refill,22);
+      push(n(7)+"(1)","M.H. Frame",chTot,1121);
+      push(n(7)+"(2)","M.H. Cover",chTot,1173);
+      push(n(8),"New C.C. 1:2:4",ccq,3652.31);
+      push(n(9),"Name Plate",plate,306.14);
     }
     let sub=0;
     rows.forEach(function(it){ sub+=it[3]; });
@@ -3370,6 +3386,7 @@ function onLetterDate(){
     const items=x.items||[];
     let h="<table class='mb-live'><thead><tr><th>આઇટમ</th><th>Qty</th><th>Rate</th><th>Amount</th></tr></thead><tbody>";
     items.forEach(function(it){
+      if(!(Math.abs(Number(it[1]||0))>1e-9)) return;
       h+="<tr><td>"+it[0]+"</td><td>"+Number(it[1]||0).toFixed(2)+"</td><td>"+Number(it[2]||0)+"</td><td>"+Math.round(it[3]||0).toLocaleString("en-IN")+"</td></tr>";
     });
     h+="<tr class='sum'><td colspan='3'>કુલ</td><td>"+Math.round(x.sub||0).toLocaleString("en-IN")+"</td></tr>";
@@ -3741,7 +3758,7 @@ function onLetterDate(){
       type: diaryType(),
       contractor:(document.getElementById("dContractor")||{}).value||"",
       aae:(document.getElementById("dAAE")||{}).value||"",
-      cc_t:ccThick(), exc_d:0,
+      cc_t:ccThick(),
       grant:(typeof siteFundHead==="function"?siteFundHead():(document.getElementById("dGrant")||{}).value||""),
       taluka:(document.getElementById("dTaluka")||{}).value||(diaryEst&&diaryEst.taluka)||"",
       amounting:Number((document.getElementById("dAmtIn")||{}).value||0),
@@ -3761,7 +3778,7 @@ function onLetterDate(){
         const cc=demoOn ? parseMix(s.cc.l)*Number(s.cc.w||0)*Number(s.cc.t||0) : 0;
         return { byDia:byDia, ch:ch, demo:demo, exc:x.exc, refill:x.refill, plate:Number(s.plate||0), frame:frame, cover:frame, cc:cc, pipes:s.pipes||[], demoRow:s.demo||null, ccRow:s.cc||null };
       })(),
-      test_qty:Number((document.getElementById("kTest")||{}).value||1),
+      test_qty:Number((document.getElementById("kTest")||{}).value||(diaryType()==="paver"?1:0)),
       name_plate:Number((document.getElementById("kPlate")||{}).value||0),
       exc_d:Number((document.getElementById("dExcD")||{}).value||0.2),
       dust_d:Number((document.getElementById("dDustD")||{}).value||0.1),
@@ -3777,6 +3794,7 @@ function onLetterDate(){
     if (abs) {
       let h="<div><span>Item · Qty</span><b>Amount</b></div>";
       (p.items||[]).forEach(function(it){
+        if(!(Math.abs(Number(it[1]||0))>1e-9)) return;
         h += "<div><span>"+it[0]+" · "+(Math.round(it[1]*1000)/1000)+"</span><b>"+inr0(it[3])+"</b></div>";
       });
       h += "<div><span>GST 18%</span><b>"+inr0(p.gst)+"</b></div>";
