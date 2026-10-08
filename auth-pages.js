@@ -1,5 +1,4 @@
 (function () {
-  var ADMIN = "vanraj2592@gmail.com";
   var sb = null;
   function msg(t) {
     var m = document.getElementById("authMsg");
@@ -67,20 +66,19 @@
     if (password !== password2) { msg("બંને પાસવર્ડ એકસરખા નથી"); return; }
     if (!role || !jilla || !taluka) { msg("હોદ્દો, જિલ્લો અને તાલુકો પસંદ કરો"); return; }
     msg("બની રહ્યું છે…");
-    var isAd = email.toLowerCase() === ADMIN;
     try {
       var c = await client();
       var up = await c.auth.signUp({
         email: email,
         password: password,
-        options: { data: { name: name, role: role, mobile: mobile, jilla: jilla, taluka: taluka, app_role: isAd ? "super_admin" : "aae", approved: isAd } }
+        options: { data: { name: name, role: role, mobile: mobile, jilla: jilla, taluka: taluka } }
       });
       if (up.error) { msg(errText(up.error.message)); return; }
       var inn = await c.auth.signInWithPassword({ email: email, password: password });
       if (inn.error) { msg("અકાઉન્ટ બન્યું. 30 સેકન્ડ પછી Log in દબાવો."); return; }
       try {
         var token = inn.data && inn.data.session && inn.data.session.access_token;
-        await fetch("/api/admin/profile", {
+        await fetch("/api/me/profile", {
           method: "POST",
           headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
           body: JSON.stringify({ email: email, name: name, role: role, mobile: mobile, jilla: jilla, taluka: taluka })
