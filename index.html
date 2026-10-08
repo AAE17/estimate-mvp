@@ -1573,7 +1573,7 @@
     if(!p.status) p.status="Pending";
     localStorage.setItem("copilot_profile", JSON.stringify(p));
     setHomeOffice();
-    authHeaders().then(function(h){ return fetch(API+"/api/admin/profile",{method:"POST",headers:h,body:JSON.stringify(p)}); }).catch(function(){});
+    authHeaders().then(function(h){ return fetch(API+"/api/me/profile",{method:"POST",headers:h,body:JSON.stringify(p)}); }).catch(function(){});
     applyProfileToForm(); if(typeof setHomeOffice==="function") setHomeOffice();
     alert("પ્રોફાઇલ સેવ");
   }
@@ -1642,18 +1642,19 @@
     window._soAuthedId=uid;
     const email=(session.user&&session.user.email)||"";
     const meta=(session.user&&session.user.user_metadata)||{};
-    const admin=isAdmin(session);
+    let admin=isAdmin(session);
     window._soIsAdmin=admin;
     let me=null;
     try{
-      const meRes=await fetch(API+"/api/admin/me",{headers:await authHeaders()}).then(function(r){return r.json();});
+      const meRes=await fetch(API+"/api/me",{headers:await authHeaders()}).then(function(r){return r.json();});
+      if(meRes&&meRes.admin===true) admin=true;
       me=meRes&&meRes.item;
     }catch(e){}
+    window._soIsAdmin=admin;
     const p=prGet();
     p.email=email; if(meta.name) p.name=meta.name; if(meta.role) p.role=meta.role;
     if(meta.mobile) p.mobile=meta.mobile; if(meta.jilla) p.jilla=meta.jilla;
     if(meta.taluka) p.taluka=meta.taluka;
-    if(me && (String(me.role)==="admin" || String(me.app_role)==="super_admin")) admin=true;
     if(admin){
       if(!p.role) p.role="SO";
     }
@@ -1662,7 +1663,7 @@
       const changed=Object.keys(want).some(function(k){ return (want[k]||"")!==(meta[k]||""); });
       if(changed) sbClient.auth.updateUser({ data:want }).catch(function(){});
       try{
-        const sv=await fetch(API+"/api/admin/profile",{method:"POST",headers:await authHeaders(),body:JSON.stringify(p)}).then(function(r){return r.json();});
+        const sv=await fetch(API+"/api/me/profile",{method:"POST",headers:await authHeaders(),body:JSON.stringify(p)}).then(function(r){return r.json();});
         if(sv&&sv.item) me=sv.item;
       }catch(e){}
     }
@@ -1713,17 +1714,15 @@
     const mobile=(document.getElementById("authMobile")||{}).value||"";
     const jilla=(document.getElementById("authJilla")||{}).value||"";
     const taluka=(document.getElementById("authTaluka")||{}).value||"";
-    const isAd=email.trim().toLowerCase()===ADMIN_EMAIL;
     const { data, error }=await sbClient.auth.signUp({ email, password, options:{ data:{
-      name:name, role:role, mobile:mobile, jilla:jilla, taluka:taluka,
-      app_role:isAd?"super_admin":"aae", approved:isAd
+      name:name, role:role, mobile:mobile, jilla:jilla, taluka:taluka
     }}});
     if(error){ if(msg) msg.textContent=authErr(error.message); return; }
     const p=prGet();
     p.email=email; p.name=name; p.role=role; p.mobile=mobile; p.jilla=jilla; p.taluka=taluka;
-    p.app_role=isAd?"super_admin":"aae"; p.status=isAd?"Approved":"Pending";
+    p.status="Pending";
     localStorage.setItem("copilot_profile", JSON.stringify(p));
-    authHeaders().then(function(h){ return fetch(API+"/api/admin/profile",{method:"POST",headers:h,body:JSON.stringify(p)}); }).catch(function(){});
+    authHeaders().then(function(h){ return fetch(API+"/api/me/profile",{method:"POST",headers:h,body:JSON.stringify(p)}); }).catch(function(){});
     const { error: e2 }=await sbClient.auth.signInWithPassword({ email, password });
     if(e2){ if(msg) msg.textContent="અકાઉન્ટ બન્યું. 30 સેકન્ડ પછી Log in દબાવો."; return; }
   }
