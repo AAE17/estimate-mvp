@@ -12,6 +12,8 @@ app.use(cors());
 app.use(express.json({ limit: "12mb" }));
 app.get("/", (_req, res) => res.sendFile(path.join(__dirname, "index.html")));
 app.get("/index.html", (_req, res) => res.sendFile(path.join(__dirname, "index.html")));
+app.get(["/login.html", "/login"], (_req, res) => res.sendFile(path.join(__dirname, "login.html")));
+app.get("/gj-geo.json", (_req, res) => res.sendFile(path.join(__dirname, "gj-geo.json")));
 
 function istDay(input) {
   const dt = input ? new Date(input) : new Date();
