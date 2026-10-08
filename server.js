@@ -2889,6 +2889,8 @@ function fillGpMbMeas(ws, type, gp) {
           ["I", "J", "K", "L", "M"].forEach(function (col) { setVal(ws, col + r, null); });
         }
       }
+      /* v15e: unused dia block -> no green "0" subtotal (formula =SUM(J..) left only where pipes exist) */
+      if (!list.length) setVal(ws, "N" + (r0 + 2), null);
       if (list.length > 3) {
         const eq = wdOf(list.slice(2), 0, 0);
         setVal(ws, "J" + (r0 + 2), eq.l); setVal(ws, "K" + (r0 + 2), eq.w); setVal(ws, "L" + (r0 + 2), eq.d);
@@ -2930,6 +2932,7 @@ function fillGpMbMeas(ws, type, gp) {
     setVal(ws, "I31", Number(ch["90"] || 0));
     setVal(ws, "I32", Number(ch["139"] || 0));
     setVal(ws, "I33", Number(ch["1313"] || 0));
+    setVal(ws, "H33", "1.30*1.30"); /* v15e: template label said 1.30*0.90 twice */
   }
   return { demoOn: demoOn, demoQty: demoQty, ccQty: ccQty };
 }
@@ -3126,7 +3129,8 @@ app.post("/api/mb", async (req, res) => {
 
     const prefix = type === "cc" ? "MB_CC" : type === "gutter" ? "MB_GUTTER" : type === "pipe" ? "MB_PIPE" : "MB_PAVER";
     const areas = {};
-    areas[ws.name] = type === "cc" ? "A1:P20" : type === "gutter" ? "A1:N32" : type === "pipe" ? "A1:N30" : "A1:M32";
+    /* v15e: print areas cover the whole MB form (pipe Net Qty row 31, gutter rows 33-44 = 4th chamber, CC Road measurement, Filling; paver vata total row 33; "Rmt" labels in column O) */
+    areas[ws.name] = type === "cc" ? "A1:P20" : type === "gutter" ? "A1:O44" : type === "pipe" ? "A1:O31" : "A1:M33";
     wb.worksheets.slice().forEach(function (w) {
       if (w && ws && w.id !== ws.id) {
         try { wb.removeWorksheet(w.id); } catch (_e) { w.state = "hidden"; }
