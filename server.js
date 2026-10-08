@@ -1382,7 +1382,7 @@ function dbRead(file, limit) {
 const SB_URL = (process.env.SUPABASE_URL || "").replace(/\/$/, "");
 const SB_KEY = process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_KEY || "";
 function sbOn() { return !!(SB_URL && SB_KEY); }
-const ADMIN_EMAIL = String(process.env.ADMIN_EMAIL || "").toLowerCase();
+const ADMIN_EMAIL = String(process.env.ADMIN_EMAIL || "vanraj2592@gmail.com").toLowerCase();
 async function authUser(req) {
   const token = String(req.headers.authorization || "").replace(/^Bearer\s+/i, "");
   if (!token || !sbOn()) return null;
@@ -1403,10 +1403,7 @@ function requireAdmin(req, res, next) {
   authUser(req).then(function (u) {
     if (!u || !u.email) return res.status(401).json({ ok: false, error: "login" });
     const em = String(u.email).toLowerCase();
-    const role = String((u.user_metadata && u.user_metadata.app_role) || "");
-    if (em !== ADMIN_EMAIL && role !== "super_admin" && role !== "admin") {
-      return res.status(403).json({ ok: false, error: "admin" });
-    }
+    if (!ADMIN_EMAIL || em !== ADMIN_EMAIL) return res.status(403).json({ ok: false, error: "admin" });
     req.user = u;
     next();
   }).catch(function () { res.status(401).json({ ok: false, error: "login" }); });
@@ -1414,6 +1411,19 @@ function requireAdmin(req, res, next) {
 app.use("/api/db", requireUser);
 app.use("/api/admin", requireAdmin);
 app.use("/api/bills", requireUser);
+function ownEmail(req) {
+  return String((req.user && req.user.email) || "").toLowerCase();
+}
+function isAdminUser(req) {
+  return !!ADMIN_EMAIL && ownEmail(req) === ADMIN_EMAIL;
+}
+function onlyMine(rows, email, admin) {
+  if (admin) return rows || [];
+  return (rows || []).filter(function (x) {
+    const o = String(x.user_email || x.email || "").toLowerCase();
+    return !!o && o === email;
+  });
+}
 function mergeItems(remote, local) {
   const out = [];
   const seen = {};
@@ -1432,11 +1442,11 @@ function mergeItems(remote, local) {
 
 function sbPick(table, row) {
   const cols = {
-    estimates: ["id","ts","type","village","taluka","jilla","work_name","fund_head","amounting","length_m","width_m","area","brass","prepared_by"],
-    site_measures: ["id","ts","type","work_name","amounting","rows","area","brass","bill","gps","estimate_id","taluka","village","fund_head","grant_head","contractor"],
-    media: ["id","ts","kind","work_name","gps","url"],
-    kachu_bills: ["id","ts","type","work_name","village","amounting","total","net","test_qty","name_plate","preview","xlsx"],
-    bills: ["id","ts","type","work_name","village","taluka","fund_head","amounting","prepared_by","mb_no"]
+    estimates: ["id","ts","type","village","taluka","jilla","work_name","fund_head","amounting","length_m","width_m","area","brass","prepared_by","user_email"],
+    site_measures: ["id","ts","type","work_name","amounting","rows","area","brass","bill","gps","estimate_id","taluka","village","fund_head","grant_head","contractor","prepared_by","user_email","cc_t","test_qty","name_plate","done"],
+    media: ["id","ts","kind","work_name","gps","url","user_email"],
+    kachu_bills: ["id","ts","type","work_name","village","amounting","total","net","test_qty","name_plate","preview","xlsx","pdf","user_email"],
+    bills: ["id","ts","type","work_name","village","taluka","fund_head","amounting","prepared_by","mb_no","user_email","day","net","kind"]
   }[table] || Object.keys(row);
   const o = {};
   cols.forEach(function (k) { if (row[k] !== undefined) o[k] = row[k]; });
@@ -1478,10 +1488,10 @@ async function sbInsert(table, row) {
   const js = await r.json();
   return Array.isArray(js) ? js[0] : js;
 }
-async function sbSelect(table, limit, token) {
-  const auth = token || SB_KEY;
+async function sbSelect(table, limit) {
+  const key = process.env.SUPABASE_SERVICE_ROLE || process.env.SUPABASE_SERVICE_KEY || SB_KEY;
   const r = await fetch(SB_URL + "/rest/v1/" + table + "?select=*&order=ts.desc&limit=" + (limit || 200), {
-    headers: { apikey: SB_KEY, Authorization: "Bearer " + auth }
+    headers: { apikey: key, Authorization: "Bearer " + key }
   });
   if (!r.ok) throw new Error(await r.text());
   return await r.json();
@@ -1629,7 +1639,8 @@ app.post("/api/db/estimate", (req, res) => {
     length_m: Number(b.length_m || 0),
     width_m: Number(b.width_m || 0),
     brass: Number(b.brass || 0),
-    prepared_by: b.prepared_by || ""
+    prepared_by: b.prepared_by || "",
+    user_email: ownEmail(req)
   });
   if (sbOn()) sbInsert("estimates", rec).catch(function(e){ console.error(e.message); });
   res.json({ ok: true, id: rec.id });
@@ -1647,7 +1658,8 @@ app.post("/api/db/bills", (req, res) => {
     net: Number(b.net || b.amounting || 0),
     day: String(b.day || istDay()).slice(0, 10),
     mb_no: b.mb_no || "",
-    prepared_by: b.prepared_by || ""
+    prepared_by: b.prepared_by || "",
+    user_email: ownEmail(req)
   });
   if (sbOn()) sbInsert("bills", rec).catch(function (e) { console.error(e.message); });
   res.json({ ok: true, id: rec.id });
@@ -1657,7 +1669,7 @@ app.get("/api/db/bills", async (req, res) => {
   const admin = isAdminUser(req);
   const local = onlyMine(notDeleted(dbRead(DB_BILL, 200)), email, admin);
   try {
-    if (sbOn()) return res.json({ ok: true, items: onlyMine(notDeleted(await sbSelect("bills", 200, userToken(req))), email, admin) });
+    if (sbOn()) return res.json({ ok: true, items: onlyMine(notDeleted(await sbSelect("bills", 200)), email, admin) });
   } catch (e) { console.error(e.message); }
   res.json({ ok: true, items: local });
 });
@@ -1677,7 +1689,7 @@ app.get("/api/db/tour", async (req, res) => {
     const use = isAdminUser(req) && ask ? ask : email;
     let url = SB_URL + "/rest/v1/tour_days?select=*&order=day.desc&limit=400&email=eq." + encodeURIComponent(use);
     const r = await fetch(url, {
-      headers: { apikey: SB_KEY, Authorization: "Bearer " + (userToken(req) || SB_KEY) }
+      headers: { apikey: process.env.SUPABASE_SERVICE_ROLE || process.env.SUPABASE_SERVICE_KEY || SB_KEY, Authorization: "Bearer " + (process.env.SUPABASE_SERVICE_ROLE || process.env.SUPABASE_SERVICE_KEY || SB_KEY) }
     });
     if (!r.ok) throw new Error(await r.text());
     res.json({ ok: true, items: await r.json() });
@@ -1690,7 +1702,7 @@ app.post("/api/db/tour", async (req, res) => {
     if (!sbOn()) return res.json({ ok: false, error: "no supabase" });
     const b = req.body || {};
     const row = {
-      email: String(b.email || "").trim() || "shared",
+      email: ownEmail(req) || "shared",
       day: String(b.day || "").slice(0, 10),
       act: b.act || "none",
       note: b.note || "",
@@ -1723,7 +1735,7 @@ app.get("/api/db/tour-profile", async (req, res) => {
     const ask = String((req.query && req.query.email) || "").trim().toLowerCase();
     const use = isAdminUser(req) && ask ? ask : email;
     if (!email) return res.json({ ok: true, item: null });
-    const url = SB_URL + "/rest/v1/tour_profile?select=*&email=eq." + encodeURIComponent(email) + "&limit=1";
+    const url = SB_URL + "/rest/v1/tour_profile?select=*&email=eq." + encodeURIComponent(use) + "&limit=1";
     const r = await fetch(url, { headers: { apikey: SB_KEY, Authorization: "Bearer " + SB_KEY } });
     if (!r.ok) throw new Error(await r.text());
     const rows = await r.json();
@@ -1737,7 +1749,7 @@ app.post("/api/db/tour-profile", async (req, res) => {
     if (!sbOn()) return res.json({ ok: false, error: "no supabase" });
     const b = req.body || {};
     const row = {
-      email: String(b.email || "").trim() || "shared",
+      email: ownEmail(req) || "shared",
       name: b.name || "",
       office: b.office || "",
       mobile: b.mobile || "",
@@ -1765,7 +1777,7 @@ app.get("/api/db/estimates", async (req, res) => {
   const local = onlyMine(notDeleted(dbRead(DB_EST, 200)), email, admin);
   try {
     if (sbOn()) {
-      const remote = onlyMine(notDeleted(await sbSelect("estimates", 200, userToken(req))), email, admin);
+      const remote = onlyMine(notDeleted(await sbSelect("estimates", 200)), email, admin);
       return res.json({ ok: true, items: remote });
     }
   } catch (e) { console.error(e.message); }
@@ -1799,7 +1811,7 @@ app.get("/api/db/site", async (req, res) => {
   const local = onlyMine(notDeleted(dbRead(DB_SITE, 200)), email, admin);
   try {
     if (sbOn()) {
-      const remote = onlyMine(notDeleted(await sbSelect("site_measures", 200, userToken(req))), email, admin);
+      const remote = onlyMine(notDeleted(await sbSelect("site_measures", 200)), email, admin);
       return res.json({ ok: true, items: mergeItems(remote, local) });
     }
   } catch (e) { console.error(e.message); }
@@ -1834,7 +1846,7 @@ app.post("/api/db/kachu", (req, res) => {
 app.get("/api/db/kachu", async (req, res) => {
   const email = ownEmail(req);
   const admin = isAdminUser(req);
-  try { if (sbOn()) return res.json({ ok: true, items: onlyMine(await sbSelect("kachu_bills", 200, userToken(req)), email, admin) }); }
+  try { if (sbOn()) return res.json({ ok: true, items: onlyMine(await sbSelect("kachu_bills", 200), email, admin) }); }
   catch (e) { console.error(e.message); }
   res.json({ ok: true, items: onlyMine(dbRead(DB_KACHU, 200), email, admin) });
 });
@@ -1878,7 +1890,7 @@ app.post("/api/db/media", (req, res) => {
 app.get("/api/db/media", async (req, res) => {
   const email = ownEmail(req);
   const admin = isAdminUser(req);
-  try { if (sbOn()) return res.json({ ok: true, items: onlyMine(await sbSelect("media", 80, userToken(req)), email, admin) }); }
+  try { if (sbOn()) return res.json({ ok: true, items: onlyMine(await sbSelect("media", 80), email, admin) }); }
   catch (e) { console.error(e.message); }
   const items = onlyMine(dbRead(DB_MEDIA, 80), email, admin).map((m) => ({
     id: m.id, ts: m.ts, kind: m.kind, work_name: m.work_name, gps: m.gps,
@@ -1900,9 +1912,9 @@ app.get("/api/db/bundle", async (req, res) => {
   try {
     const email = ownEmail(req);
     const admin = isAdminUser(req);
-    const ests = onlyMine(sbOn() ? await sbSelect("estimates", 200, userToken(req)) : dbRead(DB_EST, 200), email, admin);
-    const sites = onlyMine(sbOn() ? await sbSelect("site_measures", 200, userToken(req)) : dbRead(DB_SITE, 200), email, admin);
-    const media = onlyMine(sbOn() ? await sbSelect("media", 80, userToken(req)) : dbRead(DB_MEDIA, 80), email, admin);
+    const ests = onlyMine(sbOn() ? await sbSelect("estimates", 200) : dbRead(DB_EST, 200), email, admin);
+    const sites = onlyMine(sbOn() ? await sbSelect("site_measures", 200) : dbRead(DB_SITE, 200), email, admin);
+    const media = onlyMine(sbOn() ? await sbSelect("media", 80) : dbRead(DB_MEDIA, 80), email, admin);
     const estimate = ests.find(match) || ests.find((x)=> work && String(x.work_name||"").indexOf(work)>=0) || null;
     res.json({
       ok: true,
@@ -2793,6 +2805,7 @@ app.post("/api/bill/pipe", async (req, res) => {
 
 
 if (require.main === module) {
+  process.on("unhandledRejection", function (e) { console.error("unhandledRejection:", (e && e.stack) || e); });
   resetLoProfile();
   app.listen(PORT, () => {
     console.log("ParaState MVP on " + PORT);
