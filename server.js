@@ -1478,12 +1478,16 @@ async function sbInsert(table, row) {
   const js = await r.json();
   return Array.isArray(js) ? js[0] : js;
 }
-async function sbSelect(table, limit) {
+async function sbSelect(table, limit, token) {
+  const auth = token || SB_KEY;
   const r = await fetch(SB_URL + "/rest/v1/" + table + "?select=*&order=ts.desc&limit=" + (limit || 200), {
-    headers: { apikey: SB_KEY, Authorization: "Bearer " + SB_KEY }
+    headers: { apikey: SB_KEY, Authorization: "Bearer " + auth }
   });
   if (!r.ok) throw new Error(await r.text());
   return await r.json();
+}
+function userToken(req) {
+  return String((req && req.headers && req.headers.authorization) || "").replace(/^Bearer\s+/i, "");
 }
 async function sbDelete(table, id) {
   if (!sbOn() || !id) return 0;
@@ -1653,7 +1657,7 @@ app.get("/api/db/bills", async (req, res) => {
   const admin = isAdminUser(req);
   const local = onlyMine(notDeleted(dbRead(DB_BILL, 200)), email, admin);
   try {
-    if (sbOn()) return res.json({ ok: true, items: onlyMine(notDeleted(await sbSelect("bills", 200)), email, admin) });
+    if (sbOn()) return res.json({ ok: true, items: onlyMine(notDeleted(await sbSelect("bills", 200, userToken(req))), email, admin) });
   } catch (e) { console.error(e.message); }
   res.json({ ok: true, items: local });
 });
@@ -1673,7 +1677,7 @@ app.get("/api/db/tour", async (req, res) => {
     const use = isAdminUser(req) && ask ? ask : email;
     let url = SB_URL + "/rest/v1/tour_days?select=*&order=day.desc&limit=400&email=eq." + encodeURIComponent(use);
     const r = await fetch(url, {
-      headers: { apikey: SB_KEY, Authorization: "Bearer " + SB_KEY }
+      headers: { apikey: SB_KEY, Authorization: "Bearer " + (userToken(req) || SB_KEY) }
     });
     if (!r.ok) throw new Error(await r.text());
     res.json({ ok: true, items: await r.json() });
@@ -1761,7 +1765,7 @@ app.get("/api/db/estimates", async (req, res) => {
   const local = onlyMine(notDeleted(dbRead(DB_EST, 200)), email, admin);
   try {
     if (sbOn()) {
-      const remote = onlyMine(notDeleted(await sbSelect("estimates", 200)), email, admin);
+      const remote = onlyMine(notDeleted(await sbSelect("estimates", 200, userToken(req))), email, admin);
       return res.json({ ok: true, items: remote });
     }
   } catch (e) { console.error(e.message); }
@@ -1795,7 +1799,7 @@ app.get("/api/db/site", async (req, res) => {
   const local = onlyMine(notDeleted(dbRead(DB_SITE, 200)), email, admin);
   try {
     if (sbOn()) {
-      const remote = onlyMine(notDeleted(await sbSelect("site_measures", 200)), email, admin);
+      const remote = onlyMine(notDeleted(await sbSelect("site_measures", 200, userToken(req))), email, admin);
       return res.json({ ok: true, items: mergeItems(remote, local) });
     }
   } catch (e) { console.error(e.message); }
@@ -1830,7 +1834,7 @@ app.post("/api/db/kachu", (req, res) => {
 app.get("/api/db/kachu", async (req, res) => {
   const email = ownEmail(req);
   const admin = isAdminUser(req);
-  try { if (sbOn()) return res.json({ ok: true, items: onlyMine(await sbSelect("kachu_bills", 200), email, admin) }); }
+  try { if (sbOn()) return res.json({ ok: true, items: onlyMine(await sbSelect("kachu_bills", 200, userToken(req)), email, admin) }); }
   catch (e) { console.error(e.message); }
   res.json({ ok: true, items: onlyMine(dbRead(DB_KACHU, 200), email, admin) });
 });
@@ -1874,7 +1878,7 @@ app.post("/api/db/media", (req, res) => {
 app.get("/api/db/media", async (req, res) => {
   const email = ownEmail(req);
   const admin = isAdminUser(req);
-  try { if (sbOn()) return res.json({ ok: true, items: onlyMine(await sbSelect("media", 80), email, admin) }); }
+  try { if (sbOn()) return res.json({ ok: true, items: onlyMine(await sbSelect("media", 80, userToken(req)), email, admin) }); }
   catch (e) { console.error(e.message); }
   const items = onlyMine(dbRead(DB_MEDIA, 80), email, admin).map((m) => ({
     id: m.id, ts: m.ts, kind: m.kind, work_name: m.work_name, gps: m.gps,
@@ -1896,9 +1900,9 @@ app.get("/api/db/bundle", async (req, res) => {
   try {
     const email = ownEmail(req);
     const admin = isAdminUser(req);
-    const ests = onlyMine(sbOn() ? await sbSelect("estimates", 200) : dbRead(DB_EST, 200), email, admin);
-    const sites = onlyMine(sbOn() ? await sbSelect("site_measures", 200) : dbRead(DB_SITE, 200), email, admin);
-    const media = onlyMine(sbOn() ? await sbSelect("media", 80) : dbRead(DB_MEDIA, 80), email, admin);
+    const ests = onlyMine(sbOn() ? await sbSelect("estimates", 200, userToken(req)) : dbRead(DB_EST, 200), email, admin);
+    const sites = onlyMine(sbOn() ? await sbSelect("site_measures", 200, userToken(req)) : dbRead(DB_SITE, 200), email, admin);
+    const media = onlyMine(sbOn() ? await sbSelect("media", 80, userToken(req)) : dbRead(DB_MEDIA, 80), email, admin);
     const estimate = ests.find(match) || ests.find((x)=> work && String(x.work_name||"").indexOf(work)>=0) || null;
     res.json({
       ok: true,
