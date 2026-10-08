@@ -12,8 +12,10 @@ app.use(cors());
 app.use(express.json({ limit: "12mb" }));
 app.get("/", (_req, res) => res.sendFile(path.join(__dirname, "index.html")));
 app.get("/index.html", (_req, res) => res.sendFile(path.join(__dirname, "index.html")));
-app.get(["/login.html", "/login"], (_req, res) => res.sendFile(path.join(__dirname, "login.html")));
-app.get("/gj-geo.json", (_req, res) => res.sendFile(path.join(__dirname, "gj-geo.json")));
+const PUBLIC_PAGES = ["login.html", "signup.html", "auth-pages.js", "gujarat-talukas.js", "gj-geo.json", "NotoSansGujarati-Regular.ttf"];
+PUBLIC_PAGES.forEach(function (name) {
+  app.get("/" + name, (_req, res) => res.sendFile(path.join(__dirname, name)));
+});
 
 function istDay(input) {
   const dt = input ? new Date(input) : new Date();
