@@ -1382,7 +1382,8 @@ function dbRead(file, limit) {
 const SB_URL = (process.env.SUPABASE_URL || "").replace(/\/$/, "");
 const SB_KEY = process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_KEY || "";
 function sbOn() { return !!(SB_URL && SB_KEY); }
-const ADMIN_EMAIL = String(process.env.ADMIN_EMAIL || "vanraj2592@gmail.com").toLowerCase();
+const ADMIN_EMAIL = String(process.env.ADMIN_EMAIL || "vanraj2592@gmail.com").trim().toLowerCase();
+function adminEmail() { return String(ADMIN_EMAIL || "").trim().toLowerCase(); }
 async function authUser(req) {
   const token = String(req.headers.authorization || "").replace(/^Bearer\s+/i, "");
   if (!token || !sbOn()) return null;
@@ -1403,7 +1404,7 @@ function requireAdmin(req, res, next) {
   authUser(req).then(function (u) {
     if (!u || !u.email) return res.status(401).json({ ok: false, error: "login" });
     const em = String(u.email).toLowerCase();
-    if (!ADMIN_EMAIL || em !== ADMIN_EMAIL) return res.status(403).json({ ok: false, error: "admin" });
+    if (!adminEmail() || em !== adminEmail()) return res.status(403).json({ ok: false, error: "admin" });
     req.user = u;
     next();
   }).catch(function () { res.status(401).json({ ok: false, error: "login" }); });
@@ -1415,7 +1416,7 @@ function ownEmail(req) {
   return String((req.user && req.user.email) || "").toLowerCase();
 }
 function isAdminUser(req) {
-  return !!ADMIN_EMAIL && ownEmail(req) === ADMIN_EMAIL;
+  return !!adminEmail() && ownEmail(req) === adminEmail();
 }
 function onlyMine(rows, email, admin) {
   if (admin) return rows || [];
@@ -1929,15 +1930,51 @@ app.get("/api/db/bundle", async (req, res) => {
 app.get("/api/db/health", (_req, res) => {
   res.json({ ok: true, supabase: sbOn() });
 });
+app.get("/api/me", requireUser, async (req, res) => {
+  const em = ownEmail(req);
+  const admin = isAdminUser(req);
+  let item = null;
+  try {
+    if (sbOn()) {
+      const js = await sbProfiles("GET", "profiles?select=*&email=eq." + encodeURIComponent(em) + "&limit=1", null);
+      item = Array.isArray(js) ? (js[0] || null) : js;
+    }
+  } catch (e) { item = null; }
+  if (admin) item = Object.assign({}, item || {}, { email: em, role: "admin", subscription_status: "Active" });
+  res.json({ ok: true, admin: admin, item: item });
+});
+app.post("/api/me/profile", requireUser, async (req, res) => {
+  try {
+    if (!sbOn()) return res.json({ ok: false, error: "no supabase" });
+    const d = req.body || {};
+    const em = ownEmail(req);
+    const admin = isAdminUser(req);
+    const row = {
+      email: em,
+      full_name: d.full_name || d.name || "",
+      mobile_number: d.mobile_number || d.mobile || "",
+      designation: d.designation || d.role || "AAE",
+      office_location: d.office_location || d.taluka || "",
+      role: admin ? "admin" : "user",
+      subscription_status: admin ? "Active" : "Trial"
+    };
+    const js = await sbProfiles("POST", "profiles?on_conflict=email", row);
+    const item = Array.isArray(js) ? js[0] : js;
+    res.json({ ok: true, admin: admin, item: item });
+  } catch (e) {
+    res.json({ ok: false, error: String(e.message || e) });
+  }
+});
 app.get("/api/auth/config", (_req, res) => {
   res.json({ ok: true, url: SB_URL || "", anon: SB_KEY || "" });
 });
 async function sbProfiles(method, path, body) {
+  const key = process.env.SUPABASE_SERVICE_ROLE || process.env.SUPABASE_SERVICE_KEY || SB_KEY;
   const r = await fetch(SB_URL + "/rest/v1/" + path, {
     method: method,
     headers: {
-      apikey: SB_KEY,
-      Authorization: "Bearer " + SB_KEY,
+      apikey: key,
+      Authorization: "Bearer " + key,
       "Content-Type": "application/json",
       Prefer: "return=representation,resolution=merge-duplicates"
     },
@@ -2804,6 +2841,11 @@ app.post("/api/bill/pipe", async (req, res) => {
 });
 
 
+app.get("/api/admin/me", requireUser, async (req, res) => {
+  const em = ownEmail(req);
+  const admin = !!ADMIN_EMAIL && em === ADMIN_EMAIL;
+  res.json({ ok: true, admin: admin, item: { email: em, role: admin ? "admin" : "user", subscription_status: admin ? "Active" : "Trial" } });
+});
 if (require.main === module) {
   process.on("unhandledRejection", function (e) { console.error("unhandledRejection:", (e && e.stack) || e); });
   resetLoProfile();
