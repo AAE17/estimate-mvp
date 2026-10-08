@@ -907,7 +907,7 @@
         <div class="field full"><label>4. કામનું નામ</label><input id="work_name" value=""></div>
 
         <div class="est-l3">
-          <div class="field"><label>5. Prepared by</label><input id="prepared_by" value="V A Thakor"></div>
+          <div class="field"><label>5. Prepared by</label><input id="prepared_by" value=""></div>
           <div class="field"><label>SS વિગત</label><input id="ss_details" value=""></div>
           <div class="field"><label>Sr No</label><input id="sr_no" value=""></div>
         </div>
@@ -1619,7 +1619,7 @@
       if(msg) msg.textContent="લૉગિન ખુલ્યું નહીં. પેજ ફરી ખોલો.";
     }
   }
-  const ADMIN_EMAIL="vanraj2592@gmail.com";
+  const ADMIN_EMAIL="";
   async function authHeaders(){
     const h={"Content-Type":"application/json"};
     try{ if(sbClient){ const { data }=await sbClient.auth.getSession(); if(data&&data.session) h.Authorization="Bearer "+data.session.access_token; } }catch(e){}
@@ -1653,12 +1653,9 @@
     p.email=email; if(meta.name) p.name=meta.name; if(meta.role) p.role=meta.role;
     if(meta.mobile) p.mobile=meta.mobile; if(meta.jilla) p.jilla=meta.jilla;
     if(meta.taluka) p.taluka=meta.taluka;
+    if(me && (String(me.role)==="admin" || String(me.app_role)==="super_admin")) admin=true;
     if(admin){
-      if(!p.name) p.name="Vanrajsinh Thakor";
       if(!p.role) p.role="SO";
-      if(!p.mobile) p.mobile="8734901625";
-      if(!p.jilla) p.jilla="Kheda";
-      if(!p.taluka) p.taluka="Mahemdabad";
     }
     if(sbClient && session.user){
       const want={ name:p.name, role:p.role, mobile:p.mobile, jilla:p.jilla, taluka:p.taluka };
@@ -2076,7 +2073,7 @@
     const k=scopeKey(base);
     let raw=null;
     try{ raw=localStorage.getItem(k); }catch(e){}
-    if(raw==null && k!==base && String((typeof tourEmail==="function"?tourEmail():"")||"").toLowerCase()==="vanraj2592@gmail.com"){
+    if(raw==null && k!==base && !!(typeof tourEmail==="function"&&tourEmail())){
       try{ raw=localStorage.getItem(base); }catch(e){}
     }
     if(raw==null) return empty;
@@ -4113,7 +4110,7 @@ function onLetterDate(){
       const e=document.getElementById(id); if(e) e.value="";
     });
     const amt=document.getElementById("amounting"); if(amt) amt.value="100000";
-    const pb=document.getElementById("prepared_by"); if(pb) pb.value="V A Thakor";
+    const pb=document.getElementById("prepared_by"); if(pb) pb.value="";
     const jilla=document.getElementById("jilla"); if(jilla) jilla.value="";
     if(typeof onJilla==="function") onJilla();
     const gow=document.getElementById("grantOtherWrap"); if(gow) gow.classList.add("hidden");
@@ -4300,11 +4297,11 @@ function openTijori(){
       document.getElementById("box_thick_m").value = "0.2";
       if (SEGS && SEGS[0]) SEGS[0].exc = 0.2;
       document.getElementById("sr_no").value = "";
-      document.getElementById("prepared_by").value = "V A Thakor";
+      document.getElementById("prepared_by").value = (typeof prGet==="function"?(prGet().name||""):"");
     } else {
       document.getElementById("box_thick_m").value = "0.3";
       document.getElementById("sr_no").value = "";
-      document.getElementById("prepared_by").value = "V A Thakor";
+      document.getElementById("prepared_by").value = (typeof prGet==="function"?(prGet().name||""):"");
     }
     show("s-form");
     renderSegs();
