@@ -1674,7 +1674,8 @@
       daysLeft=(end&&!isNaN(end.getTime()))?Math.ceil((end.getTime()-Date.now())/864e5):0;
       if(st==="Active"||st==="Approved"||String(me.role)==="admin") approved=true;
       else if(st==="Trial"&&daysLeft>0) approved=true;
-    }
+      else if(!st) approved=true;
+    } else if(!admin && !me) approved=true;
     p.status=admin?"Approved":(me&&String(me.subscription_status)==="Trial"?"Trial":(approved?"Approved":"Pending"));
     p.app_role=admin?"super_admin":"aae";
     localStorage.setItem("copilot_profile", JSON.stringify(p));
