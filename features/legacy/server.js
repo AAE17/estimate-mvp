@@ -2698,8 +2698,8 @@ app.post("/api/admin/approve", requireAdmin, async (req, res) => {
     const msg = {
       Active: "તમારું અકાઉન્ટ મંજૂર થયું. એપ ચાલુ છે.",
       Trial: "ટ્રાયલ " + (days||7) + " દિવસ વધાર્યો.",
-      Stopped: "સેવા બંધ છે. સંપર્ક: 8734901625",
-      Rejected: "સાઇન અપ નામંજૂર. સંપર્ક: 8734901625"
+      Stopped: "સેવા બંધ છે. સંપર્ક: 9327561107",
+      Rejected: "સાઇન અપ નામંજૂર. સંપર્ક: 9327561107"
     }[patch.subscription_status] || "અકાઉન્ટમાં ફેરફાર થયો.";
     writeUserNotice(email, msg);
     res.json({ ok: true, item: Array.isArray(js)?js[0]:js });
