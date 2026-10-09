@@ -2718,8 +2718,8 @@ app.get("/api/note", (req, res) => {
   if (st === "Stopped" || st === "Rejected") return res.json({ mine: mine || null, messages: [] });
   const live = (note.messages || []).filter(function (m) {
     if (!m.on) return false;
-    if (m.start && new Date(m.start).getTime() > now) return false;
-    if (m.end && new Date(m.end).getTime() < now) return false;
+    if (m.start && new Date(m.start + "T00:00:00").getTime() > now) return false;
+    if (m.end && new Date(m.end + "T23:59:59").getTime() < now) return false;
     if (m.audience && m.audience !== "All users" && m.audience !== st && m.audience !== "Active") return false;
     if (m.audience === "Active" && st !== "Active" && st !== "Approved") return false;
     if (m.audience === "Trial" && st !== "Trial") return false;
