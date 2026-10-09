@@ -2713,13 +2713,46 @@ app.get("/api/note", (req, res) => {
   const note = readAdminNote();
   const email = String(req.query.email || "").toLowerCase();
   const mine = email && note.users ? note.users[email] : null;
-  res.json({ text: note.text || "", on: !!note.on, mine: mine || null });
+  const now = Date.now();
+  const live = (note.messages || []).filter(function (m) {
+    if (!m.on) return false;
+    if (m.start && new Date(m.start).getTime() > now) return false;
+    if (m.end && new Date(m.end).getTime() < now) return false;
+    return true;
+  });
+  res.json({ text: note.text || "", on: !!note.on, mine: mine || null, messages: live });
+});
+app.get("/api/admin/messages", requireAdmin, (_req, res) => {
+  const note = readAdminNote();
+  res.json({ ok: true, messages: note.messages || [] });
 });
 app.post("/api/admin/note", requireAdmin, (req, res) => {
-  const body = { text: String((req.body||{}).text || "").slice(0, 240), on: (req.body||{}).on !== false, ts: new Date().toISOString() };
+  const b = req.body || {};
+  const note = readAdminNote();
+  note.messages = note.messages || [];
+  if (b.stop) {
+    note.messages.forEach(function (m) { if (m.id === b.id) m.on = false; });
+  } else {
+    const msg = {
+      id: Date.now().toString(36),
+      title: String(b.title || "સંદેશ").slice(0, 80),
+      text: String(b.text || "").slice(0, 300),
+      type: String(b.type || "Info"),
+      audience: String(b.audience || "All users"),
+      banner: b.banner !== false,
+      bell: b.bell !== false,
+      start: b.start || "",
+      end: b.end || "",
+      on: true,
+      ts: new Date().toISOString()
+    };
+    note.messages.unshift(msg);
+    note.text = msg.title + " — " + msg.text;
+    note.on = true;
+  }
   fs.mkdirSync(DB_DIR, { recursive: true });
-  fs.writeFileSync(ADMIN_NOTE, JSON.stringify(body));
-  res.json({ ok: true, note: body });
+  fs.writeFileSync(ADMIN_NOTE, JSON.stringify(note));
+  res.json({ ok: true, messages: note.messages });
 });
 
 app.get("/api/admin/dash", requireAdmin, async (_req, res) => {

@@ -744,6 +744,7 @@
   </style>
 </head>
 <body>
+  <div id="adBanner" class="hidden" style="background:#0f766e;color:#fff;padding:8px 14px;text-align:center"></div>
   <div id="authGate" class="toast hidden">
     <div class="box" style="max-width:400px;width:100%">
       <b>SO+</b>
@@ -1913,8 +1914,11 @@
       const b=document.getElementById("notifBox");
       const dot=document.getElementById("notifDot");
       const lines=[];
-      if(n&&n.mine&&n.mine.text) lines.push("<b>અકાઉન્ટ</b><p>"+n.mine.text+"</p>");
-      if(n&&n.on&&n.text) lines.push("<b>સંદેશ</b><p>"+n.text+"</p>");
+      if(n&&n.mine&&n.mine.text) lines.push("<b>Account</b><p>"+n.mine.text+"</p>");
+      (n.messages||[]).forEach(function(m){ if(m.bell!==false) lines.push("<b>"+m.title+"</b><p>"+m.text+"</p>"); });
+      const ban=document.getElementById("adBanner");
+      const top=(n.messages||[]).find(function(m){return m.banner!==false;});
+      if(ban){ ban.classList.toggle("hidden", !top); ban.textContent=top?(top.title+" — "+top.text):""; }
       if(lines.length){
         if(dot) dot.classList.remove("hidden");
         if(b && !window._soIsAdmin) b.innerHTML=lines.join("");
@@ -2033,14 +2037,44 @@
       html+="<div class='ad-box'><b>Usage</b><p>CC "+(u.cc||0)+" · Paver "+(u.paver||0)+" · Bill "+(u.bill||0)+" · Letter "+(u.letter||0)+"</p><b>બાકી તાલુકા</b>"+(window._adMiss||[]).slice(0,16).map(function(x){return "<div class='ad-row'><div>"+x.jilla+" · "+x.taluka+"</div><span class='ad-pill stop'>બાકી</span></div>";}).join("")+"</div>";
     }
     if(_adPane==="over"||_adPane==="msg"){
-      html+="<div class='ad-box'><b>New message</b><textarea id='adNote' rows='3' style='width:100%;margin-top:8px;border:1px solid #e6eaf0;border-radius:10px;padding:8px' placeholder='બધા યુઝરને ટૂંકો સંદેશ'></textarea><div class='ad-acts' style='margin-top:8px'><button type='button' class='btn btn-g' onclick='adminNote(true)'>મોકલો</button><button type='button' class='btn' onclick='adminNote(false)'>બંધ</button></div></div>";
+      html+="<div class='ad-box'><b>New message</b><p class='muted'>શીર્ષક, સંદેશ, પ્રકાર, કોને, બૅનર કે ઘંટડી. Send પછી યુઝરને દેખાય. Stop nowથી બંધ.</p>"
+        +"<label>Title</label><input id='adTitle' placeholder='દા.ત. Server maintenance' style='width:100%;margin:4px 0 8px;padding:8px;border:1px solid #e6eaf0;border-radius:10px'>"
+        +"<label>Message</label><textarea id='adNote' rows='3' maxlength='300' style='width:100%;margin-top:4px;border:1px solid #e6eaf0;border-radius:10px;padding:8px' placeholder='યુઝરને શું દેખાશે'></textarea>"
+        +"<div style='display:flex;gap:8px;flex-wrap:wrap;margin-top:8px'><select id='adType'><option>Info</option><option>Important</option><option>Holiday / Maintenance</option></select><select id='adAud'><option>All users</option><option>Trial</option><option>Active</option></select></div>"
+        +"<label style='margin-right:10px'><input type='checkbox' id='adBannerOn' checked> Top banner</label><label><input type='checkbox' id='adBellOn' checked> Bell</label>"
+        +"<div style='display:flex;gap:8px;margin-top:8px'><input id='adStart' type='date'><input id='adEnd' type='date'></div>"
+        +"<div class='ad-acts' style='margin-top:8px'><button type='button' class='btn btn-g' onclick='adminNote(true)'>Send</button></div>"
+        +"<div id='adSent' style='margin-top:10px'></div></div>";
+      setTimeout(loadSent, 0);
     }
     pane.innerHTML=html;
   }
-  async function adminNote(on){
-    const text=(document.getElementById("adNote")||{}).value||"";
-    await fetch(API+"/api/admin/note",{method:"POST",headers:await authHeaders(),body:JSON.stringify({text:text,on:on})});
-    alert(on?"સંદેશ મોકલ્યો":"સંદેશ બંધ");
+  async function loadSent(){
+    const box=document.getElementById("adSent");
+    if(!box) return;
+    const d=await fetch(API+"/api/admin/messages",{headers:await authHeaders()}).then(function(r){return r.json();});
+    box.innerHTML="<b>Sent messages</b>"+(d.messages||[]).map(function(m){
+      return "<div class='ad-row'><div><b>"+m.title+"</b><br><small>"+m.type+" · "+m.audience+" · "+(m.on?"Showing":"Stopped")+"</small><br>"+m.text+"</div><button type='button' class='btn' style='color:#b42318' onclick='adminStop(\""+m.id+"\")'>Stop now</button></div>";
+    }).join("")||"<p class='muted'>હજુ કોઈ સંદેશ નથી.</p>";
+  }
+  async function adminStop(id){
+    await fetch(API+"/api/admin/note",{method:"POST",headers:await authHeaders(),body:JSON.stringify({stop:true,id:id})});
+    loadSent();
+  }
+  async function adminNote(){
+    const body={
+      title:(document.getElementById("adTitle")||{}).value||"",
+      text:(document.getElementById("adNote")||{}).value||"",
+      type:(document.getElementById("adType")||{}).value||"Info",
+      audience:(document.getElementById("adAud")||{}).value||"All users",
+      banner:!!(document.getElementById("adBannerOn")||{}).checked,
+      bell:!!(document.getElementById("adBellOn")||{}).checked,
+      start:(document.getElementById("adStart")||{}).value||"",
+      end:(document.getElementById("adEnd")||{}).value||""
+    };
+    if(!body.text){ alert("સંદેશ લખો"); return; }
+    await fetch(API+"/api/admin/note",{method:"POST",headers:await authHeaders(),body:JSON.stringify(body)});
+    loadSent();
   }
   async function adminAct(email, status, days){
     await fetch(API+"/api/admin/approve",{method:"POST",headers:await authHeaders(),body:JSON.stringify({email:email,status:status,days:days})});
