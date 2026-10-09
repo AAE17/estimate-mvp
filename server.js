@@ -2,6 +2,7 @@ const express = require("express");
 const cors = require("cors");
 const fs = require("fs");
 const path = require("path");
+const crypto = require("crypto");
 const { execFile, execFileSync, spawn } = require("child_process");
 const ExcelJS = require("exceljs");
 const PDFDocument = require("pdfkit");
@@ -2340,58 +2341,119 @@ app.get("/api/db/kachu", async (req, res) => {
   catch (e) { console.error(e.message); }
   res.json({ ok: true, items: mineMerged(remote, local, who) });
 });
-app.post("/api/db/media", async (req, res) => {
-  const b = req.body || {};
-  const who = await callerEmail(req);
-  let file = "";
-  let url = "";
-  if (b.data && String(b.data).startsWith("data:")) {
-    const raw = String(b.data);
-    const comma = raw.indexOf(",");
-    const buf = Buffer.from(raw.slice(comma + 1), "base64");
-    if (buf.length <= 4 * 1024 * 1024) {
-      file = (b.kind || "media") + "-" + Date.now() + ".jpg";
-      fs.writeFileSync(path.join(MEDIA_DIR, file), buf);
-      url = "/db/media/" + file;
-    }
-  }
-  const rec = dbAppend(DB_MEDIA, {
-    kind: b.kind || "photo",
-    work_name: b.work_name || "",
-    gps: b.gps || "",
-    file, url,
-    user_email: who
+// ---- Private site media (photos/sketches) -------------------------------------------
+// Bucket user-media is PRIVATE. Object path = <user_id>/<kind>/<random uuid>.<ext>.
+// The server uploads with the service key, but the folder is always the caller's verified user id
+// (req.user comes from requireUser on /api/db). Reading is only via short-lived signed URLs, only own files.
+// No copy is written to the Render disk any more (it was public and is wiped on every deploy).
+const MEDIA_BUCKET = process.env.MEDIA_BUCKET || "user-media";
+const MEDIA_KINDS = ["photo", "plan"];
+const MEDIA_TYPES = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp" };
+const MEDIA_MAX = 8 * 1024 * 1024;
+const MEDIA_SIGN_SEC = 600;
+function mediaUid(req) {
+  const id = String((req.user && req.user.id) || "").toLowerCase();
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(id) ? id : "";
+}
+function mediaHeaders(extra) {
+  const key = sbAuthKey();
+  return Object.assign({ apikey: key, Authorization: "Bearer " + key }, extra || {});
+}
+function mediaOwned(row, uid) {
+  return !!(row && uid && String(row.user_id || "").toLowerCase() === uid && String(row.path || "").indexOf(uid + "/") === 0);
+}
+async function mediaSign(paths) {
+  const out = {};
+  if (!paths.length) return out;
+  const r = await fetch(SB_URL + "/storage/v1/object/sign/" + MEDIA_BUCKET, {
+    method: "POST", headers: mediaHeaders({ "Content-Type": "application/json" }),
+    body: JSON.stringify({ expiresIn: MEDIA_SIGN_SEC, paths: paths })
   });
-  if (sbOn() && b.data && String(b.data).startsWith("data:")) {
-    const raw = String(b.data);
-    const comma = raw.indexOf(",");
-    const buf = Buffer.from(raw.slice(comma + 1), "base64");
-    const name = (b.kind || "media") + "-" + Date.now() + ".jpg";
-    sbUpload(name, buf).then(function (u) {
-      rec.url = u;
-      sbInsert("media", { id: rec.id, ts: rec.ts, kind: rec.kind, work_name: rec.work_name, gps: rec.gps, url: u, user_email: rec.user_email }).catch(function(){});
-      res.json({ ok: true, id: rec.id, file: u });
-    }).catch(function (e) {
-      console.error(e.message);
-      res.json({ ok: true, id: rec.id, file: url });
+  if (!r.ok) throw new Error("media sign " + r.status);
+  const js = await r.json();
+  (Array.isArray(js) ? js : []).forEach(function (x) {
+    if (x && x.path && x.signedURL && !x.error) out[x.path] = SB_URL + "/storage/v1" + (x.signedURL.charAt(0) === "/" ? "" : "/") + x.signedURL;
+  });
+  return out;
+}
+async function myMedia(req, limit) {
+  const uid = mediaUid(req);
+  if (!uid || !sbOn()) return [];
+  const r = await fetch(SB_URL + "/rest/v1/media?select=id,ts,kind,work_name,gps,path,user_id&user_id=eq." + uid +
+    "&order=ts.desc&limit=" + (limit || 100), { headers: mediaHeaders() });
+  if (!r.ok) throw new Error("media list " + r.status);
+  const rows = (await r.json()).filter(function (m) { return mediaOwned(m, uid); });
+  const signed = await mediaSign(rows.map(function (m) { return m.path; }));
+  return rows.map(function (m) {
+    return { id: m.id, ts: m.ts, kind: m.kind, work_name: m.work_name, gps: m.gps, url: signed[m.path] || "" };
+  });
+}
+app.post("/api/db/media", async (req, res) => {
+  try {
+    const uid = mediaUid(req);
+    if (!uid) return res.status(401).json({ ok: false, error: "login required" });
+    if (!sbOn()) return res.status(503).json({ ok: false, error: "storage not configured" });
+    const b = req.body || {};
+    const kind = String(b.kind || "");
+    if (MEDIA_KINDS.indexOf(kind) < 0) return res.status(400).json({ ok: false, error: "bad kind" });
+    const m = String(b.data || "").match(/^data:(image\/(?:jpeg|png|webp));base64,([A-Za-z0-9+/=]+)$/);
+    if (!m) return res.status(400).json({ ok: false, error: "image required" });
+    const buf = Buffer.from(m[2], "base64");
+    if (!buf.length || buf.length > MEDIA_MAX) return res.status(413).json({ ok: false, error: "image too large" });
+    const objectPath = uid + "/" + kind + "/" + crypto.randomUUID() + "." + MEDIA_TYPES[m[1]];
+    const up = await fetch(SB_URL + "/storage/v1/object/" + MEDIA_BUCKET + "/" + objectPath, {
+      method: "POST", headers: mediaHeaders({ "Content-Type": m[1], "x-upsert": "false" }), body: buf
     });
-    return;
+    if (!up.ok) {
+      console.error("media upload", up.status, await up.text());
+      return res.status(502).json({ ok: false, error: "upload failed" });
+    }
+    const row = {
+      id: crypto.randomUUID(), ts: new Date().toISOString(), kind: kind,
+      work_name: String(b.work_name || "").slice(0, 300), gps: String(b.gps || "").slice(0, 60),
+      url: "", path: objectPath, bucket: MEDIA_BUCKET, user_id: uid, user_email: normMail(req.user.email)
+    };
+    const ins = await fetch(SB_URL + "/rest/v1/media", {
+      method: "POST", headers: mediaHeaders({ "Content-Type": "application/json", Prefer: "return=minimal" }), body: JSON.stringify(row)
+    });
+    if (!ins.ok) {
+      console.error("media insert", ins.status, await ins.text());
+      return res.status(502).json({ ok: false, error: "save failed (run sql/003_private_media.sql)" });
+    }
+    res.json({ ok: true, id: row.id });
+  } catch (e) {
+    console.error("media", e.message || e);
+    res.status(500).json({ ok: false, error: "media error" });
   }
-  res.json({ ok: true, id: rec.id, file: url });
 });
 app.get("/api/db/media", async (req, res) => {
-  const who = await callerEmail(req);
-  const local = dbRead(DB_MEDIA, 200);
-  let remote = [];
-  try { if (sbOn()) remote = await sbSelect("media", 200); }
-  catch (e) { console.error(e.message); }
-  const items = mineMerged(remote, local, who).map((m) => ({
-    id: m.id, ts: m.ts, kind: m.kind, work_name: m.work_name, gps: m.gps,
-    url: m.url || (m.file ? ("/db/media/" + m.file) : "")
-  }));
-  res.json({ ok: true, items });
+  try {
+    res.json({ ok: true, items: await myMedia(req, 100) });
+  } catch (e) {
+    console.error(e.message || e);
+    res.status(502).json({ ok: false, error: "media list failed" });
+  }
 });
-app.use("/db/media", express.static(MEDIA_DIR));
+app.get("/api/db/media/:id/url", async (req, res) => {
+  try {
+    const uid = mediaUid(req);
+    if (!uid) return res.status(401).json({ ok: false, error: "login required" });
+    const id = String(req.params.id || "");
+    if (!/^[A-Za-z0-9-]{1,64}$/.test(id) || !sbOn()) return res.status(404).json({ ok: false, error: "not found" });
+    const r = await fetch(SB_URL + "/rest/v1/media?select=id,path,user_id&id=eq." + id + "&user_id=eq." + uid + "&limit=1", { headers: mediaHeaders() });
+    const rows = r.ok ? await r.json() : [];
+    const row = Array.isArray(rows) ? rows[0] : null;
+    if (!mediaOwned(row, uid)) return res.status(404).json({ ok: false, error: "not found" });
+    const signed = await mediaSign([row.path]);
+    if (!signed[row.path]) return res.status(404).json({ ok: false, error: "not found" });
+    res.json({ ok: true, url: signed[row.path], expires_in: MEDIA_SIGN_SEC });
+  } catch (e) {
+    console.error(e.message || e);
+    res.status(502).json({ ok: false, error: "media url failed" });
+  }
+});
+// Old public folder: closed. Photos now come only from signed URLs above.
+app.use("/db/media", (_req, res) => res.status(410).json({ ok: false, error: "moved to private storage" }));
 
 
 app.get("/api/db/bundle", async (req, res) => {
@@ -2404,15 +2466,14 @@ app.get("/api/db/bundle", async (req, res) => {
   }
   try {
     const who = await callerEmail(req);
-    let estRemote = [], siteRemote = [], mediaRemote = [];
+    let estRemote = [], siteRemote = [];
     if (sbOn()) {
       estRemote = await sbSelect("estimates", 500);
       siteRemote = await sbSelect("site_measures", 500);
-      mediaRemote = await sbSelect("media", 200);
     }
     const ests = mineMerged(estRemote, notDeleted(dbRead(DB_EST, 500)), who);
     const sites = mineMerged(siteRemote, notDeleted(dbRead(DB_SITE, 500)), who);
-    const media = mineMerged(mediaRemote, dbRead(DB_MEDIA, 200), who);
+    const media = await myMedia(req, 200).catch(function () { return []; });
     const estimate = ests.find(match) || ests.find((x)=> work && String(x.work_name||"").indexOf(work)>=0) || null;
     res.json({
       ok: true,

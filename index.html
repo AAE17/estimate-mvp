@@ -1120,6 +1120,7 @@
               <img id="photoPrev" alt="">
               <p class="muted" id="photoGps"></p>
             </div>
+            <div id="mediaList" class="muted" style="margin-top:8px;font-size:12px"></div>
           </div>
           <div class="brand">SO+</div>
         </div>
@@ -2550,34 +2551,44 @@ function onLetterDate(){
 
   function mediaKey(){ return "copilot_site_media"; }
   function loadMedia(){ try { return JSON.parse(localStorage.getItem(mediaKey())||"[]"); } catch(e){ return []; } }
+  function mediaEsc(v){ return String(v==null?"":v).replace(/[&<>"']/g,function(c){ return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]; }); }
+  // Photos/sketches are stored ONLY in the user's private folder on the server (Supabase bucket user-media).
+  // The browser keeps just a small note (no image data) so the list still shows when offline.
   function pushMedia(item){
-    const all=loadMedia();
-    all.unshift(item);
-    localStorage.setItem(mediaKey(), JSON.stringify(all.slice(0,40)));
-    renderMedia();
-    authFetch(API+"/api/db/media",{method:"POST",body:JSON.stringify({
+    try {
+      const all=loadMedia().map(function(m){ return {kind:m.kind, ts:m.ts, work:m.work, gps:m.gps}; });
+      all.unshift({kind:item.kind, ts:item.ts, work:item.work||"", gps:item.gps||""});
+      localStorage.setItem(mediaKey(), JSON.stringify(all.slice(0,40)));
+    } catch(e) {}
+    return authFetch(API+"/api/db/media",{method:"POST",body:JSON.stringify({
       kind:item.kind, work_name:item.work||"", gps:item.gps||"", data:item.data||""
-    })}).catch(function(){});
+    })}).then(function(r){
+      if (!r.ok) throw new Error("HTTP "+r.status);
+      renderMedia();
+    }).catch(function(){
+      alert("સ્કેચ/ફોટો server પર સેવ ન થયો. Internet/login તપાસી ફરી પ્રયાસ કરો.");
+    });
   }
   function renderMedia(){
     const el=document.getElementById("mediaList");
     if (!el) return;
-    authFetch(API+"/api/db/media").then(function(r){return r.json();}).then(function(d){
+    authFetch(API+"/api/db/media").then(function(r){ if(!r.ok) throw new Error("HTTP "+r.status); return r.json(); }).then(function(d){
       const all=(d&&d.items)||[];
       el.innerHTML = all.length ? all.map(function(m){
-        return "<div><span>"+(m.ts||"").slice(0,16)+" · "+(m.kind||"")+" · "+(m.work_name||"")+"</span><b>"+(m.gps||"")+"</b></div>";
+        const open = m.url ? ' <a href="'+mediaEsc(m.url)+'" target="_blank" rel="noopener">ખોલો</a>' : "";
+        return "<div><span>"+mediaEsc((m.ts||"").slice(0,16))+" · "+mediaEsc(m.kind)+" · "+mediaEsc(m.work_name)+open+"</span><b>"+mediaEsc(m.gps)+"</b></div>";
       }).join("") : "<div>હજુ સ્કેચ/ફોટો નથી</div>";
     }).catch(function(){
       const all=loadMedia();
       el.innerHTML = all.length ? all.map(function(m){
-        return "<div><span>"+(m.ts||"").slice(0,16)+" · "+m.kind+" · "+(m.work||"")+"</span><b>"+(m.gps||"")+"</b></div>";
+        return "<div><span>"+mediaEsc((m.ts||"").slice(0,16))+" · "+mediaEsc(m.kind)+" · "+mediaEsc(m.work)+"</span><b>"+mediaEsc(m.gps)+"</b></div>";
       }).join("") : "<div>હજુ સ્કેચ/ફોટો નથી</div>";
     });
   }
   function togglePlan(){
     const box=document.getElementById("planBox");
     box.classList.toggle("hidden");
-    if (!box.classList.contains("hidden")) bindPlan();
+    if (!box.classList.contains("hidden")) { bindPlan(); renderMedia(); }
   }
   function bindPlan(){
     const c=document.getElementById("planPad");
@@ -2669,7 +2680,7 @@ function onLetterDate(){
   }
 
 
-  let tourYM = {y:2026,m:9};
+  let tourYM = {y:new Date().getFullYear(), m:new Date().getMonth()};
   function openTour(){ show("s-tour"); tourPage("cover"); loadTourRemote(); }
   function tourPage(which){
     const p=document.getElementById("tourPerson");
@@ -4219,126 +4230,6 @@ function onLetterDate(){
   function _goFormRest(){
     document.body.classList.toggle("paver-on", currentType==="paver");
   
-  function mediaKey(){ return "copilot_site_media"; }
-  function loadMedia(){ try { return JSON.parse(localStorage.getItem(mediaKey())||"[]"); } catch(e){ return []; } }
-  function pushMedia(item){
-    const all=loadMedia();
-    all.unshift(item);
-    localStorage.setItem(mediaKey(), JSON.stringify(all.slice(0,40)));
-    renderMedia();
-  }
-  function renderMedia(){
-    const el=document.getElementById("mediaList");
-    if (!el) return;
-    const all=loadMedia();
-    el.innerHTML = all.length ? all.map(function(m){
-      return "<div><span>"+(m.ts||"").slice(0,16)+" · "+m.kind+" · "+(m.work||"")+"</span><b>"+(m.gps||"")+"</b></div>";
-    }).join("") : "<div>હજુ સ્કેચ/ફોટો નથી</div>";
-  }
-  function togglePlan(){
-    const box=document.getElementById("planBox");
-    box.classList.toggle("hidden");
-    if (!box.classList.contains("hidden")) bindPlan();
-  }
-  function bindPlan(){
-    const c=document.getElementById("planPad");
-    if (!c || c._bound) return;
-    c._bound=true;
-    const ctx=c.getContext("2d");
-    ctx.strokeStyle="#1B5D45"; ctx.lineWidth=2.5; ctx.lineCap="round";
-    function pos(e){
-      const r=c.getBoundingClientRect();
-      const src=(e.touches&&e.touches[0])?e.touches[0]:e;
-      return {x:(src.clientX-r.left)*c.width/r.width, y:(src.clientY-r.top)*c.height/r.height};
-    }
-    let draw=false;
-    function down(e){ e.preventDefault(); draw=true; const p=pos(e); ctx.beginPath(); ctx.moveTo(p.x,p.y); }
-    function move(e){ if(!draw) return; e.preventDefault(); const p=pos(e); ctx.lineTo(p.x,p.y); ctx.stroke(); }
-    function up(){ draw=false; }
-    c.addEventListener("mousedown", down);
-    c.addEventListener("mousemove", move);
-    window.addEventListener("mouseup", up);
-    c.addEventListener("touchstart", down, {passive:false});
-    c.addEventListener("touchmove", move, {passive:false});
-    c.addEventListener("touchend", up);
-  }
-  function clearPlan(){
-    const c=document.getElementById("planPad");
-    if (c) c.getContext("2d").clearRect(0,0,c.width,c.height);
-  }
-  function savePlan(){
-    const c=document.getElementById("planPad");
-    const work=siteWorkName();
-    pushMedia({kind:"plan", ts:new Date().toISOString(), work:work, data:c.toDataURL("image/jpeg",0.55), gps:""});
-    alert("સ્કેચ Profileમાં સેવ");
-  }
-  function takeSitePhoto(){
-    const f=document.getElementById("sitePhotoFile");
-    f.value="";
-    f.onchange=onSitePhoto;
-    f.click();
-  }
-  function onSitePhoto(){
-    const f=document.getElementById("sitePhotoFile");
-    const file=f.files&&f.files[0];
-    if (!file) return;
-    const box=document.getElementById("photoBox");
-    box.classList.remove("hidden");
-    const img=document.getElementById("photoPrev");
-    const gpsEl=document.getElementById("photoGps");
-    const reader=new FileReader();
-    reader.onload=function(){
-      function stamp(src, gps, cb){
-        const im=new Image();
-        im.onload=function(){
-          const cv=document.createElement("canvas");
-          cv.width=im.width; cv.height=im.height;
-          const g=cv.getContext("2d");
-          g.drawImage(im,0,0);
-          if (gps) {
-            const fs=Math.max(18, Math.floor(im.width/28));
-            g.font="bold "+fs+"px sans-serif";
-            g.textAlign="left";
-            g.textBaseline="bottom";
-            const pad=Math.max(10, fs*0.4);
-            g.fillStyle="rgba(0,0,0,.45)";
-            g.fillRect(0, im.height-fs-pad*2, g.measureText(gps).width+pad*2, fs+pad*2);
-            g.fillStyle="#fff";
-            g.fillText(gps, pad, im.height-pad);
-          }
-          cb(cv.toDataURL("image/jpeg",0.7));
-        };
-        im.src=src;
-      }
-      function store(gps){
-        gpsEl.textContent = gps || "GPS નથી";
-        stamp(reader.result, gps, function(out){
-          img.src=out;
-          const work=siteWorkName();
-          pushMedia({kind:"photo", ts:new Date().toISOString(), work:work, data:out, gps:gps||""});
-        });
-      }
-      if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(
-          function(pos){ store(pos.coords.latitude.toFixed(6)+", "+pos.coords.longitude.toFixed(6)); },
-          function(){ store(""); },
-          {enableHighAccuracy:true, timeout:8000}
-        );
-      } else store("");
-    };
-    reader.readAsDataURL(file);
-  }
-
-
-  tourYM = {y:2026,m:8};
-function openTijori(){
-    const c=document.getElementById("mbClosed");
-    const o=document.getElementById("mbOpen");
-    const img=document.getElementById("mbOpenImg");
-    if (c) c.classList.add("hidden");
-    if (o) o.classList.remove("hidden");
-  }
-  function openTour(){ show("s-tour"); tourPage("cover"); loadTourRemote(); }
   window.__billMode = 1;
 
   fetch(API + "/api/log", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({kind:"select_" + currentType}) });
@@ -4366,126 +4257,6 @@ function openTijori(){
   }
   function soon(name) {
   
-  function mediaKey(){ return "copilot_site_media"; }
-  function loadMedia(){ try { return JSON.parse(localStorage.getItem(mediaKey())||"[]"); } catch(e){ return []; } }
-  function pushMedia(item){
-    const all=loadMedia();
-    all.unshift(item);
-    localStorage.setItem(mediaKey(), JSON.stringify(all.slice(0,40)));
-    renderMedia();
-  }
-  function renderMedia(){
-    const el=document.getElementById("mediaList");
-    if (!el) return;
-    const all=loadMedia();
-    el.innerHTML = all.length ? all.map(function(m){
-      return "<div><span>"+(m.ts||"").slice(0,16)+" · "+m.kind+" · "+(m.work||"")+"</span><b>"+(m.gps||"")+"</b></div>";
-    }).join("") : "<div>હજુ સ્કેચ/ફોટો નથી</div>";
-  }
-  function togglePlan(){
-    const box=document.getElementById("planBox");
-    box.classList.toggle("hidden");
-    if (!box.classList.contains("hidden")) bindPlan();
-  }
-  function bindPlan(){
-    const c=document.getElementById("planPad");
-    if (!c || c._bound) return;
-    c._bound=true;
-    const ctx=c.getContext("2d");
-    ctx.strokeStyle="#1B5D45"; ctx.lineWidth=2.5; ctx.lineCap="round";
-    function pos(e){
-      const r=c.getBoundingClientRect();
-      const src=(e.touches&&e.touches[0])?e.touches[0]:e;
-      return {x:(src.clientX-r.left)*c.width/r.width, y:(src.clientY-r.top)*c.height/r.height};
-    }
-    let draw=false;
-    function down(e){ e.preventDefault(); draw=true; const p=pos(e); ctx.beginPath(); ctx.moveTo(p.x,p.y); }
-    function move(e){ if(!draw) return; e.preventDefault(); const p=pos(e); ctx.lineTo(p.x,p.y); ctx.stroke(); }
-    function up(){ draw=false; }
-    c.addEventListener("mousedown", down);
-    c.addEventListener("mousemove", move);
-    window.addEventListener("mouseup", up);
-    c.addEventListener("touchstart", down, {passive:false});
-    c.addEventListener("touchmove", move, {passive:false});
-    c.addEventListener("touchend", up);
-  }
-  function clearPlan(){
-    const c=document.getElementById("planPad");
-    if (c) c.getContext("2d").clearRect(0,0,c.width,c.height);
-  }
-  function savePlan(){
-    const c=document.getElementById("planPad");
-    const work=siteWorkName();
-    pushMedia({kind:"plan", ts:new Date().toISOString(), work:work, data:c.toDataURL("image/jpeg",0.55), gps:""});
-    alert("સ્કેચ Profileમાં સેવ");
-  }
-  function takeSitePhoto(){
-    const f=document.getElementById("sitePhotoFile");
-    f.value="";
-    f.onchange=onSitePhoto;
-    f.click();
-  }
-  function onSitePhoto(){
-    const f=document.getElementById("sitePhotoFile");
-    const file=f.files&&f.files[0];
-    if (!file) return;
-    const box=document.getElementById("photoBox");
-    box.classList.remove("hidden");
-    const img=document.getElementById("photoPrev");
-    const gpsEl=document.getElementById("photoGps");
-    const reader=new FileReader();
-    reader.onload=function(){
-      function stamp(src, gps, cb){
-        const im=new Image();
-        im.onload=function(){
-          const cv=document.createElement("canvas");
-          cv.width=im.width; cv.height=im.height;
-          const g=cv.getContext("2d");
-          g.drawImage(im,0,0);
-          if (gps) {
-            const fs=Math.max(18, Math.floor(im.width/28));
-            g.font="bold "+fs+"px sans-serif";
-            g.textAlign="left";
-            g.textBaseline="bottom";
-            const pad=Math.max(10, fs*0.4);
-            g.fillStyle="rgba(0,0,0,.45)";
-            g.fillRect(0, im.height-fs-pad*2, g.measureText(gps).width+pad*2, fs+pad*2);
-            g.fillStyle="#fff";
-            g.fillText(gps, pad, im.height-pad);
-          }
-          cb(cv.toDataURL("image/jpeg",0.7));
-        };
-        im.src=src;
-      }
-      function store(gps){
-        gpsEl.textContent = gps || "GPS નથી";
-        stamp(reader.result, gps, function(out){
-          img.src=out;
-          const work=siteWorkName();
-          pushMedia({kind:"photo", ts:new Date().toISOString(), work:work, data:out, gps:gps||""});
-        });
-      }
-      if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(
-          function(pos){ store(pos.coords.latitude.toFixed(6)+", "+pos.coords.longitude.toFixed(6)); },
-          function(){ store(""); },
-          {enableHighAccuracy:true, timeout:8000}
-        );
-      } else store("");
-    };
-    reader.readAsDataURL(file);
-  }
-
-
-  tourYM = {y:2026,m:8};
-function openTijori(){
-    const c=document.getElementById("mbClosed");
-    const o=document.getElementById("mbOpen");
-    const img=document.getElementById("mbOpenImg");
-    if (c) c.classList.add("hidden");
-    if (o) o.classList.remove("hidden");
-  }
-  function openTour(){ show("s-tour"); tourPage("cover"); loadTourRemote(); }
   window.__billMode = 1;
 
   fetch(API + "/api/log", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({kind:"blocked_type", type:name}) });
@@ -5157,126 +4928,6 @@ function startScan(camera) {
 
 
 
-  function mediaKey(){ return "copilot_site_media"; }
-  function loadMedia(){ try { return JSON.parse(localStorage.getItem(mediaKey())||"[]"); } catch(e){ return []; } }
-  function pushMedia(item){
-    const all=loadMedia();
-    all.unshift(item);
-    localStorage.setItem(mediaKey(), JSON.stringify(all.slice(0,40)));
-    renderMedia();
-  }
-  function renderMedia(){
-    const el=document.getElementById("mediaList");
-    if (!el) return;
-    const all=loadMedia();
-    el.innerHTML = all.length ? all.map(function(m){
-      return "<div><span>"+(m.ts||"").slice(0,16)+" · "+m.kind+" · "+(m.work||"")+"</span><b>"+(m.gps||"")+"</b></div>";
-    }).join("") : "<div>હજુ સ્કેચ/ફોટો નથી</div>";
-  }
-  function togglePlan(){
-    const box=document.getElementById("planBox");
-    box.classList.toggle("hidden");
-    if (!box.classList.contains("hidden")) bindPlan();
-  }
-  function bindPlan(){
-    const c=document.getElementById("planPad");
-    if (!c || c._bound) return;
-    c._bound=true;
-    const ctx=c.getContext("2d");
-    ctx.strokeStyle="#1B5D45"; ctx.lineWidth=2.5; ctx.lineCap="round";
-    function pos(e){
-      const r=c.getBoundingClientRect();
-      const src=(e.touches&&e.touches[0])?e.touches[0]:e;
-      return {x:(src.clientX-r.left)*c.width/r.width, y:(src.clientY-r.top)*c.height/r.height};
-    }
-    let draw=false;
-    function down(e){ e.preventDefault(); draw=true; const p=pos(e); ctx.beginPath(); ctx.moveTo(p.x,p.y); }
-    function move(e){ if(!draw) return; e.preventDefault(); const p=pos(e); ctx.lineTo(p.x,p.y); ctx.stroke(); }
-    function up(){ draw=false; }
-    c.addEventListener("mousedown", down);
-    c.addEventListener("mousemove", move);
-    window.addEventListener("mouseup", up);
-    c.addEventListener("touchstart", down, {passive:false});
-    c.addEventListener("touchmove", move, {passive:false});
-    c.addEventListener("touchend", up);
-  }
-  function clearPlan(){
-    const c=document.getElementById("planPad");
-    if (c) c.getContext("2d").clearRect(0,0,c.width,c.height);
-  }
-  function savePlan(){
-    const c=document.getElementById("planPad");
-    const work=siteWorkName();
-    pushMedia({kind:"plan", ts:new Date().toISOString(), work:work, data:c.toDataURL("image/jpeg",0.55), gps:""});
-    alert("સ્કેચ Profileમાં સેવ");
-  }
-  function takeSitePhoto(){
-    const f=document.getElementById("sitePhotoFile");
-    f.value="";
-    f.onchange=onSitePhoto;
-    f.click();
-  }
-  function onSitePhoto(){
-    const f=document.getElementById("sitePhotoFile");
-    const file=f.files&&f.files[0];
-    if (!file) return;
-    const box=document.getElementById("photoBox");
-    box.classList.remove("hidden");
-    const img=document.getElementById("photoPrev");
-    const gpsEl=document.getElementById("photoGps");
-    const reader=new FileReader();
-    reader.onload=function(){
-      function stamp(src, gps, cb){
-        const im=new Image();
-        im.onload=function(){
-          const cv=document.createElement("canvas");
-          cv.width=im.width; cv.height=im.height;
-          const g=cv.getContext("2d");
-          g.drawImage(im,0,0);
-          if (gps) {
-            const fs=Math.max(18, Math.floor(im.width/28));
-            g.font="bold "+fs+"px sans-serif";
-            g.textAlign="left";
-            g.textBaseline="bottom";
-            const pad=Math.max(10, fs*0.4);
-            g.fillStyle="rgba(0,0,0,.45)";
-            g.fillRect(0, im.height-fs-pad*2, g.measureText(gps).width+pad*2, fs+pad*2);
-            g.fillStyle="#fff";
-            g.fillText(gps, pad, im.height-pad);
-          }
-          cb(cv.toDataURL("image/jpeg",0.7));
-        };
-        im.src=src;
-      }
-      function store(gps){
-        gpsEl.textContent = gps || "GPS નથી";
-        stamp(reader.result, gps, function(out){
-          img.src=out;
-          const work=siteWorkName();
-          pushMedia({kind:"photo", ts:new Date().toISOString(), work:work, data:out, gps:gps||""});
-        });
-      }
-      if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(
-          function(pos){ store(pos.coords.latitude.toFixed(6)+", "+pos.coords.longitude.toFixed(6)); },
-          function(){ store(""); },
-          {enableHighAccuracy:true, timeout:8000}
-        );
-      } else store("");
-    };
-    reader.readAsDataURL(file);
-  }
-
-
-  tourYM = {y:2026,m:8};
-function openTijori(){
-    const c=document.getElementById("mbClosed");
-    const o=document.getElementById("mbOpen");
-    const img=document.getElementById("mbOpenImg");
-    if (c) c.classList.add("hidden");
-    if (o) o.classList.remove("hidden");
-  }
-  function openTour(){ show("s-tour"); tourPage("cover"); loadTourRemote(); }
   window.__billMode = 1;
 
   fetch(API + "/api/log", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({kind:"page_open"}) });
