@@ -2653,6 +2653,31 @@ async function profileHandler(req, res) {
     }
     delete activeCache[email];
     const js = await sbUpsertProfile(row);
+    if (!isAd && name && taluka) {
+      try {
+        const note = readAdminNote();
+        note.messages = note.messages || [];
+        const id = "join-" + email;
+        if (!note.messages.some(function (m) { return m.id === id; })) {
+          note.messages.unshift({
+            id: id,
+            title: "નવો યુઝર",
+            text: name + " · " + taluka + " જોડાયા.",
+            type: "Info",
+            audience: "All users",
+            banner: true,
+            bell: true,
+            start: "",
+            end: "",
+            on: true,
+            ts: new Date().toISOString(),
+            seen: {}
+          });
+          fs.mkdirSync(path.dirname(ADMIN_NOTE), { recursive: true });
+          fs.writeFileSync(ADMIN_NOTE, JSON.stringify(note));
+        }
+      } catch (_e) {}
+    }
     res.json({ ok: true, admin: isAd, item: js });
   } catch (e) {
     res.json({ ok: false, error: String(e.message||e) });
