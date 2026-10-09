@@ -1910,7 +1910,7 @@
   async function paintUserBell(){
     try{
       const em=(prGet().email||"");
-      const n=await fetch(API+"/api/note?email="+encodeURIComponent(em)).then(function(r){return r.json();});
+      const st=(prGet().status||""); const n=await fetch(API+"/api/note?email="+encodeURIComponent(em)+"&status="+encodeURIComponent(st)).then(function(r){return r.json();});
       const b=document.getElementById("notifBox");
       const dot=document.getElementById("notifDot");
       const lines=[];
@@ -2037,24 +2037,44 @@
       html+="<div class='ad-box'><b>Usage</b><p>CC "+(u.cc||0)+" · Paver "+(u.paver||0)+" · Bill "+(u.bill||0)+" · Letter "+(u.letter||0)+"</p><b>બાકી તાલુકા</b>"+(window._adMiss||[]).slice(0,16).map(function(x){return "<div class='ad-row'><div>"+x.jilla+" · "+x.taluka+"</div><span class='ad-pill stop'>બાકી</span></div>";}).join("")+"</div>";
     }
     if(_adPane==="over"||_adPane==="msg"){
-      html+="<div class='ad-box'><b>New message</b><p class='muted'>શીર્ષક, સંદેશ, પ્રકાર, કોને, બૅનર કે ઘંટડી. Send પછી યુઝરને દેખાય. Stop nowથી બંધ.</p>"
-        +"<label>Title</label><input id='adTitle' placeholder='દા.ત. Server maintenance' style='width:100%;margin:4px 0 8px;padding:8px;border:1px solid #e6eaf0;border-radius:10px'>"
-        +"<label>Message</label><textarea id='adNote' rows='3' maxlength='300' style='width:100%;margin-top:4px;border:1px solid #e6eaf0;border-radius:10px;padding:8px' placeholder='યુઝરને શું દેખાશે'></textarea>"
-        +"<div style='display:flex;gap:8px;flex-wrap:wrap;margin-top:8px'><select id='adType'><option>Info</option><option>Important</option><option>Holiday / Maintenance</option></select><select id='adAud'><option>All users</option><option>Trial</option><option>Active</option></select></div>"
-        +"<label style='margin-right:10px'><input type='checkbox' id='adBannerOn' checked> Top banner</label><label><input type='checkbox' id='adBellOn' checked> Bell</label>"
-        +"<div style='display:flex;gap:8px;margin-top:8px'><input id='adStart' type='date'><input id='adEnd' type='date'></div>"
-        +"<div class='ad-acts' style='margin-top:8px'><button type='button' class='btn btn-g' onclick='adminNote(true)'>Send</button></div>"
-        +"<div id='adSent' style='margin-top:10px'></div></div>";
+      const reach=_adItems.filter(function(x){const s=adSt(x);return s!=="Stopped"&&s!=="Rejected";}).length;
+      html+="<div class='ad-box'><b>Messages to users</b><div style='display:grid;grid-template-columns:1.1fr .9fr;gap:12px;margin-top:8px'>"
+        +"<div><b>New message</b>"
+        +"<label>Title</label><input id='adTitle' placeholder='e.g. Server maintenance' style='width:100%;margin:4px 0 8px;padding:8px;border:1px solid #e6eaf0;border-radius:10px'>"
+        +"<label>Message <small id='adCount'>0/300</small></label><textarea id='adNote' rows='3' maxlength='300' oninput='adCount()' style='width:100%;margin-top:4px;border:1px solid #e6eaf0;border-radius:10px;padding:8px'></textarea>"
+        +"<div style='margin-top:8px'>Type <button type='button' class='btn btn-g' id='tyInfo' onclick='adType(this)'>Info</button> <button type='button' class='btn' id='tyImp' onclick='adType(this)'>Important</button> <button type='button' class='btn' id='tyHol' onclick='adType(this)'>Holiday / Maintenance</button></div>"
+        +"<div style='margin-top:8px'>Audience <button type='button' class='btn btn-g' id='auAll' onclick='adAud(this)'>All users</button> <button type='button' class='btn' id='auTrial' onclick='adAud(this)'>Trial</button> <button type='button' class='btn' id='auActive' onclick='adAud(this)'>Active</button></div>"
+        +"<p class='muted'>Will reach "+reach+" users. Blocked users never get messages.</p>"
+        +"<div>Show as <label><input type='checkbox' id='adBannerOn' checked onchange='adPreview()'> Top banner</label> <label><input type='checkbox' id='adBellOn' checked onchange='adPreview()'> Bell</label></div>"
+        +"<div style='display:flex;gap:8px;margin-top:8px'><input id='adStart' type='date' title='Start'><input id='adEnd' type='date' title='End'></div>"
+        +"<button type='button' class='btn btn-g' style='margin-top:8px' onclick='adminNote()'>Send</button></div>"
+        +"<div><b>Preview · what users see</b><div id='adPreview' style='margin-top:8px;border:1px solid #e6eaf0;border-radius:12px;overflow:hidden'><div id='adPrevBan' style='background:#0f766e;color:#fff;padding:8px'>Title — your message</div><div style='padding:10px'><b>Bell</b><p id='adPrevBell'>Title<br>your message</p></div></div></div></div>"
+        +"<div id='adSent' style='margin-top:12px'></div></div>";
       setTimeout(loadSent, 0);
     }
     pane.innerHTML=html;
+  }
+  function adCount(){ const n=(document.getElementById("adNote")||{}).value||""; const c=document.getElementById("adCount"); if(c) c.textContent=n.length+"/300"; adPreview(); }
+  function adType(btn){ window._adType=btn.textContent; ["tyInfo","tyImp","tyHol"].forEach(function(id){const e=document.getElementById(id); if(e) e.classList.toggle("btn-g", e===btn);}); }
+  function adAud(btn){ window._adAud=btn.textContent; ["auAll","auTrial","auActive"].forEach(function(id){const e=document.getElementById(id); if(e) e.classList.toggle("btn-g", e===btn);}); }
+  function adPreview(){
+    const t=(document.getElementById("adTitle")||{}).value||"Title";
+    const m=(document.getElementById("adNote")||{}).value||"your message";
+    const ban=document.getElementById("adPrevBan");
+    const bell=document.getElementById("adPrevBell");
+    if(ban){ ban.style.display=(document.getElementById("adBannerOn")||{}).checked?"":"none"; ban.textContent=t+" — "+m; }
+    if(bell) bell.innerHTML="<b>"+t+"</b><br>"+m;
   }
   async function loadSent(){
     const box=document.getElementById("adSent");
     if(!box) return;
     const d=await fetch(API+"/api/admin/messages",{headers:await authHeaders()}).then(function(r){return r.json();});
+    const total=_adItems.filter(function(x){const s=adSt(x);return s!=="Stopped"&&s!=="Rejected";}).length||0;
     box.innerHTML="<b>Sent messages</b>"+(d.messages||[]).map(function(m){
-      return "<div class='ad-row'><div><b>"+m.title+"</b><br><small>"+m.type+" · "+m.audience+" · "+(m.on?"Showing":"Stopped")+"</small><br>"+m.text+"</div><button type='button' class='btn' style='color:#b42318' onclick='adminStop(\""+m.id+"\")'>Stop now</button></div>";
+      const seen=Object.keys(m.seen||{}).length;
+      const when=(m.ts||"").slice(0,16).replace("T"," ");
+      const st=m.on?(m.end?("Showing · till "+m.end):"Showing"):"Stopped";
+      return "<div class='ad-row'><div><small>"+when+"</small><br><b>"+m.type+"</b> "+m.title+"<br>"+m.text+"</div><div>"+m.audience+"<br>"+(m.banner!==false?"Banner ":"")+(m.bell!==false?"Bell":"")+"</div><div>"+seen+" of "+total+"</div><div>"+st+"<br><button type='button' class='btn' style='color:#b42318' onclick='adminStop(\""+m.id+"\")'>Stop now</button></div></div>";
     }).join("")||"<p class='muted'>હજુ કોઈ સંદેશ નથી.</p>";
   }
   async function adminStop(id){
@@ -2065,8 +2085,8 @@
     const body={
       title:(document.getElementById("adTitle")||{}).value||"",
       text:(document.getElementById("adNote")||{}).value||"",
-      type:(document.getElementById("adType")||{}).value||"Info",
-      audience:(document.getElementById("adAud")||{}).value||"All users",
+      type:window._adType||"Info",
+      audience:window._adAud||"All users",
       banner:!!(document.getElementById("adBannerOn")||{}).checked,
       bell:!!(document.getElementById("adBellOn")||{}).checked,
       start:(document.getElementById("adStart")||{}).value||"",

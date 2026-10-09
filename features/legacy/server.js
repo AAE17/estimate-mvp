@@ -2712,15 +2712,29 @@ const ADMIN_NOTE = path.join(DB_DIR, "admin-note.json");
 app.get("/api/note", (req, res) => {
   const note = readAdminNote();
   const email = String(req.query.email || "").toLowerCase();
+  const st = String(req.query.status || "");
   const mine = email && note.users ? note.users[email] : null;
   const now = Date.now();
+  if (st === "Stopped" || st === "Rejected") return res.json({ mine: mine || null, messages: [] });
   const live = (note.messages || []).filter(function (m) {
     if (!m.on) return false;
     if (m.start && new Date(m.start).getTime() > now) return false;
     if (m.end && new Date(m.end).getTime() < now) return false;
+    if (m.audience && m.audience !== "All users" && m.audience !== st && m.audience !== "Active") return false;
+    if (m.audience === "Active" && st !== "Active" && st !== "Approved") return false;
+    if (m.audience === "Trial" && st !== "Trial") return false;
     return true;
   });
-  res.json({ text: note.text || "", on: !!note.on, mine: mine || null, messages: live });
+  if (email && live.length) {
+    note.messages.forEach(function (m) {
+      if (live.some(function (x) { return x.id === m.id; })) {
+        m.seen = m.seen || {};
+        m.seen[email] = m.seen[email] || new Date().toISOString();
+      }
+    });
+    try { fs.writeFileSync(ADMIN_NOTE, JSON.stringify(note)); } catch (_e) {}
+  }
+  res.json({ mine: mine || null, messages: live.map(function (m) { return { id: m.id, title: m.title, text: m.text, type: m.type, banner: m.banner, bell: m.bell }; }) });
 });
 app.get("/api/admin/messages", requireAdmin, (_req, res) => {
   const note = readAdminNote();
