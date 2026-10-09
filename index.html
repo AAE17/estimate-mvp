@@ -1829,7 +1829,7 @@
     if(btn) btn.textContent=admin?"👤 Admin":("👤 "+(email.split("@")[0]||"SO"));
     const hi=document.getElementById("helloName");
     if(hi) hi.textContent=p.name||meta.name||(me&&(me.full_name||me.name))||email.split("@")[0]||"Section Officer";
-    if(!admin){ paintUserBell(); setInterval(paintUserBell, 20000); }
+    paintUserBell(); setInterval(paintUserBell, 20000);
     if(!approved){
       document.getElementById("authGate").classList.remove("hidden");
       const msg=document.getElementById("authMsg");
@@ -1921,7 +1921,7 @@
       if(ban){ ban.classList.toggle("hidden", !top); ban.textContent=top?(top.title+" — "+top.text):""; }
       if(lines.length){
         if(dot) dot.classList.remove("hidden");
-        if(b && !window._soIsAdmin) b.innerHTML=lines.join("");
+        if(b) b.innerHTML=lines.join("");
       }
     }catch(e){}
   }

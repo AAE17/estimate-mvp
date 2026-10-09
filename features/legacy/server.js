@@ -2712,17 +2712,12 @@ const ADMIN_NOTE = path.join(DB_DIR, "admin-note.json");
 app.get("/api/note", (req, res) => {
   const note = readAdminNote();
   const email = String(req.query.email || "").toLowerCase();
-  const st = String(req.query.status || "");
   const mine = email && note.users ? note.users[email] : null;
   const now = Date.now();
-  if (st === "Stopped" || st === "Rejected") return res.json({ mine: mine || null, messages: [] });
   const live = (note.messages || []).filter(function (m) {
     if (!m.on) return false;
     if (m.start && new Date(m.start + "T00:00:00").getTime() > now) return false;
     if (m.end && new Date(m.end + "T23:59:59").getTime() < now) return false;
-    if (m.audience && m.audience !== "All users" && m.audience !== st && m.audience !== "Active") return false;
-    if (m.audience === "Active" && st !== "Active" && st !== "Approved") return false;
-    if (m.audience === "Trial" && st !== "Trial") return false;
     return true;
   });
   if (email && live.length) {
