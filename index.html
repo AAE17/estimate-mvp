@@ -764,6 +764,7 @@
         <button type="button" id="tab-site" onclick="show('s-site')"><span class="ic">📍</span>Site</button>
         <button type="button" id="tab-bill" onclick="show('s-bill')"><span class="ic">₹</span>Bill</button>
         <button type="button" id="tab-letter" onclick="show('s-letter')"><span class="ic">✉</span>ફોરવર્ડિંગ લેટર</button>
+        <button type="button" id="tab-help" onclick="show('s-help')"><span class="ic">?</span>Help</button>
         <button type="button" id="tab-tour" onclick="openTour()"><span class="ic">📅</span>Diary</button>
       </nav>
       <div class="hacts">
@@ -787,6 +788,7 @@
         <button type="button" onclick="show('s-site');toggleMobMenu(false)">Site</button>
         <button type="button" onclick="show('s-bill');toggleMobMenu(false)">Bill</button>
         <button type="button" onclick="show('s-letter');toggleMobMenu(false)">ફોરવર્ડિંગ લેટર</button>
+        <button type="button" onclick="show('s-help');toggleMobMenu(false)">Help</button>
         <button type="button" onclick="openTour();toggleMobMenu(false)">Diary</button>
         <button type="button" onclick="goTypes();toggleMobMenu(false)">+ New Estimate</button>
       </div>
@@ -1327,6 +1329,94 @@
       </div>
     </section>
 
+
+    <section id="s-help" class="card hidden">
+      <h2 style="margin:0 0 6px">Help</h2>
+      <p class="muted" style="margin:0 0 12px">દરેક કામના સ્ટેપ. ખોલો, વાંચો, એ જ ક્રમે કરો.</p>
+      <details open style="border:1px solid #e5e7eb;border-radius:10px;padding:10px 12px;margin:0 0 8px">
+        <summary><b>1. લૉગિન / સાઇન અપ</b></summary>
+        <ol>
+          <li>soplus.in અથવા એપ લિંક ખોલો.</li>
+          <li>Sign up: નામ, હોદ્દો, મોબાઇલ, ઈમેલ, પાસવર્ડ, જિલ્લો, તાલુકો.</li>
+          <li>Super Admin મંજૂર કરે ત્યાં સુધી અંદર નહીં થાય.</li>
+          <li>પછી ઈમેલ + પાસવર્ડથી Login.</li>
+        </ol>
+      </details>
+      <details style="border:1px solid #e5e7eb;border-radius:10px;padding:10px 12px;margin:0 0 8px">
+        <summary><b>2. પ્રોફાઇલ</b></summary>
+        <ol>
+          <li>ઉપર જમણે 👤 દબાવો.</li>
+          <li>નામ, હોદ્દો, R&B અને નાની સિંચાઈ ઓફિસ લખો.</li>
+          <li>સેવ. 100% ભરાય તો એસ્ટીમેટ/બિલમાં નામ અને ઓફિસ આપોઆપ છપાશે.</li>
+        </ol>
+      </details>
+      <details style="border:1px solid #e5e7eb;border-radius:10px;padding:10px 12px;margin:0 0 8px">
+        <summary><b>3. એસ્ટીમેટ — CC / Paver / Gutter / Pipe</b></summary>
+        <ol>
+          <li>+ New Estimate અથવા Estimate ટૅબ.</li>
+          <li>પ્રકાર પસંદ: CC Road, Paver Block, Gutter Line, Pipe Line.</li>
+          <li>જિલ્લો → તાલુકો → ગામ, Grant Head + વર્ષ, કામનું નામ, મંજૂર રકમ.</li>
+          <li>લંબાઈ / પહોળાઈ. CCમાં જાડાઈ. વધુ પહોળાઈ હોય તો Add.</li>
+          <li>લાઇવ રકમ જુઓ. Paverમાં Brass પણ.</li>
+          <li>Excel, PDF અથવા બંને. બને ત્યાં સુધી ફોર્મ ન અડશો.</li>
+        </ol>
+      </details>
+      <details style="border:1px solid #e5e7eb;border-radius:10px;padding:10px 12px;margin:0 0 8px">
+        <summary><b>4. સાઇટ માપ</b></summary>
+        <ol>
+          <li>Site ટૅબ. New work અથવા Ongoingમાં એસ્ટીમેટ પસંદ.</li>
+          <li>લંબાઈ-પહોળાઈ લખો. CCમાં જાડાઈ. 10+15 લખો તો સરેરાશ.</li>
+          <li>કોન્ટ્રાક્ટરનું નામ આ માપ માટે અલગ હોઈ શકે.</li>
+          <li>Site plan = આંગળીથી સ્કેચ. Photo = કેમેરા, GPS જો મંજૂરી હોય.</li>
+          <li>Save. Work done યાદીમાં આવશે. આંખ = ખોલો, ડસ્ટબિન = કાઢો.</li>
+        </ol>
+      </details>
+      <details style="border:1px solid #e5e7eb;border-radius:10px;padding:10px 12px;margin:0 0 8px">
+        <summary><b>5. કાચું બિલ</b></summary>
+        <ol>
+          <li>સાઇટ માપ સેવ પછી Check, કામ ખરેખર પૂરું થયું?</li>
+          <li>રકમ / Brass પોપઅપ જુઓ.</li>
+          <li>કાચું બિલ દબાવો. તકતી/ટેસ્ટ 0 કરી શકાય.</li>
+          <li>બરાબર લાગે તો Excel / PDF સેવ.</li>
+        </ol>
+      </details>
+      <details style="border:1px solid #e5e7eb;border-radius:10px;padding:10px 12px;margin:0 0 8px">
+        <summary><b>6. પાકું બિલ</b></summary>
+        <ol>
+          <li>Bill ટૅબ. ત્રણ રસ્તા: એસ્ટીમેટ પરથી, સેવ કરેલ માપ પરથી, નવી સાઇટ.</li>
+          <li>કામ પસંદ. Grant / Year આપોઆપ આવે તો ચેક કરો.</li>
+          <li>ગામ, તાલુકો, DEE, AAE, વર્ક ઓર્ડર, TS, મંજૂર રકમ, શરૂ/પૂર્ણ તારીખ, MB નંબર, પાના.</li>
+          <li>Qty લખો. બાજુમાં લાઇવ બિલ જુઓ.</li>
+          <li>Excel, PDF અથવા બંને.</li>
+        </ol>
+      </details>
+      <details style="border:1px solid #e5e7eb;border-radius:10px;padding:10px 12px;margin:0 0 8px">
+        <summary><b>7. ફોરવર્ડિંગ લેટર</b></summary>
+        <ol>
+          <li>ફોરવર્ડિંગ લેટર ટૅબ.</li>
+          <li>બિલ બન્યાની તારીખ પસંદ. એ જ દિવસના બિલ આવશે.</li>
+          <li>વહી નંબર, પત્ર તારીખ, ઓડિટ માટે જિલ્લા પંચાયત.</li>
+          <li>કામ પર ટિક. DEE R&B અથવા નાની સિંચાઈ + ઓફિસ સરનામું.</li>
+          <li>એક MBમાં ઘણા કામ હોય તો બધા ટિક કરો. Excel/PDF.</li>
+        </ol>
+      </details>
+      <details style="border:1px solid #e5e7eb;border-radius:10px;padding:10px 12px;margin:0 0 8px">
+        <summary><b>8. ટૂર ડાયરી અને ફોટો</b></summary>
+        <ol>
+          <li>Diary: આજની તારીખ. એસ્ટીમેટ, સાઇટ, બિલ આપોઆપ ગણાશે.</li>
+          <li>ફોટો/સ્કેચ ફક્ત તમારા ખાનગી ફોલ્ડરમાં. બીજા યુઝરને નહીં દેખાય.</li>
+          <li>ખોલો લિંક 10 મિનિટ. યાદી ફરી ખોલો તો નવી લિંક.</li>
+        </ol>
+      </details>
+      <details style="border:1px solid #e5e7eb;border-radius:10px;padding:10px 12px;margin:0 0 8px">
+        <summary><b>વારંવારના સવાલ</b></summary>
+        <p><b>PDF અને Excel અલગ શા માટે?</b> Excelમાં ફોર્મ્યુલા હોય છે. PDF પ્રિન્ટ માટે. બંને એક જ ઇનપુટથી બને છે.</p>
+        <p><b>લૉગિન વગર શા માટે નહીં?</b> દરેક યુઝરનો ડેટા અલગ રહે.</p>
+        <p><b>Gutter/Pipe હજુ?</b> લાઇવ છે. ફોર્મ ભરો, Excel/PDF લો. સ્કેલેટન બદલશો નહીં.</p>
+        <p><b>ભૂલ પડે તો?</b> Grant Head, ગામ, રકમ અને MB નંબર ફરી ચેક કરો. પછી ફરી બનાવો.</p>
+      </details>
+    </section>
+
     <section id="s-pr" class="card hidden">
       <h2>Profile</h2>
       <div class="field" style="text-align:center">
@@ -1524,14 +1614,14 @@
   }
 
   function setTab(which) {
-    ["tab-dash","tab-est","tab-site","tab-bill","tab-tour"].forEach((tid) => {
+    ["tab-dash","tab-est","tab-site","tab-bill","tab-tour","tab-help"].forEach((tid) => {
       const el = document.getElementById(tid);
       if (el) el.classList.toggle("on", tid === which);
     });
   }
   function show(id) {
     { const fd = document.getElementById("fileDock"); if (fd) fd.remove(); }
-    ["s-hi","s-type","s-form","s-site","s-tour","s-pr","s-bill","s-letter"].forEach(s => {
+    ["s-hi","s-type","s-form","s-site","s-tour","s-pr","s-bill","s-letter","s-help"].forEach(s => {
       const el = document.getElementById(s);
       if (el) el.classList.toggle("hidden", s !== id);
     });
@@ -1543,6 +1633,7 @@
     if (id === "s-pr") { loadProfile(); setHomeOffice(); }
     if (id === "s-bill") { try{ billMode(window.__billMode||1); liveBill(); }catch(e){} setTab("tab-bill"); }
     if (id === "s-letter") { try{ renderLetterBills(); }catch(e){} setTab("tab-letter"); }
+    if (id === "s-help") setTab("tab-help");
   }
   function applyDark(){
     const on=localStorage.getItem("copilot_dark")==="1";
