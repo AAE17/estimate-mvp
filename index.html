@@ -1913,17 +1913,29 @@
       const st=String((prGet().status)||(prGet().subscription_status)||""); const n=await fetch(API+"/api/note?email="+encodeURIComponent(em)+"&status="+encodeURIComponent(st)).then(function(r){return r.json();});
       const b=document.getElementById("notifBox");
       const dot=document.getElementById("notifDot");
+      const seen=JSON.parse(localStorage.getItem("so_note_ok")||"{}");
       const lines=[];
-      if(n&&n.mine&&n.mine.text) lines.push("<b>Account</b><p>"+n.mine.text+"</p>");
-      (n.messages||[]).forEach(function(m){ if(m.bell!==false) lines.push("<b>"+m.title+"</b><p>"+m.text+"</p>"); });
+      const ids=[];
+      if(n&&n.mine&&n.mine.text){ ids.push("acc-"+(n.mine.ts||n.mine.text)); if(!seen["acc-"+(n.mine.ts||n.mine.text)]) lines.push("<b>Account</b><p>"+n.mine.text+"</p>"); }
+      (n.messages||[]).forEach(function(m){ if(m.bell===false) return; ids.push(m.id); if(!seen[m.id]) lines.push("<b>"+m.title+"</b><p>"+m.text+"</p>"); });
       const ban=document.getElementById("adBanner");
-      const top=(n.messages||[]).find(function(m){return m.banner!==false;});
+      const top=(n.messages||[]).find(function(m){return m.banner!==false && !seen[m.id];});
       if(ban){ ban.classList.toggle("hidden", !top); ban.textContent=top?(top.title+" — "+top.text):""; }
-      if(lines.length){
-        if(dot) dot.classList.remove("hidden");
-        if(b) b.innerHTML=lines.join("");
-      }
+      if(dot) dot.classList.toggle("hidden", !lines.length);
+      if(b) b.innerHTML=lines.length?lines.join("")+"<button type='button' class='btn btn-g' onclick='noteOk()'>OK</button>":"<b>સૂચના</b><p class='muted'>કોઈ નવી સૂચના નથી.</p>";
+      window._noteIds=ids;
     }catch(e){}
+  }
+  function noteOk(){
+    const seen=JSON.parse(localStorage.getItem("so_note_ok")||"{}");
+    (window._noteIds||[]).forEach(function(id){ seen[id]=Date.now(); });
+    localStorage.setItem("so_note_ok", JSON.stringify(seen));
+    const dot=document.getElementById("notifDot");
+    if(dot) dot.classList.add("hidden");
+    const ban=document.getElementById("adBanner");
+    if(ban) ban.classList.add("hidden");
+    const b=document.getElementById("notifBox");
+    if(b) b.innerHTML="<b>સૂચના</b><p class='muted'>જોઈ લીધું.</p>";
   }
   function paintUserBellOld(){
     const b=document.getElementById("notifBox");
