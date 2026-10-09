@@ -1833,7 +1833,7 @@
     if(!approved){
       document.getElementById("authGate").classList.remove("hidden");
       const msg=document.getElementById("authMsg");
-      if(msg) msg.innerHTML=(String(me&&me.subscription_status)==="Stopped")?"સેવા બંધ છે.<br>નંબર: 9327561107<br>મેઇલ: suppost@soplus.in":((me&&String(me.subscription_status)==="Trial")?"ટ્રાયલ પૂરો. પેમેન્ટ પછી Admin Resume કરશે.<br>નંબર: 9327561107<br>મેઇલ: suppost@soplus.in":"અકાઉન્ટ બન્યું. Super Admin Approve કરે ત્યાં સુધી રાહ.<br>નંબર: 9327561107<br>મેઇલ: suppost@soplus.in");
+      if(msg) msg.innerHTML=(String(me&&me.subscription_status)==="Stopped")?"સેવા બંધ છે.<br>નંબર: 9327561107<br>મેઇલ: support@soplus.in":((me&&String(me.subscription_status)==="Trial")?"ટ્રાયલ પૂરો. પેમેન્ટ પછી Admin Resume કરશે.<br>નંબર: 9327561107<br>મેઇલ: support@soplus.in":"અકાઉન્ટ બન્યું. Super Admin Approve કરે ત્યાં સુધી રાહ.<br>નંબર: 9327561107<br>મેઇલ: support@soplus.in");
       return;
     }
     document.getElementById("authGate").classList.add("hidden");
@@ -2040,7 +2040,7 @@
     if(_adPane==="over"||_adPane==="appr") html="<div class='ad-box'><b>Pending approvals</b><p class='muted'>નવો સાઇન અપ. Approve = 30 દિવસ ચાલુ. Reject = બંધ. બંને યુઝરની ઘંટડીમાં જાય.</p>"+list(function(x){const s=adSt(x);return s==="Pending"||s==="";})+"</div>";
     if(_adPane==="over"||_adPane==="trial") html+="<div class='ad-box'><b>Trials</b><p class='muted'>+7 days = ટ્રાયલ 7 દિવસ વધારે. Activate = પૈસા આવ્યા, 30 દિવસ ચાલુ. Block = તરત બંધ.</p>"+list(function(x){return adSt(x)==="Trial";})+"</div>";
     if(_adPane==="over"||_adPane==="users") html+="<div class='ad-box'><b>Users</b><p class='muted'>+7 days ફક્ત ટ્રાયલ પર. Active પર Block. બંધ પર Unblock. દરેક ફેરફાર યુઝરની ઘંટડીમાં જાય.</p>"+list(function(){return true;})+"</div>";
-    if(_adPane==="over"||_adPane==="pay") html+="<div class='ad-box'><b>Payments</b><p class='muted'>હાથથી. Approve / Resume = Paid. Stop = બંધ. ટ્રાયલ પૂરો થાય તો યુઝરને 9327561107 · suppost@soplus.in દેખાશે.</p>"+list(function(){return true;})+"</div>";
+    if(_adPane==="over"||_adPane==="pay") html+="<div class='ad-box'><b>Payments</b><p class='muted'>હાથથી. Approve / Resume = Paid. Stop = બંધ. ટ્રાયલ પૂરો થાય તો યુઝરને 9327561107 · support@soplus.in દેખાશે.</p>"+list(function(){return true;})+"</div>";
     if(_adPane==="over"||_adPane==="feed"){
       html+="<div class='ad-box'><b>Live feed</b>"+(window._adFeed||[]).map(function(x){return "<div class='ad-row'><div><b>"+(x.kind||"કામ")+"</b><br><small>"+(x.village||x.work||"—")+"</small></div><div>"+(x.amount||"")+"</div></div>";}).join("")||"<p class='muted'>નવો એસ્ટીમેટ બને એટલે અહીં આવશે.</p></div>";
     }

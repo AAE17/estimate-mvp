@@ -2723,8 +2723,8 @@ app.post("/api/admin/approve", requireAdmin, async (req, res) => {
     const msg = {
       Active: "તમારું અકાઉન્ટ મંજૂર થયું. એપ ચાલુ છે.",
       Trial: "ટ્રાયલ " + (days||7) + " દિવસ વધાર્યો.",
-      Stopped: "સેવા બંધ છે. સંપર્ક: 9327561107 · suppost@soplus.in",
-      Rejected: "સાઇન અપ નામંજૂર. સંપર્ક: 9327561107 · suppost@soplus.in"
+      Stopped: "સેવા બંધ છે. સંપર્ક: 9327561107 · support@soplus.in",
+      Rejected: "સાઇન અપ નામંજૂર. સંપર્ક: 9327561107 · support@soplus.in"
     }[patch.subscription_status] || "અકાઉન્ટમાં ફેરફાર થયો.";
     writeUserNotice(email, msg);
     res.json({ ok: true, item: Array.isArray(js)?js[0]:js });
