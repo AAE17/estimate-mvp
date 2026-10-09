@@ -1,0 +1,5 @@
+node_modules/
+output/
+db/
+events.jsonl
+.env

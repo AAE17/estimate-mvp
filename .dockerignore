@@ -1,0 +1,8 @@
+node_modules
+output
+db
+events.jsonl
+tests
+.github
+.git
+.env

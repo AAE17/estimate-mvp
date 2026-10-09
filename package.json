@@ -4,7 +4,8 @@
   "private": true,
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "test": "node --test"
   },
   "dependencies": {
     "cors": "^2.8.5",
@@ -13,5 +14,8 @@
     "pdf-lib": "^1.17.1",
     "pdfkit": "^0.15.2",
     "tesseract.js": "^5.1.1"
+  },
+  "engines": {
+    "node": ">=20"
   }
 }

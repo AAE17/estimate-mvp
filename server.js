@@ -668,6 +668,7 @@ function runSoffice(args, timeoutMs) {
 }
 
 function recalcXlsxFile(xlsxPath) {
+  if (process.env.SOFFICE_DISABLED === "1") return Promise.resolve(); // tests/CI only: skip LibreOffice recalc
   return loQueue(async function () {
     const tmp = path.join(path.dirname(xlsxPath), "recalc-" + Date.now() + "-" + Math.random().toString(36).slice(2, 6));
     fs.mkdirSync(tmp, { recursive: true });
