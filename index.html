@@ -1639,7 +1639,7 @@
   }
   function show(id) {
     { const fd = document.getElementById("fileDock"); if (fd) fd.remove(); }
-    ["s-hi","s-type","s-form","s-site","s-tour","s-pr","s-bill","s-letter","s-help"].forEach(s => {
+    ["s-hi","s-type","s-form","s-site","s-tour","s-pr","s-bill","s-letter","s-help","s-admin"].forEach(s => {
       const el = document.getElementById(s);
       if (el) el.classList.toggle("hidden", s !== id);
     });
