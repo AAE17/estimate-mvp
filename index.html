@@ -1908,12 +1908,16 @@
   }
   async function paintUserBell(){
     try{
-      const n=await fetch(API+"/api/note").then(function(r){return r.json();});
-      if(n&&n.on&&n.text){
-        const b=document.getElementById("notifBox");
-        const dot=document.getElementById("notifDot");
+      const em=(prGet().email||"");
+      const n=await fetch(API+"/api/note?email="+encodeURIComponent(em)).then(function(r){return r.json();});
+      const b=document.getElementById("notifBox");
+      const dot=document.getElementById("notifDot");
+      const lines=[];
+      if(n&&n.mine&&n.mine.text) lines.push("<b>અકાઉન્ટ</b><p>"+n.mine.text+"</p>");
+      if(n&&n.on&&n.text) lines.push("<b>સંદેશ</b><p>"+n.text+"</p>");
+      if(lines.length){
         if(dot) dot.classList.remove("hidden");
-        if(b && !window._soIsAdmin) b.innerHTML="<b>સંદેશ</b><p>"+n.text+"</p>";
+        if(b && !window._soIsAdmin) b.innerHTML=lines.join("");
       }
     }catch(e){}
   }
@@ -1985,8 +1989,10 @@
   function adBtns(x){
     const em=String(x.email||"").replace(/"/g,"");
     const s=adSt(x);
-    if(s==="Stopped") return "<button type='button' class='btn btn-g' onclick='adminAct(\""+em+"\",\"Resume\",30)'>Resume</button>";
-    return "<button type='button' class='btn btn-g' onclick='adminAct(\""+em+"\",\"Active\",30)'>Approve</button><button type='button' class='btn' onclick='adminAct(\""+em+"\",\"Trial\",7)'>+7</button><button type='button' class='btn' style='color:#b42318' onclick='adminAct(\""+em+"\",\"Stopped\",0)'>Stop</button>";
+    if(s==="Stopped"||s==="Rejected") return "<button type='button' class='btn btn-g' onclick='adminAct(\""+em+"\",\"Resume\",30)'>Unblock</button>";
+    if(s==="Pending"||s==="") return "<button type='button' class='btn' style='color:#b42318' onclick='adminAct(\""+em+"\",\"Rejected\",0)'>Reject</button><button type='button' class='btn btn-g' onclick='adminAct(\""+em+"\",\"Active\",30)'>Approve</button>";
+    if(s==="Trial") return "<button type='button' class='btn' onclick='adminAct(\""+em+"\",\"Trial\",7)'>+7 days</button><button type='button' class='btn btn-g' onclick='adminAct(\""+em+"\",\"Activate\",30)'>Activate</button><button type='button' class='btn' style='color:#b42318' onclick='adminAct(\""+em+"\",\"Block\",0)'>Block</button>";
+    return "<button type='button' class='btn' style='color:#b42318' onclick='adminAct(\""+em+"\",\"Block\",0)'>Block</button>";
   }
   function adRow(x){
     const s=adSt(x);
@@ -2015,9 +2021,9 @@
     ].map(function(x){return "<div class='ad-kpi "+x[2]+"'><span>"+x[0]+"</span><b>"+x[1]+"</b><small>"+x[3]+"</small></div>";}).join("");
     const list=function(pred){ return _adItems.filter(pred).map(adRow).join("")||"<p class='muted'>ખાલી.</p>"; };
     let html="";
-    if(_adPane==="over"||_adPane==="appr") html="<div class='ad-box'><b>Pending approvals</b>"+list(function(x){const s=adSt(x);return s==="Pending"||s==="";})+"</div>";
-    if(_adPane==="over"||_adPane==="trial") html+="<div class='ad-box'><b>Trials</b>"+list(function(x){return adSt(x)==="Trial";})+"</div>";
-    if(_adPane==="over"||_adPane==="users") html+="<div class='ad-box'><b>Users</b>"+list(function(){return true;})+"</div>";
+    if(_adPane==="over"||_adPane==="appr") html="<div class='ad-box'><b>Pending approvals</b><p class='muted'>નવો સાઇન અપ. Approve = 30 દિવસ ચાલુ. Reject = બંધ. બંને યુઝરની ઘંટડીમાં જાય.</p>"+list(function(x){const s=adSt(x);return s==="Pending"||s==="";})+"</div>";
+    if(_adPane==="over"||_adPane==="trial") html+="<div class='ad-box'><b>Trials</b><p class='muted'>+7 days = ટ્રાયલ 7 દિવસ વધારે. Activate = પૈસા આવ્યા, 30 દિવસ ચાલુ. Block = તરત બંધ.</p>"+list(function(x){return adSt(x)==="Trial";})+"</div>";
+    if(_adPane==="over"||_adPane==="users") html+="<div class='ad-box'><b>Users</b><p class='muted'>+7 days ફક્ત ટ્રાયલ પર. Active પર Block. બંધ પર Unblock. દરેક ફેરફાર યુઝરની ઘંટડીમાં જાય.</p>"+list(function(){return true;})+"</div>";
     if(_adPane==="over"||_adPane==="pay") html+="<div class='ad-box'><b>Payments</b><p class='muted'>હાથથી. Approve / Resume = Paid. Stop = બંધ. ટ્રાયલ પૂરો થાય તો યુઝરને 8734901625 દેખાશે.</p>"+list(function(){return true;})+"</div>";
     if(_adPane==="over"||_adPane==="feed"){
       html+="<div class='ad-box'><b>Live feed</b>"+(window._adFeed||[]).map(function(x){return "<div class='ad-row'><div><b>"+(x.kind||"કામ")+"</b><br><small>"+(x.village||x.work||"—")+"</small></div><div>"+(x.amount||"")+"</div></div>";}).join("")||"<p class='muted'>નવો એસ્ટીમેટ બને એટલે અહીં આવશે.</p></div>";

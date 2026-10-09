@@ -2669,6 +2669,17 @@ app.get("/api/admin/pending", requireAdmin, async (_req, res) => {
     res.json({ ok: false, items: [], error: String(e.message||e) });
   }
 });
+function readAdminNote(){
+  try { return JSON.parse(fs.readFileSync(ADMIN_NOTE, "utf8")); }
+  catch (_e) { return { text: "", on: false, users: {} }; }
+}
+function writeUserNotice(email, text){
+  const note = readAdminNote();
+  note.users = note.users || {};
+  note.users[String(email||"").toLowerCase()] = { text: text, ts: new Date().toISOString() };
+  fs.mkdirSync(path.dirname(ADMIN_NOTE), { recursive: true });
+  fs.writeFileSync(ADMIN_NOTE, JSON.stringify(note));
+}
 app.post("/api/admin/approve", requireAdmin, async (req, res) => {
   try {
     const email = String((req.body||{}).email||"").toLowerCase();
@@ -2676,7 +2687,7 @@ app.post("/api/admin/approve", requireAdmin, async (req, res) => {
     const days = Number((req.body||{}).days || 0);
     if (!email) return res.json({ ok: false, error: "email" });
     delete activeCache[email];
-    const st = status==="Approved"||status==="Paid"||status==="Resume" ? "Active" : status;
+    const st = status==="Approved"||status==="Paid"||status==="Resume"||status==="Activate" ? "Active" : (status==="Block"||status==="Stop" ? "Stopped" : status);
     const patch = { subscription_status: st };
     if (days > 0) {
       const end = new Date(Date.now() + days*864e5);
@@ -2684,6 +2695,13 @@ app.post("/api/admin/approve", requireAdmin, async (req, res) => {
       if (st !== "Stopped" && st !== "Rejected") patch.subscription_status = st === "Active" ? "Active" : "Trial";
     }
     const js = await sbProfiles("PATCH", "profiles?email=eq." + encodeURIComponent(email), patch);
+    const msg = {
+      Active: "તમારું અકાઉન્ટ મંજૂર થયું. એપ ચાલુ છે.",
+      Trial: "ટ્રાયલ " + (days||7) + " દિવસ વધાર્યો.",
+      Stopped: "સેવા બંધ છે. સંપર્ક: 8734901625",
+      Rejected: "સાઇન અપ નામંજૂર. સંપર્ક: 8734901625"
+    }[patch.subscription_status] || "અકાઉન્ટમાં ફેરફાર થયો.";
+    writeUserNotice(email, msg);
     res.json({ ok: true, item: Array.isArray(js)?js[0]:js });
   } catch (e) {
     res.json({ ok: false, error: String(e.message||e) });
@@ -2691,9 +2709,11 @@ app.post("/api/admin/approve", requireAdmin, async (req, res) => {
 });
 
 const ADMIN_NOTE = path.join(DB_DIR, "admin-note.json");
-app.get("/api/note", (_req, res) => {
-  try { res.json(JSON.parse(fs.readFileSync(ADMIN_NOTE, "utf8"))); }
-  catch (_e) { res.json({ text: "", on: false }); }
+app.get("/api/note", (req, res) => {
+  const note = readAdminNote();
+  const email = String(req.query.email || "").toLowerCase();
+  const mine = email && note.users ? note.users[email] : null;
+  res.json({ text: note.text || "", on: !!note.on, mine: mine || null });
 });
 app.post("/api/admin/note", requireAdmin, (req, res) => {
   const body = { text: String((req.body||{}).text || "").slice(0, 240), on: (req.body||{}).on !== false, ts: new Date().toISOString() };
