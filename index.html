@@ -764,6 +764,7 @@
         <button type="button" id="tab-site" onclick="show('s-site')"><span class="ic">📍</span>Site</button>
         <button type="button" id="tab-bill" onclick="show('s-bill')"><span class="ic">₹</span>Bill</button>
         <button type="button" id="tab-letter" onclick="show('s-letter')"><span class="ic">✉</span>ફોરવર્ડિંગ લેટર</button>
+        <button type="button" id="tab-admin" class="hidden" onclick="show('s-admin')"><span class="ic">▣</span>Admin</button>
         <button type="button" id="tab-tour" onclick="openTour()"><span class="ic">📅</span>Diary</button>
         <button type="button" id="tab-help" onclick="show('s-help')">Help<span class="ic">?</span></button>
       </nav>
@@ -788,6 +789,7 @@
         <button type="button" onclick="show('s-site');toggleMobMenu(false)">Site</button>
         <button type="button" onclick="show('s-bill');toggleMobMenu(false)">Bill</button>
         <button type="button" onclick="show('s-letter');toggleMobMenu(false)">ફોરવર્ડિંગ લેટર</button>
+        <button type="button" id="tab-admin-m" class="hidden" onclick="show('s-admin');toggleMobMenu(false)">Admin</button>
         <button type="button" onclick="openTour();toggleMobMenu(false)">Diary</button>
         <button type="button" onclick="show('s-help');toggleMobMenu(false)">Help</button>
         <button type="button" onclick="goTypes();toggleMobMenu(false)">+ New Estimate</button>
@@ -1330,6 +1332,22 @@
     </section>
 
 
+
+    <section id="s-admin" class="card hidden">
+      <div class="head"><h2>Admin ડેશબોર્ડ</h2><p class="muted">ફક્ત Super Admin. યુઝર, Stop / Resume, પેમેન્ટ, બાકી તાલુકા.</p></div>
+      <div id="adKpi" style="display:flex;flex-wrap:wrap;gap:8px;margin:8px 0"></div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">
+        <button type="button" class="btn btn-g" onclick="adminFilter('')">બધા</button>
+        <button type="button" class="btn" onclick="adminFilter('Pending')">Pending</button>
+        <button type="button" class="btn" onclick="adminFilter('Trial')">Trial</button>
+        <button type="button" class="btn" onclick="adminFilter('Active')">Active</button>
+        <button type="button" class="btn" onclick="adminFilter('Stopped')">Stopped</button>
+      </div>
+      <div id="adUsers" style="overflow:auto"></div>
+      <h3 style="margin:16px 0 6px">બાકી તાલુકા · લક્ષ્ય</h3>
+      <div id="adMiss" style="overflow:auto"></div>
+    </section>
+
     <section id="s-help" class="card hidden">
       <h2 style="margin:0 0 6px">Help</h2>
       <p class="muted" style="margin:0 0 12px">દરેક કામના સ્ટેપ. ખોલો, વાંચો, એ જ ક્રમે કરો.</p>
@@ -1614,7 +1632,7 @@
   }
 
   function setTab(which) {
-    ["tab-dash","tab-est","tab-site","tab-bill","tab-tour","tab-help"].forEach((tid) => {
+    ["tab-dash","tab-est","tab-site","tab-bill","tab-tour","tab-help","tab-admin"].forEach((tid) => {
       const el = document.getElementById(tid);
       if (el) el.classList.toggle("on", tid === which);
     });
@@ -1634,6 +1652,7 @@
     if (id === "s-bill") { try{ billMode(window.__billMode||1); liveBill(); }catch(e){} setTab("tab-bill"); }
     if (id === "s-letter") { try{ renderLetterBills(); }catch(e){} setTab("tab-letter"); }
     if (id === "s-help") setTab("tab-help");
+    if (id === "s-admin") { setTab("tab-admin"); loadAdmin(); }
   }
   function applyDark(){
     const on=localStorage.getItem("copilot_dark")==="1";
@@ -1784,11 +1803,15 @@
     if(!approved){
       document.getElementById("authGate").classList.remove("hidden");
       const msg=document.getElementById("authMsg");
-      if(msg) msg.textContent=(me&&String(me.subscription_status)==="Trial")?"15 દિવસનો ટ્રાયલ પૂરો. Super Admin Approve કરે ત્યાં સુધી રાહ.":"અકાઉન્ટ બન્યું. Super Admin Approve કરે ત્યાં સુધી રાહ.";
+      if(msg) msg.textContent=(String(me&&me.subscription_status)==="Stopped")?"સેવા બંધ છે. ચાલુ કરવા સંપર્ક: Vanrajsinh Thakor · 8734901625 · vanraj2592@gmail.com":((me&&String(me.subscription_status)==="Trial")?"ટ્રાયલ પૂરો. પેમેન્ટ માટે સંપર્ક: 8734901625 · vanraj2592@gmail.com. પછી Admin Resume કરશે.":"અકાઉન્ટ બન્યું. Super Admin Approve કરે ત્યાં સુધી રાહ.");
       return;
     }
     document.getElementById("authGate").classList.add("hidden");
-    if(admin) loadPending();
+    if(admin){
+      const ab=document.getElementById("tab-admin"); if(ab) ab.classList.remove("hidden");
+      const am=document.getElementById("tab-admin-m"); if(am) am.classList.remove("hidden");
+      loadPending();
+    }
   }
   function showSignup(){}
   function authErr(s){
@@ -1896,6 +1919,59 @@
       if(b) b.innerHTML="<p class='muted'>યાદી ન ખૂલી</p>";
     }
   }
+
+  let _adItems=[], _adFilter="", _adMiss=[];
+  function adminFilter(f){ _adFilter=f; paintAdmin(); }
+  async function loadAdmin(){
+    const box=document.getElementById("adUsers");
+    if(box) box.innerHTML="<p class='muted'>લોડ થાય છે…</p>";
+    try{
+      const d=await fetch(API+"/api/admin/dash",{headers:await authHeaders()}).then(function(r){return r.json();});
+      _adItems=d.items||[];
+      _adMiss=(d.coverage&&d.coverage.missing)||[];
+      const c=d.coverage||{};
+      const st=function(x){return String(x.subscription_status||x.status||"Trial");};
+      const n=function(w){return _adItems.filter(function(x){return st(x)===w;}).length;};
+      const kpi=document.getElementById("adKpi");
+      if(kpi) kpi.innerHTML=[
+        ["યુઝર", _adItems.length],
+        ["Pending", n("Pending")+n("")],
+        ["Trial", n("Trial")],
+        ["Active", n("Active")+n("Approved")],
+        ["Stopped", n("Stopped")],
+        ["લાઇવ જિલ્લા", (c.liveDist||0)+"/"+(c.districts||33)],
+        ["લાઇવ તાલુકા", (c.liveTaluka||0)+"/"+(c.talukas||0)],
+        ["બાકી તાલુકા", (c.talukas||0)-(c.liveTaluka||0)]
+      ].map(function(x){return "<span class='pill'>"+x[0]+" <b>"+x[1]+"</b></span>";}).join("");
+      paintAdmin();
+    }catch(e){ if(box) box.innerHTML="<p class='muted'>યાદી ન ખૂલી</p>"; }
+  }
+  function paintAdmin(){
+    const box=document.getElementById("adUsers");
+    const miss=document.getElementById("adMiss");
+    if(!box) return;
+    const st=function(x){return String(x.subscription_status||x.status||"Trial")||"Trial";};
+    const rows=_adItems.filter(function(x){ return !_adFilter || st(x)===_adFilter || (_adFilter==="Pending" && (st(x)==="Pending"||st(x)==="")); });
+    const col=function(s){ return s==="Active"||s==="Approved"?"#067647":(s==="Stopped"||s==="Rejected"?"#b42318":"#b54708"); };
+    box.innerHTML="<table class='grid'><tr><th>નામ</th><th>જગ્યા</th><th>સ્ટેટસ</th><th>પેમેન્ટ</th><th></th></tr>"+rows.map(function(x){
+      const s=st(x);
+      const pay=s==="Active"||s==="Approved"?"Paid":(s==="Stopped"?"બંધ":"Pending");
+      const em=String(x.email||"").replace(/"/g,"");
+      const btns=(s==="Stopped")
+        ? "<button type='button' class='btn btn-g' onclick='adminAct(\""+em+"\",\"Resume\",30)'>Resume</button>"
+        : "<button type='button' class='btn btn-g' onclick='adminAct(\""+em+"\",\"Active\",30)'>Approve</button> <button type='button' class='btn' onclick='adminAct(\""+em+"\",\"Trial\",7)'>+7</button> <button type='button' class='btn' style='color:#b42318' onclick='adminAct(\""+em+"\",\"Stopped\",0)'>Stop</button>";
+      return "<tr><td>"+(x.full_name||x.name||"—")+"<br><small>"+(x.email||"")+"</small></td><td>"+(x.jilla||"—")+" · "+(x.taluka||"—")+"</td><td style='color:"+col(s)+";font-weight:700'>"+s+"</td><td>"+pay+"</td><td>"+btns+"</td></tr>";
+    }).join("")+"</table>";
+    if(miss) miss.innerHTML="<table class='grid'><tr><th>જિલ્લો</th><th>તાલુકો</th><th>સ્ટેટસ</th></tr>"+_adMiss.slice(0,40).map(function(x){
+      return "<tr><td>"+x.jilla+"</td><td>"+x.taluka+"</td><td style='color:#b42318'>બાકી</td></tr>";
+    }).join("")+"</table><p class='muted'>પહેલા 40. કુલ બાકી ઉપરના આંકડામાં.</p>";
+  }
+  async function adminAct(email, status, days){
+    await fetch(API+"/api/admin/approve",{method:"POST",headers:await authHeaders(),body:JSON.stringify({email:email,status:status,days:days})});
+    loadAdmin();
+    loadPending();
+  }
+
   async function approveUser(email){
     await fetch(API+"/api/admin/approve",{method:"POST",headers:await authHeaders(),body:JSON.stringify({email:email,status:"Approved"})});
     loadPending();

@@ -2673,12 +2673,52 @@ app.post("/api/admin/approve", requireAdmin, async (req, res) => {
   try {
     const email = String((req.body||{}).email||"").toLowerCase();
     const status = (req.body||{}).status || "Active";
+    const days = Number((req.body||{}).days || 0);
     if (!email) return res.json({ ok: false, error: "email" });
     delete activeCache[email];
-    const js = await sbProfiles("PATCH", "profiles?email=eq." + encodeURIComponent(email), { subscription_status: status==="Approved"?"Active":status });
+    const st = status==="Approved"||status==="Paid"||status==="Resume" ? "Active" : status;
+    const patch = { subscription_status: st };
+    if (days > 0) {
+      const end = new Date(Date.now() + days*864e5);
+      patch.subscription_end_date = end.toISOString();
+      if (st !== "Stopped" && st !== "Rejected") patch.subscription_status = st === "Active" ? "Active" : "Trial";
+    }
+    const js = await sbProfiles("PATCH", "profiles?email=eq." + encodeURIComponent(email), patch);
     res.json({ ok: true, item: Array.isArray(js)?js[0]:js });
   } catch (e) {
     res.json({ ok: false, error: String(e.message||e) });
+  }
+});
+app.get("/api/admin/dash", requireAdmin, async (_req, res) => {
+  try {
+    const items = sbOn() ? await sbProfiles("GET", "profiles?select=*&order=email.asc", null) : [];
+    const rows = Array.isArray(items) ? items : [];
+    let geo = {};
+    try { geo = JSON.parse(fs.readFileSync(path.join(__dirname, "..", "..", "gj-geo.json"), "utf8")); } catch (_e) { geo = {}; }
+    const live = {};
+    rows.forEach(function (r) {
+      const d = String(r.jilla || r.district || "").trim();
+      const t = String(r.taluka || r.office_location || "").trim();
+      if (!d || !t) return;
+      live[d] = live[d] || {};
+      live[d][t] = (live[d][t] || 0) + 1;
+    });
+    const districts = Object.keys(geo);
+    let talukaN = 0, liveTaluka = 0, liveDist = 0;
+    const missing = [];
+    districts.forEach(function (d) {
+      const tals = Object.keys(geo[d] || {});
+      talukaN += tals.length;
+      let any = false;
+      tals.forEach(function (t) {
+        if (live[d] && live[d][t]) { liveTaluka++; any = true; }
+        else missing.push({ jilla: d, taluka: t });
+      });
+      if (any) liveDist++;
+    });
+    res.json({ ok: true, items: rows, coverage: { districts: districts.length, liveDist: liveDist, talukas: talukaN, liveTaluka: liveTaluka, missing: missing.slice(0, 80) } });
+  } catch (e) {
+    res.json({ ok: false, items: [], error: String(e.message||e) });
   }
 });
 
