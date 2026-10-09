@@ -1334,18 +1334,36 @@
 
 
     <section id="s-admin" class="card hidden">
-      <div class="head"><h2>Admin ડેશબોર્ડ</h2><p class="muted">ફક્ત Super Admin. યુઝર, Stop / Resume, પેમેન્ટ, બાકી તાલુકા.</p></div>
-      <div id="adKpi" style="display:flex;flex-wrap:wrap;gap:8px;margin:8px 0"></div>
-      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">
+      <style>
+        #s-admin{background:#f4f6f8}
+        .ad-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:10px 0}
+        .ad-kpi{background:#fff;border:1px solid #e6eaf0;border-radius:14px;padding:12px}
+        .ad-kpi b{display:block;font-size:22px;margin-top:4px}
+        .ad-kpi.g b{color:#067647}.ad-kpi.a b{color:#b54708}.ad-kpi.r b{color:#b42318}
+        .ad-row{display:grid;grid-template-columns:1.4fr .9fr .7fr auto;gap:10px;align-items:center;background:#fff;border:1px solid #e6eaf0;border-radius:14px;padding:12px;margin:8px 0}
+        .ad-row small{color:#667085}
+        .ad-pill{display:inline-block;border-radius:999px;padding:3px 10px;font-size:12px;font-weight:700}
+        .ad-pill.ok{background:#e7f6ee;color:#067647}
+        .ad-pill.wait{background:#fff4e5;color:#b54708}
+        .ad-pill.stop{background:#fdecec;color:#b42318}
+        .ad-acts{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+        .ad-acts .btn{padding:6px 10px;font-size:12px}
+        .ad-miss{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+        .ad-miss div{background:#fff;border:1px solid #f3d0d0;border-radius:10px;padding:8px 10px}
+        @media(max-width:800px){.ad-kpis,.ad-row,.ad-miss{grid-template-columns:1fr}}
+      </style>
+      <div class="head"><h2>Admin ડેશબોર્ડ</h2><p class="muted">યુઝર, Stop / Resume, પેમેન્ટ, બાકી તાલુકા.</p></div>
+      <div id="adKpi" class="ad-kpis"></div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin:8px 0">
         <button type="button" class="btn btn-g" onclick="adminFilter('')">બધા</button>
         <button type="button" class="btn" onclick="adminFilter('Pending')">Pending</button>
         <button type="button" class="btn" onclick="adminFilter('Trial')">Trial</button>
         <button type="button" class="btn" onclick="adminFilter('Active')">Active</button>
         <button type="button" class="btn" onclick="adminFilter('Stopped')">Stopped</button>
       </div>
-      <div id="adUsers" style="overflow:auto"></div>
-      <h3 style="margin:16px 0 6px">બાકી તાલુકા · લક્ષ્ય</h3>
-      <div id="adMiss" style="overflow:auto"></div>
+      <div id="adUsers"></div>
+      <h3 style="margin:16px 0 6px">બાકી તાલુકા</h3>
+      <div id="adMiss" class="ad-miss"></div>
     </section>
 
     <section id="s-help" class="card hidden">
@@ -1934,15 +1952,15 @@
       const n=function(w){return _adItems.filter(function(x){return st(x)===w;}).length;};
       const kpi=document.getElementById("adKpi");
       if(kpi) kpi.innerHTML=[
-        ["યુઝર", _adItems.length],
-        ["Pending", n("Pending")+n("")],
-        ["Trial", n("Trial")],
-        ["Active", n("Active")+n("Approved")],
-        ["Stopped", n("Stopped")],
-        ["લાઇવ જિલ્લા", (c.liveDist||0)+"/"+(c.districts||33)],
-        ["લાઇવ તાલુકા", (c.liveTaluka||0)+"/"+(c.talukas||0)],
-        ["બાકી તાલુકા", (c.talukas||0)-(c.liveTaluka||0)]
-      ].map(function(x){return "<span class='pill'>"+x[0]+" <b>"+x[1]+"</b></span>";}).join("");
+        ["યુઝર", _adItems.length, ""],
+        ["Pending", n("Pending")+n(""), "a"],
+        ["Trial", n("Trial"), "a"],
+        ["Active", n("Active")+n("Approved"), "g"],
+        ["Stopped", n("Stopped"), "r"],
+        ["લાઇવ જિલ્લા", (c.liveDist||0)+"/"+(c.districts||33), "g"],
+        ["લાઇવ તાલુકા", (c.liveTaluka||0)+"/"+(c.talukas||0), "g"],
+        ["બાકી તાલુકા", (c.talukas||0)-(c.liveTaluka||0), "r"]
+      ].map(function(x){return "<div class='ad-kpi "+x[2]+"'><span>"+x[0]+"</span><b>"+x[1]+"</b></div>";}).join("");
       paintAdmin();
     }catch(e){ if(box) box.innerHTML="<p class='muted'>યાદી ન ખૂલી</p>"; }
   }
@@ -1953,18 +1971,19 @@
     const st=function(x){return String(x.subscription_status||x.status||"Trial")||"Trial";};
     const rows=_adItems.filter(function(x){ return !_adFilter || st(x)===_adFilter || (_adFilter==="Pending" && (st(x)==="Pending"||st(x)==="")); });
     const col=function(s){ return s==="Active"||s==="Approved"?"#067647":(s==="Stopped"||s==="Rejected"?"#b42318":"#b54708"); };
-    box.innerHTML="<table class='grid'><tr><th>નામ</th><th>જગ્યા</th><th>સ્ટેટસ</th><th>પેમેન્ટ</th><th></th></tr>"+rows.map(function(x){
+    const cls=function(s){return (s==="Active"||s==="Approved")?"ok":(s==="Stopped"||s==="Rejected")?"stop":"wait";};
+    box.innerHTML=rows.map(function(x){
       const s=st(x);
       const pay=s==="Active"||s==="Approved"?"Paid":(s==="Stopped"?"બંધ":"Pending");
       const em=String(x.email||"").replace(/"/g,"");
       const btns=(s==="Stopped")
         ? "<button type='button' class='btn btn-g' onclick='adminAct(\""+em+"\",\"Resume\",30)'>Resume</button>"
-        : "<button type='button' class='btn btn-g' onclick='adminAct(\""+em+"\",\"Active\",30)'>Approve</button> <button type='button' class='btn' onclick='adminAct(\""+em+"\",\"Trial\",7)'>+7</button> <button type='button' class='btn' style='color:#b42318' onclick='adminAct(\""+em+"\",\"Stopped\",0)'>Stop</button>";
-      return "<tr><td>"+(x.full_name||x.name||"—")+"<br><small>"+(x.email||"")+"</small></td><td>"+(x.jilla||"—")+" · "+(x.taluka||"—")+"</td><td style='color:"+col(s)+";font-weight:700'>"+s+"</td><td>"+pay+"</td><td>"+btns+"</td></tr>";
-    }).join("")+"</table>";
-    if(miss) miss.innerHTML="<table class='grid'><tr><th>જિલ્લો</th><th>તાલુકો</th><th>સ્ટેટસ</th></tr>"+_adMiss.slice(0,40).map(function(x){
-      return "<tr><td>"+x.jilla+"</td><td>"+x.taluka+"</td><td style='color:#b42318'>બાકી</td></tr>";
-    }).join("")+"</table><p class='muted'>પહેલા 40. કુલ બાકી ઉપરના આંકડામાં.</p>";
+        : "<button type='button' class='btn btn-g' onclick='adminAct(\""+em+"\",\"Active\",30)'>Approve</button><button type='button' class='btn' onclick='adminAct(\""+em+"\",\"Trial\",7)'>+7</button><button type='button' class='btn' style='color:#b42318' onclick='adminAct(\""+em+"\",\"Stopped\",0)'>Stop</button>";
+      return "<div class='ad-row'><div><b>"+(x.full_name||x.name||"—")+"</b><br><small>"+(x.email||"")+"</small></div><div>"+(x.jilla||"—")+" · "+(x.taluka||"—")+"</div><div><span class='ad-pill "+cls(s)+"'>"+s+"</span><br><small>"+pay+"</small></div><div class='ad-acts'>"+btns+"</div></div>";
+    }).join("")||"<p class='muted'>આ યાદી ખાલી.</p>";
+    if(miss) miss.innerHTML=_adMiss.slice(0,24).map(function(x){
+      return "<div><b>"+x.taluka+"</b><br><small>"+x.jilla+" · બાકી</small></div>";
+    }).join("")+"<p class='muted' style='grid-column:1/-1'>પહેલા 24. કુલ બાકી ઉપર.</p>";
   }
   async function adminAct(email, status, days){
     await fetch(API+"/api/admin/approve",{method:"POST",headers:await authHeaders(),body:JSON.stringify({email:email,status:status,days:days})});
