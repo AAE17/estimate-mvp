@@ -1340,10 +1340,15 @@
         #s-admin .ad-side button{display:block;width:100%;text-align:left;border:0;background:transparent;border-radius:10px;padding:9px 10px;margin:2px 0;cursor:pointer;font-weight:600}
         #s-admin .ad-side button.on{background:#e8f6ee;color:#067647}
         #s-admin .ad-main{padding:16px}
-        #s-admin .ad-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
-        #s-admin .ad-kpi{background:#fff;border:1px solid #e6eaf0;border-radius:14px;padding:12px}
-        #s-admin .ad-kpi b{display:block;font-size:22px;margin-top:4px}
-        #s-admin .ad-kpi.g b{color:#067647}#s-admin .ad-kpi.a b{color:#b54708}#s-admin .ad-kpi.r b{color:#b42318}
+        #s-admin .ad-kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}
+        #s-admin .ad-kpi{background:#fff;border:1px solid #e6eaf0;border-radius:14px;padding:12px 12px 10px;min-height:92px}
+        #s-admin .ad-kpi span{font-size:12px;color:#667085}
+        #s-admin .ad-kpi b{display:block;font-size:28px;margin-top:6px;line-height:1}
+        #s-admin .ad-kpi small{display:block;margin-top:8px;color:#667085}
+        #s-admin .ad-kpi.g{border-top:3px solid #12b76a}
+        #s-admin .ad-kpi.a{border-top:3px solid #f79009}
+        #s-admin .ad-kpi.r{border-top:3px solid #f04438}
+        #s-admin .ad-kpi.b{border-top:3px solid #2e90fa}
         #s-admin .ad-box{background:#fff;border:1px solid #e6eaf0;border-radius:14px;padding:12px;margin-top:12px}
         #s-admin .ad-row{display:flex;justify-content:space-between;gap:10px;align-items:center;border:1px solid #eef1f4;border-radius:12px;padding:10px;margin-top:8px}
         #s-admin .ad-pill{border-radius:999px;padding:3px 8px;font-size:12px;font-weight:700}
@@ -1365,7 +1370,7 @@
           <button type="button" onclick="adminPane('msg',this)">Messages</button>
         </aside>
         <div class="ad-main">
-          <h2 style="margin:0">Admin dashboard</h2>
+          <h2 style="margin:0">Admin dashboard</h2><p class="muted" style="margin:4px 0 10px">Overview · live counts</p>
           <div id="adKpi" class="ad-kpis"></div>
           <div id="adPane"></div>
         </div>
@@ -1994,16 +1999,20 @@
     if(!pane) return;
     const n=function(w){return _adItems.filter(function(x){return adSt(x)===w;}).length;};
     const c=window._adCov||{};
+    const soon=_adItems.filter(function(x){
+      if(adSt(x)!=="Trial"||!x.subscription_end_date) return false;
+      const left=Math.ceil((new Date(x.subscription_end_date).getTime()-Date.now())/864e5);
+      return left<=3;
+    }).length;
+    const active=n("Active")+n("Approved");
+    const waiting=n("Pending")+_adItems.filter(function(x){return adSt(x)==="";}).length;
     if(kpi) kpi.innerHTML=[
-      ["યુઝર", _adItems.length, ""],
-      ["મંજૂરી", n("Pending"), "a"],
-      ["Trial", n("Trial"), "a"],
-      ["Active", n("Active")+n("Approved"), "g"],
-      ["Stopped", n("Stopped"), "r"],
-      ["લાઇવ જિલ્લા", (c.liveDist||0)+"/"+(c.districts||33), "g"],
-      ["લાઇવ તાલુકા", (c.liveTaluka||0)+"/"+(c.talukas||0), "g"],
-      ["બાકી તાલુકા", (c.talukas||0)-(c.liveTaluka||0), "r"]
-    ].map(function(x){return "<div class='ad-kpi "+x[2]+"'><span>"+x[0]+"</span><b>"+x[1]+"</b></div>";}).join("");
+      ["Total users", _adItems.length, "b", "Signed up"],
+      ["Waiting approval", waiting, "a", "New signups"],
+      ["On trial", n("Trial"), "a", "15 day trial"],
+      ["Trial ends ≤ 3 days", soon, "r", "Extend or activate"],
+      ["Active users", active, "g", "Approved users"]
+    ].map(function(x){return "<div class='ad-kpi "+x[2]+"'><span>"+x[0]+"</span><b>"+x[1]+"</b><small>"+x[3]+"</small></div>";}).join("");
     const list=function(pred){ return _adItems.filter(pred).map(adRow).join("")||"<p class='muted'>ખાલી.</p>"; };
     let html="";
     if(_adPane==="over"||_adPane==="appr") html="<div class='ad-box'><b>Pending approvals</b>"+list(function(x){const s=adSt(x);return s==="Pending"||s==="";})+"</div>";
