@@ -1333,51 +1333,43 @@
 
 
 
-    <section id="s-admin" class="card hidden">
+    <section id="s-admin" class="card hidden" style="padding:0;overflow:hidden;background:#f6f7f9">
       <style>
-        #s-admin{background:#f4f6f8}
-        .ad-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:10px 0}
-        .ad-kpi{background:#fff;border:1px solid #e6eaf0;border-radius:14px;padding:12px}
-        .ad-kpi b{display:block;font-size:22px;margin-top:4px}
-        .ad-kpi.g b{color:#067647}.ad-kpi.a b{color:#b54708}.ad-kpi.r b{color:#b42318}
-        .ad-row{display:grid;grid-template-columns:1.4fr .9fr .7fr auto;gap:10px;align-items:center;background:#fff;border:1px solid #e6eaf0;border-radius:14px;padding:12px;margin:8px 0}
-        .ad-row small{color:#667085}
-        .ad-pill{display:inline-block;border-radius:999px;padding:3px 10px;font-size:12px;font-weight:700}
-        .ad-pill.ok{background:#e7f6ee;color:#067647}
-        .ad-pill.wait{background:#fff4e5;color:#b54708}
-        .ad-pill.stop{background:#fdecec;color:#b42318}
-        .ad-acts{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
-        .ad-acts .btn{padding:6px 10px;font-size:12px}
-        .ad-miss{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-        .ad-miss div{background:#fff;border:1px solid #f3d0d0;border-radius:10px;padding:8px 10px}
-        @media(max-width:800px){.ad-kpis,.ad-row,.ad-miss{grid-template-columns:1fr}}
+        #s-admin .ad-shell{display:grid;grid-template-columns:210px 1fr;min-height:70vh}
+        #s-admin .ad-side{background:#fff;border-right:1px solid #e6eaf0;padding:14px 10px}
+        #s-admin .ad-side button{display:block;width:100%;text-align:left;border:0;background:transparent;border-radius:10px;padding:9px 10px;margin:2px 0;cursor:pointer;font-weight:600}
+        #s-admin .ad-side button.on{background:#e8f6ee;color:#067647}
+        #s-admin .ad-main{padding:16px}
+        #s-admin .ad-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+        #s-admin .ad-kpi{background:#fff;border:1px solid #e6eaf0;border-radius:14px;padding:12px}
+        #s-admin .ad-kpi b{display:block;font-size:22px;margin-top:4px}
+        #s-admin .ad-kpi.g b{color:#067647}#s-admin .ad-kpi.a b{color:#b54708}#s-admin .ad-kpi.r b{color:#b42318}
+        #s-admin .ad-box{background:#fff;border:1px solid #e6eaf0;border-radius:14px;padding:12px;margin-top:12px}
+        #s-admin .ad-row{display:flex;justify-content:space-between;gap:10px;align-items:center;border:1px solid #eef1f4;border-radius:12px;padding:10px;margin-top:8px}
+        #s-admin .ad-pill{border-radius:999px;padding:3px 8px;font-size:12px;font-weight:700}
+        #s-admin .ok{background:#e7f6ee;color:#067647}#s-admin .wait{background:#fff4e5;color:#b54708}#s-admin .stop{background:#fdecec;color:#b42318}
+        #s-admin .ad-acts{display:flex;gap:6px;flex-wrap:wrap}
+        #s-admin .ad-acts .btn{padding:6px 10px;font-size:12px}
+        @media(max-width:800px){#s-admin .ad-shell,#s-admin .ad-kpis{grid-template-columns:1fr}}
       </style>
-      <div class="head"><h2>Admin ડેશબોર્ડ</h2><p class="muted">યુઝર, Stop / Resume, પેમેન્ટ, બાકી તાલુકા.</p></div>
-      <div id="adKpi" class="ad-kpis"></div>
-      <div style="display:flex;gap:6px;flex-wrap:wrap;margin:8px 0">
-        <button type="button" class="btn btn-g" onclick="adminFilter('')">બધા</button>
-        <button type="button" class="btn" onclick="adminFilter('Pending')">Pending</button>
-        <button type="button" class="btn" onclick="adminFilter('Trial')">Trial</button>
-        <button type="button" class="btn" onclick="adminFilter('Active')">Active</button>
-        <button type="button" class="btn" onclick="adminFilter('Stopped')">Stopped</button>
-      </div>
-      <div id="adUsers"></div>
-      <div style="display:grid;grid-template-columns:1.2fr .8fr;gap:12px;margin-top:14px">
-        <div>
-          <h3 style="margin:0 0 6px">લાઇવ યાદી</h3>
-          <div id="adFeed"></div>
-        </div>
-        <div>
-          <h3 style="margin:0 0 6px">વપરાશ</h3>
-          <div id="adUse"></div>
-          <h3 style="margin:14px 0 6px">સંદેશ</h3>
-          <textarea id="adNote" rows="3" placeholder="બધા યુઝરને ટૂંકો સંદેશ" style="width:100%;border:1px solid #e6eaf0;border-radius:10px;padding:8px"></textarea>
-          <button type="button" class="btn btn-g" style="margin-top:6px" onclick="adminNote(true)">મોકલો</button>
-          <button type="button" class="btn" style="margin-top:6px" onclick="adminNote(false)">બંધ</button>
+      <div class="ad-shell">
+        <aside class="ad-side">
+          <b>SO+ Admin</b>
+          <button type="button" class="on" onclick="adminPane('over',this)">Overview</button>
+          <button type="button" onclick="adminPane('appr',this)">Approvals</button>
+          <button type="button" onclick="adminPane('trial',this)">Trials</button>
+          <button type="button" onclick="adminPane('users',this)">Users</button>
+          <button type="button" onclick="adminPane('pay',this)">Payments</button>
+          <button type="button" onclick="adminPane('feed',this)">Live feed</button>
+          <button type="button" onclick="adminPane('use',this)">Usage</button>
+          <button type="button" onclick="adminPane('msg',this)">Messages</button>
+        </aside>
+        <div class="ad-main">
+          <h2 style="margin:0">Admin dashboard</h2>
+          <div id="adKpi" class="ad-kpis"></div>
+          <div id="adPane"></div>
         </div>
       </div>
-      <h3 style="margin:16px 0 6px">બાકી તાલુકા</h3>
-      <div id="adMiss" class="ad-miss"></div>
     </section>
 
     <section id="s-help" class="card hidden">
@@ -1963,59 +1955,72 @@
     }
   }
 
-  let _adItems=[], _adFilter="", _adMiss=[];
-  function adminFilter(f){ _adFilter=f; paintAdmin(); }
+  let _adItems=[], _adPane="over";
+  function adminPane(name, btn){
+    _adPane=name;
+    document.querySelectorAll("#s-admin .ad-side button").forEach(function(b){ b.classList.remove("on"); });
+    if(btn) btn.classList.add("on");
+    paintAdmin();
+  }
   async function loadAdmin(){
-    const box=document.getElementById("adUsers");
+    const box=document.getElementById("adPane");
     if(box) box.innerHTML="<p class='muted'>લોડ થાય છે…</p>";
     try{
       const d=await fetch(API+"/api/admin/dash",{headers:await authHeaders()}).then(function(r){return r.json();});
       _adItems=d.items||[];
-      _adMiss=(d.coverage&&d.coverage.missing)||[];
-      const c=d.coverage||{};
-      const st=function(x){return String(x.subscription_status||x.status||"Trial");};
-      const n=function(w){return _adItems.filter(function(x){return st(x)===w;}).length;};
-      const kpi=document.getElementById("adKpi");
-      if(kpi) kpi.innerHTML=[
-        ["યુઝર", _adItems.length, ""],
-        ["Pending", n("Pending")+n(""), "a"],
-        ["Trial", n("Trial"), "a"],
-        ["Active", n("Active")+n("Approved"), "g"],
-        ["Stopped", n("Stopped"), "r"],
-        ["લાઇવ જિલ્લા", (c.liveDist||0)+"/"+(c.districts||33), "g"],
-        ["લાઇવ તાલુકા", (c.liveTaluka||0)+"/"+(c.talukas||0), "g"],
-        ["બાકી તાલુકા", (c.talukas||0)-(c.liveTaluka||0), "r"]
-      ].map(function(x){return "<div class='ad-kpi "+x[2]+"'><span>"+x[0]+"</span><b>"+x[1]+"</b></div>";}).join("");
-      window._adFeed=d.feed||[]; window._adUse=d.usage||{}; paintAdmin();
+      window._adMiss=(d.coverage&&d.coverage.missing)||[];
+      window._adCov=d.coverage||{};
+      window._adFeed=d.feed||[];
+      window._adUse=d.usage||{};
+      paintAdmin();
     }catch(e){ if(box) box.innerHTML="<p class='muted'>યાદી ન ખૂલી</p>"; }
   }
+  function adSt(x){ return String(x.subscription_status||x.status||"Trial")||"Trial"; }
+  function adCls(s){ return (s==="Active"||s==="Approved")?"ok":(s==="Stopped"||s==="Rejected")?"stop":"wait"; }
+  function adBtns(x){
+    const em=String(x.email||"").replace(/"/g,"");
+    const s=adSt(x);
+    if(s==="Stopped") return "<button type='button' class='btn btn-g' onclick='adminAct(\""+em+"\",\"Resume\",30)'>Resume</button>";
+    return "<button type='button' class='btn btn-g' onclick='adminAct(\""+em+"\",\"Active\",30)'>Approve</button><button type='button' class='btn' onclick='adminAct(\""+em+"\",\"Trial\",7)'>+7</button><button type='button' class='btn' style='color:#b42318' onclick='adminAct(\""+em+"\",\"Stopped\",0)'>Stop</button>";
+  }
+  function adRow(x){
+    const s=adSt(x);
+    const pay=s==="Active"||s==="Approved"?"Paid":(s==="Stopped"?"બંધ":"Pending");
+    return "<div class='ad-row'><div><b>"+(x.full_name||x.name||"—")+"</b><br><small>"+(x.email||"")+" · "+(x.jilla||"—")+" · "+(x.taluka||"—")+"</small></div><div><span class='ad-pill "+adCls(s)+"'>"+s+"</span> <small>"+pay+"</small></div><div class='ad-acts'>"+adBtns(x)+"</div></div>";
+  }
   function paintAdmin(){
-    const box=document.getElementById("adUsers");
-    const miss=document.getElementById("adMiss");
-    if(!box) return;
-    const st=function(x){return String(x.subscription_status||x.status||"Trial")||"Trial";};
-    const rows=_adItems.filter(function(x){ return !_adFilter || st(x)===_adFilter || (_adFilter==="Pending" && (st(x)==="Pending"||st(x)==="")); });
-    const col=function(s){ return s==="Active"||s==="Approved"?"#067647":(s==="Stopped"||s==="Rejected"?"#b42318":"#b54708"); };
-    const cls=function(s){return (s==="Active"||s==="Approved")?"ok":(s==="Stopped"||s==="Rejected")?"stop":"wait";};
-    box.innerHTML=rows.map(function(x){
-      const s=st(x);
-      const pay=s==="Active"||s==="Approved"?"Paid":(s==="Stopped"?"બંધ":"Pending");
-      const em=String(x.email||"").replace(/"/g,"");
-      const btns=(s==="Stopped")
-        ? "<button type='button' class='btn btn-g' onclick='adminAct(\""+em+"\",\"Resume\",30)'>Resume</button>"
-        : "<button type='button' class='btn btn-g' onclick='adminAct(\""+em+"\",\"Active\",30)'>Approve</button><button type='button' class='btn' onclick='adminAct(\""+em+"\",\"Trial\",7)'>+7</button><button type='button' class='btn' style='color:#b42318' onclick='adminAct(\""+em+"\",\"Stopped\",0)'>Stop</button>";
-      return "<div class='ad-row'><div><b>"+(x.full_name||x.name||"—")+"</b><br><small>"+(x.email||"")+"</small></div><div>"+(x.jilla||"—")+" · "+(x.taluka||"—")+"</div><div><span class='ad-pill "+cls(s)+"'>"+s+"</span><br><small>"+pay+"</small></div><div class='ad-acts'>"+btns+"</div></div>";
-    }).join("")||"<p class='muted'>આ યાદી ખાલી.</p>";
-    if(miss) miss.innerHTML=_adMiss.slice(0,24).map(function(x){
-      return "<div><b>"+x.taluka+"</b><br><small>"+x.jilla+" · બાકી</small></div>";
-    }).join("")+"<p class='muted' style='grid-column:1/-1'>પહેલા 24. કુલ બાકી ઉપર.</p>";
-    const feed=document.getElementById("adFeed");
-    const use=document.getElementById("adUse");
-    const u=window._adUse||{};
-    if(feed) feed.innerHTML=(window._adFeed||[]).map(function(x){
-      return "<div class='ad-row' style='grid-template-columns:1fr auto'><div><b>"+(x.kind||"કામ")+"</b><br><small>"+(x.village||x.work||"—")+"</small></div><div>"+(x.amount||"")+"</div></div>";
-    }).join("")||"<p class='muted'>હજુ યાદી નથી. નવો એસ્ટીમેટ બને એટલે અહીં આવશે.</p>";
-    if(use) use.innerHTML=["CC "+(u.cc||0),"Paver "+(u.paver||0),"Bill "+(u.bill||0),"Letter "+(u.letter||0)].map(function(t){return "<div class='ad-kpi'><b>"+t+"</b></div>";}).join("");
+    const kpi=document.getElementById("adKpi");
+    const pane=document.getElementById("adPane");
+    if(!pane) return;
+    const n=function(w){return _adItems.filter(function(x){return adSt(x)===w;}).length;};
+    const c=window._adCov||{};
+    if(kpi) kpi.innerHTML=[
+      ["યુઝર", _adItems.length, ""],
+      ["મંજૂરી", n("Pending"), "a"],
+      ["Trial", n("Trial"), "a"],
+      ["Active", n("Active")+n("Approved"), "g"],
+      ["Stopped", n("Stopped"), "r"],
+      ["લાઇવ જિલ્લા", (c.liveDist||0)+"/"+(c.districts||33), "g"],
+      ["લાઇવ તાલુકા", (c.liveTaluka||0)+"/"+(c.talukas||0), "g"],
+      ["બાકી તાલુકા", (c.talukas||0)-(c.liveTaluka||0), "r"]
+    ].map(function(x){return "<div class='ad-kpi "+x[2]+"'><span>"+x[0]+"</span><b>"+x[1]+"</b></div>";}).join("");
+    const list=function(pred){ return _adItems.filter(pred).map(adRow).join("")||"<p class='muted'>ખાલી.</p>"; };
+    let html="";
+    if(_adPane==="over"||_adPane==="appr") html="<div class='ad-box'><b>Pending approvals</b>"+list(function(x){const s=adSt(x);return s==="Pending"||s==="";})+"</div>";
+    if(_adPane==="over"||_adPane==="trial") html+="<div class='ad-box'><b>Trials</b>"+list(function(x){return adSt(x)==="Trial";})+"</div>";
+    if(_adPane==="over"||_adPane==="users") html+="<div class='ad-box'><b>Users</b>"+list(function(){return true;})+"</div>";
+    if(_adPane==="over"||_adPane==="pay") html+="<div class='ad-box'><b>Payments</b><p class='muted'>હાથથી. Approve / Resume = Paid. Stop = બંધ. ટ્રાયલ પૂરો થાય તો યુઝરને 8734901625 દેખાશે.</p>"+list(function(){return true;})+"</div>";
+    if(_adPane==="over"||_adPane==="feed"){
+      html+="<div class='ad-box'><b>Live feed</b>"+(window._adFeed||[]).map(function(x){return "<div class='ad-row'><div><b>"+(x.kind||"કામ")+"</b><br><small>"+(x.village||x.work||"—")+"</small></div><div>"+(x.amount||"")+"</div></div>";}).join("")||"<p class='muted'>નવો એસ્ટીમેટ બને એટલે અહીં આવશે.</p></div>";
+    }
+    if(_adPane==="over"||_adPane==="use"){
+      const u=window._adUse||{};
+      html+="<div class='ad-box'><b>Usage</b><p>CC "+(u.cc||0)+" · Paver "+(u.paver||0)+" · Bill "+(u.bill||0)+" · Letter "+(u.letter||0)+"</p><b>બાકી તાલુકા</b>"+(window._adMiss||[]).slice(0,16).map(function(x){return "<div class='ad-row'><div>"+x.jilla+" · "+x.taluka+"</div><span class='ad-pill stop'>બાકી</span></div>";}).join("")+"</div>";
+    }
+    if(_adPane==="over"||_adPane==="msg"){
+      html+="<div class='ad-box'><b>New message</b><textarea id='adNote' rows='3' style='width:100%;margin-top:8px;border:1px solid #e6eaf0;border-radius:10px;padding:8px' placeholder='બધા યુઝરને ટૂંકો સંદેશ'></textarea><div class='ad-acts' style='margin-top:8px'><button type='button' class='btn btn-g' onclick='adminNote(true)'>મોકલો</button><button type='button' class='btn' onclick='adminNote(false)'>બંધ</button></div></div>";
+    }
+    pane.innerHTML=html;
   }
   async function adminNote(on){
     const text=(document.getElementById("adNote")||{}).value||"";
