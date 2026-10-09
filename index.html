@@ -1362,6 +1362,20 @@
         <button type="button" class="btn" onclick="adminFilter('Stopped')">Stopped</button>
       </div>
       <div id="adUsers"></div>
+      <div style="display:grid;grid-template-columns:1.2fr .8fr;gap:12px;margin-top:14px">
+        <div>
+          <h3 style="margin:0 0 6px">લાઇવ યાદી</h3>
+          <div id="adFeed"></div>
+        </div>
+        <div>
+          <h3 style="margin:0 0 6px">વપરાશ</h3>
+          <div id="adUse"></div>
+          <h3 style="margin:14px 0 6px">સંદેશ</h3>
+          <textarea id="adNote" rows="3" placeholder="બધા યુઝરને ટૂંકો સંદેશ" style="width:100%;border:1px solid #e6eaf0;border-radius:10px;padding:8px"></textarea>
+          <button type="button" class="btn btn-g" style="margin-top:6px" onclick="adminNote(true)">મોકલો</button>
+          <button type="button" class="btn" style="margin-top:6px" onclick="adminNote(false)">બંધ</button>
+        </div>
+      </div>
       <h3 style="margin:16px 0 6px">બાકી તાલુકા</h3>
       <div id="adMiss" class="ad-miss"></div>
     </section>
@@ -1895,7 +1909,18 @@
     b.classList.toggle("hidden");
     if(!b.classList.contains("hidden")) loadPending();
   }
-  function paintUserBell(){
+  async function paintUserBell(){
+    try{
+      const n=await fetch(API+"/api/note").then(function(r){return r.json();});
+      if(n&&n.on&&n.text){
+        const b=document.getElementById("notifBox");
+        const dot=document.getElementById("notifDot");
+        if(dot) dot.classList.remove("hidden");
+        if(b && !window._soIsAdmin) b.innerHTML="<b>સંદેશ</b><p>"+n.text+"</p>";
+      }
+    }catch(e){}
+  }
+  function paintUserBellOld(){
     const b=document.getElementById("notifBox");
     const dot=document.getElementById("notifDot");
     const t=window._soTrial;
@@ -1961,7 +1986,7 @@
         ["લાઇવ તાલુકા", (c.liveTaluka||0)+"/"+(c.talukas||0), "g"],
         ["બાકી તાલુકા", (c.talukas||0)-(c.liveTaluka||0), "r"]
       ].map(function(x){return "<div class='ad-kpi "+x[2]+"'><span>"+x[0]+"</span><b>"+x[1]+"</b></div>";}).join("");
-      paintAdmin();
+      window._adFeed=d.feed||[]; window._adUse=d.usage||{}; paintAdmin();
     }catch(e){ if(box) box.innerHTML="<p class='muted'>યાદી ન ખૂલી</p>"; }
   }
   function paintAdmin(){
@@ -1984,6 +2009,18 @@
     if(miss) miss.innerHTML=_adMiss.slice(0,24).map(function(x){
       return "<div><b>"+x.taluka+"</b><br><small>"+x.jilla+" · બાકી</small></div>";
     }).join("")+"<p class='muted' style='grid-column:1/-1'>પહેલા 24. કુલ બાકી ઉપર.</p>";
+    const feed=document.getElementById("adFeed");
+    const use=document.getElementById("adUse");
+    const u=window._adUse||{};
+    if(feed) feed.innerHTML=(window._adFeed||[]).map(function(x){
+      return "<div class='ad-row' style='grid-template-columns:1fr auto'><div><b>"+(x.kind||"કામ")+"</b><br><small>"+(x.village||x.work||"—")+"</small></div><div>"+(x.amount||"")+"</div></div>";
+    }).join("")||"<p class='muted'>હજુ યાદી નથી. નવો એસ્ટીમેટ બને એટલે અહીં આવશે.</p>";
+    if(use) use.innerHTML=["CC "+(u.cc||0),"Paver "+(u.paver||0),"Bill "+(u.bill||0),"Letter "+(u.letter||0)].map(function(t){return "<div class='ad-kpi'><b>"+t+"</b></div>";}).join("");
+  }
+  async function adminNote(on){
+    const text=(document.getElementById("adNote")||{}).value||"";
+    await fetch(API+"/api/admin/note",{method:"POST",headers:await authHeaders(),body:JSON.stringify({text:text,on:on})});
+    alert(on?"સંદેશ મોકલ્યો":"સંદેશ બંધ");
   }
   async function adminAct(email, status, days){
     await fetch(API+"/api/admin/approve",{method:"POST",headers:await authHeaders(),body:JSON.stringify({email:email,status:status,days:days})});

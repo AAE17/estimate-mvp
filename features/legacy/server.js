@@ -2689,6 +2689,19 @@ app.post("/api/admin/approve", requireAdmin, async (req, res) => {
     res.json({ ok: false, error: String(e.message||e) });
   }
 });
+
+const ADMIN_NOTE = path.join(DB_DIR, "admin-note.json");
+app.get("/api/note", (_req, res) => {
+  try { res.json(JSON.parse(fs.readFileSync(ADMIN_NOTE, "utf8"))); }
+  catch (_e) { res.json({ text: "", on: false }); }
+});
+app.post("/api/admin/note", requireAdmin, (req, res) => {
+  const body = { text: String((req.body||{}).text || "").slice(0, 240), on: (req.body||{}).on !== false, ts: new Date().toISOString() };
+  fs.mkdirSync(DB_DIR, { recursive: true });
+  fs.writeFileSync(ADMIN_NOTE, JSON.stringify(body));
+  res.json({ ok: true, note: body });
+});
+
 app.get("/api/admin/dash", requireAdmin, async (_req, res) => {
   try {
     const items = sbOn() ? await sbProfiles("GET", "profiles?select=*&order=email.asc", null) : [];
@@ -2716,7 +2729,25 @@ app.get("/api/admin/dash", requireAdmin, async (_req, res) => {
       });
       if (any) liveDist++;
     });
-    res.json({ ok: true, items: rows, coverage: { districts: districts.length, liveDist: liveDist, talukas: talukaN, liveTaluka: liveTaluka, missing: missing.slice(0, 80) } });
+    let feed = [];
+    const usage = { cc: 0, paver: 0, bill: 0, letter: 0 };
+    try {
+      if (fs.existsSync(LOG_FILE)) {
+        const lines = fs.readFileSync(LOG_FILE, "utf8").trim().split("\n").filter(Boolean).slice(-40);
+        feed = lines.reverse().map(function (line) {
+          let ev = {};
+          try { ev = JSON.parse(line); } catch (_e) { ev = {}; }
+          const pl = ev.payload || ev;
+          const kind = String(ev.kind || pl.kind || "");
+          if (/cc/i.test(kind)) usage.cc++;
+          else if (/paver/i.test(kind)) usage.paver++;
+          else if (/bill/i.test(kind)) usage.bill++;
+          else if (/letter/i.test(kind)) usage.letter++;
+          return { ts: ev.ts || "", kind: kind, village: pl.village || "", work: pl.work_name || "", amount: pl.amounting || pl.amount || "" };
+        }).slice(0, 12);
+      }
+    } catch (_e) {}
+    res.json({ ok: true, items: rows, coverage: { districts: districts.length, liveDist: liveDist, talukas: talukaN, liveTaluka: liveTaluka, missing: missing.slice(0, 80) }, feed: feed, usage: usage });
   } catch (e) {
     res.json({ ok: false, items: [], error: String(e.message||e) });
   }
