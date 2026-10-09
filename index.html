@@ -1698,6 +1698,44 @@
   }
 
   function prGet(){ try{ return JSON.parse(localStorage.getItem("copilot_profile")||"{}"); }catch(e){ return {}; } }
+  function prSetIf(id, v){
+    const e=document.getElementById(id);
+    if(!e || v==null || !String(v).trim()) return;
+    if(!String(e.value||"").trim()) e.value=String(v).trim();
+  }
+  function prPick(sel, want){
+    if(!sel || !want) return false;
+    const w=String(want).trim().toLowerCase();
+    const hit=[].slice.call(sel.options).find(function(o){ return o.value && (o.value===want || o.value.toLowerCase()===w || String(o.textContent||"").trim().toLowerCase()===w); });
+    if(!hit) return false;
+    sel.value=hit.value;
+    return true;
+  }
+  function applyProfileDefaults(where){
+    const p=prGet();
+    if(!p) return;
+    if(!where || where==="est"){
+      const j=document.getElementById("jilla");
+      if(j && p.jilla && !j.value && prPick(j, p.jilla) && typeof onJilla==="function") onJilla();
+      const t=document.getElementById("taluka");
+      if(t && p.taluka && !t.value) prPick(t, p.taluka);
+      prSetIf("division", p.division||p.jilla);
+      prSetIf("subdiv_address", p.subdiv);
+      prSetIf("nani_address", p.sinchai);
+      prSetIf("prepared_by", p.name);
+    }
+    if(!where || where==="bill"){
+      prSetIf("billTal", p.taluka);
+      prSetIf("billSub", p.subdiv||p.division);
+      prSetIf("billAAE", p.name);
+    }
+    if(!where || where==="letter"){
+      prSetIf("letterAudit", p.jilla);
+    }
+    if(!where || where==="site"){
+      prSetIf("dTaluka", p.taluka);
+    }
+  }
   function loadProfile(){
     const p=prGet();
     const set=function(id,v){ const e=document.getElementById(id); if(e) e.value=v||""; };
@@ -2186,6 +2224,7 @@
     const pk=document.getElementById("billPick");
     if(pk) pk.value="";
     fillBillPick();
+    if(typeof applyProfileDefaults==="function") applyProfileDefaults("bill");
     liveBill();
     renderBillList();
   }
@@ -2481,7 +2520,7 @@
       });
       if(!uniq.length){ el.innerHTML="<div class='mail-empty'><div class='box'>📫</div>આ તારીખે કોઈ બિલ જનરેટ થયા નથી</div>"; el._rows=[]; return; }
       el.innerHTML=uniq.map(function(b,i){
-        return "<label class='ltr-row'><input type='checkbox' class='letterPick' data-i='"+i+"' checked onchange='letterCountSel()'><div class='ltr-no'>"+(i+1)+"</div><div class='ltr-main'><div class='ltr-title'>"+(b.work_name||"કામ")+"</div><div class='ltr-sub'>"+(b.village||"ગામ નથી")+(b.taluka?(" · "+b.taluka):"")+" · MB "+(b.mb_no||"—")+"</div></div><select class='letterOff' data-i='"+i+"' onclick='event.preventDefault()'><option value='rb'>DEE R&amp;B (પં)</option><option value='nani'>DEE નાની સિંચાઈ (પં)</option></select><input class='letterAddr' data-i='"+i+"' placeholder='ઓફિસ એડ્રેસ' onclick='event.preventDefault()'><div class='ltr-amt'>₹ "+Number(letterAmt(b)||0).toLocaleString("en-IN")+"</div></label>";
+        return "<label class='ltr-row'><input type='checkbox' class='letterPick' data-i='"+i+"' checked onchange='letterCountSel()'><div class='ltr-no'>"+(i+1)+"</div><div class='ltr-main'><div class='ltr-title'>"+(b.work_name||"કામ")+"</div><div class='ltr-sub'>"+(b.village||"ગામ નથી")+(b.taluka?(" · "+b.taluka):"")+" · MB "+(b.mb_no||"—")+"</div></div><select class='letterOff' data-i='"+i+"' onclick='event.preventDefault()' onchange='letterOfficeFill(this)'><option value='rb'>DEE R&amp;B (પં)</option><option value='nani'>DEE નાની સિંચાઈ (પં)</option></select><input class='letterAddr' data-i='"+i+"' placeholder='ઓફિસ એડ્રેસ' value='"+String((prGet().subdiv||prGet().division||"")).replace(/"/g,""")+"' onclick='event.preventDefault()' oninput='this.dataset.touched=1'><div class='ltr-amt'>₹ "+Number(letterAmt(b)||0).toLocaleString("en-IN")+"</div></label>";
       }).join("");
       el._rows=uniq;
       letterCountSel();
@@ -2493,13 +2532,22 @@
       paint(remote.concat(local));
     }).catch(function(){});
   }
-function onLetterDate(){
+function onLetterDate(){ if(typeof applyProfileDefaults==="function") applyProfileDefaults("letter"); 
     const ds=(document.getElementById("letterDate")||{}).value||"";
     const view=document.getElementById("letterDateView");
     if(view) view.textContent=ds;
     const rest=document.getElementById("letterRest");
     if(rest) rest.classList.toggle("hidden", !ds);
     if(ds) renderLetterBills();
+  }
+  
+  function letterOfficeFill(sel){
+    if(!sel) return;
+    const row=sel.closest(".ltr-row")||sel.parentElement;
+    const inp=row&&row.querySelector(".letterAddr");
+    if(!inp || inp.dataset.touched) return;
+    const p=prGet();
+    inp.value = sel.value==="nani" ? (p.sinchai||"") : (p.subdiv||p.division||"");
   }
   function letterCountSel(){
     const el=document.getElementById("letterList");
@@ -4294,7 +4342,7 @@ function onLetterDate(){
     const wrap=document.getElementById("diaryWrap");
     if (ong) ong.classList.toggle("hidden", which!=="ong");
     if (done) done.classList.toggle("hidden", which!=="done");
-    if (which==="new") { if (ong) ong.classList.add("hidden"); if (done) done.classList.add("hidden"); siteWorkMode("new"); siteSavedMode(false); openDiary(null); }
+    if (which==="new") { if (ong) ong.classList.add("hidden"); if (done) done.classList.add("hidden"); siteWorkMode("new"); siteSavedMode(false); openDiary(null); if(typeof applyProfileDefaults==="function") applyProfileDefaults("site"); }
     else if (wrap && which!=="new") { /* keep diary if already open */ }
     if (which==="ong") { siteWorkMode("ong"); siteSavedMode(false); renderOngList(); }
     if (which==="done") renderDoneList();
@@ -4540,6 +4588,7 @@ function onLetterDate(){
     if(h2 && SEGS && SEGS[0] && SEGS[0].exc) h2.value=String(SEGS[0].exc);
     if(typeof onAmount==="function" && currentType!=="gutter" && currentType!=="pipe") onAmount();
     if(typeof liveF24==="function") liveF24();
+    if(typeof applyProfileDefaults==="function") applyProfileDefaults("est");
     return;
   }
   function _goFormRest(){
