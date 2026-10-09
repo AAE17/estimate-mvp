@@ -2949,23 +2949,11 @@ app.post("/api/mb", async (req, res) => {
     const raw = String(d.type || "paver").toLowerCase();
     const type = raw.indexOf("gutter") >= 0 ? "gutter" : raw.indexOf("pipe") >= 0 ? "pipe" : raw.indexOf("cc") >= 0 ? "cc" : "paver";
     const rows = Array.isArray(d.rows) ? d.rows : [];
-    const files = ["skeleton-mb.xlsx","skeleton-mb-paver-cc.xlsx","skeleton-mb-paver.xlsx"];
-    const found = files.map(function(n){ return path.join(__dirname, n); }).filter(function(f){ return require("fs").existsSync(f); });
-    if (!found.length) throw new Error("skeleton-mb.xlsx missing on server");
-    let file = found[0];
-    let wb = new ExcelJS.Workbook();
+    const file = path.join(__dirname, "skeleton-mb.xlsx");
+    if (!require("fs").existsSync(file)) throw new Error("skeleton-mb.xlsx missing on server");
+    const wb = new ExcelJS.Workbook();
     await wb.xlsx.readFile(file);
     unshareFormulas(wb);
-    function hasCc(wbb){
-      return (wbb.worksheets||[]).some(function(w){ return /cc/i.test(String(w.name||"")); });
-    }
-    if (!hasCc(wb)) {
-      for (let i=1;i<found.length;i++){
-        const w2 = new ExcelJS.Workbook();
-        await w2.xlsx.readFile(found[i]);
-        if (hasCc(w2)) { wb = w2; file = found[i]; break; }
-      }
-    }
     function findWs(keys){
       const all = wb.worksheets || [];
       for (let i=0;i<keys.length;i++){
@@ -3156,9 +3144,8 @@ app.post("/api/letter/fwd", async (req, res) => {
       return res.status(400).json({ ok: false, error: "vashi and date required" });
     }
     const fileA = path.join(__dirname, "skeleton-paver-frwd-letter.xlsx");
-    const fileB = path.join(__dirname, "skeleton-letter-3.xlsx");
     const wb = new ExcelJS.Workbook();
-    await wb.xlsx.readFile(require("fs").existsSync(fileA) ? fileA : fileB);
+    await wb.xlsx.readFile(fileA);
     const wsRb = wb.getWorksheet("DEE-R&B") || wb.getWorksheet("DEE R&B");
     const wsNani = wb.getWorksheet("DEE-Nani Sinchai") || wb.getWorksheet("DEE Nani Sinchai");
     const wsAud = wb.getWorksheet("Audit") || wb.getWorksheet("AANTRIK ODIT nana");
